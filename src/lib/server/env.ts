@@ -24,6 +24,13 @@ export interface Env {
 	EVENT_ID?: string;
 	/** Shared-secret query token gating the hidden `/admin` URL (admin.remote.ts's `checkToken`). Unset in `dev` opens the gate; unset in production fails closed. */
 	ADMIN_TOKEN?: string;
+	/**
+	 * How much the chosen lens picture decides the render: `none` (default,
+	 * text-to-image everywhere), `lens` (first zone only), `chain` (every
+	 * zone). See `server/reference.ts` for what each one looked like on a
+	 * real table. Unrecognised falls back to `none`.
+	 */
+	REFERENCE_MODE?: string;
 	/** fal render resolution (`0.5K`/`1K`/`2K`/`4K`). Unset or unrecognised falls back to `1K`, fal's own default. The single biggest cost lever in the app — see NEW-EVENT.md. */
 	FAL_RESOLUTION?: string;
 	/** Total renders one table may spend across the whole event — first submit plus every regenerate. Parsed by `limits.ts`'s `maxRendersPerTable`, which falls back to 12 rather than to "no cap". */

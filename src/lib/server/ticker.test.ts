@@ -11,8 +11,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fakeD1 } from './fake-d1';
 import { insertQueuedImage, getImageById, getImageDetail, insertQueuedImageIfIdle } from './room';
-import { tickAndPersist, type TickableImageRow } from './ticker';
+import { tickAndPersist, tickImageRow, type TickableImageRow } from './ticker';
 import { STALE_CLAIM_MS } from './generate';
+import { FAL_MODEL } from './fal';
+import { ZONES } from '$lib/game/zones';
 import type { GenerateDeps } from './generate';
 
 const EVENT = 'test-event';
@@ -210,5 +212,82 @@ describe('tickAndPersist — one automatic retry', () => {
 	it('persists the exact per-zone prompt for audit', async () => {
 		const { db, row } = await claimedRow();
 		expect((await getImageDetail(db, row.id))?.prompt).toBe('the exact per-zone text');
+	});
+});
+
+
+/**
+ * The wiring of `REFERENCE_MODE`, asserted where it is actually paid for:
+ * the HTTP request to fal. The pure rule is covered in `reference.test.ts`;
+ * this is the end-to-end proof that an unset variable reaches fal as a
+ * plain text-to-image call.
+ */
+describe('tickImageRow — REFERENCE_MODE at the fal boundary', () => {
+	/** Captures the submit request and answers it with a queue id. */
+	function captureSubmit() {
+		const calls: { url: string; body: Record<string, unknown> }[] = [];
+		const impl = async (input: RequestInfo | URL, init?: RequestInit) => {
+			// The webhook token rides in the query string; the endpoint choice
+			// is the path, so compare the path.
+			const u = new URL(String(input));
+			calls.push({ url: `${u.origin}${u.pathname}`, body: JSON.parse(String(init?.body ?? '{}')) });
+			return new Response(JSON.stringify({ request_id: 'req-1' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		};
+		return { calls, impl };
+	}
+
+	const env = (mode?: string) =>
+		({ FAL_KEY: 'k', FAL_WEBHOOK_SECRET: 's', REFERENCE_MODE: mode }) as never;
+
+	async function submitFor(mode: string | undefined, zoneKey: string) {
+		const db = fakeD1();
+		const row = await insertQueuedImage(db, {
+			eventId: EVENT,
+			table: 7,
+			zoneKey,
+			promptId: 'p-1',
+			prompt: 'a prompt',
+			model: 'test-model'
+		});
+		const { calls, impl } = captureSubmit();
+		vi.stubGlobal('fetch', impl);
+		try {
+			await tickImageRow(
+				{ db, env: env(mode), event: EVENT, origin: 'https://event.test', futureKey: 'solarpunk' },
+				tickable(row),
+				'a prompt'
+			);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+		return calls;
+	}
+
+	it('unset — every zone is a plain text-to-image call with no image_urls', async () => {
+		for (const zone of ZONES) {
+			const calls = await submitFor(undefined, zone.key);
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toBe(`https://queue.fal.run/${FAL_MODEL}`);
+			expect(calls[0].body.image_urls).toBeUndefined();
+		}
+	});
+
+	it('an unrecognised value is not a licence to chain — it falls back to plain', async () => {
+		const calls = await submitFor('Chain', ZONES[0].key);
+		expect(calls[0].url).toBe(`https://queue.fal.run/${FAL_MODEL}`);
+		expect(calls[0].body.image_urls).toBeUndefined();
+	});
+
+	it('lens — the first zone goes to the edit endpoint with the lens picture, the rest do not', async () => {
+		const anchor = await submitFor('lens', ZONES[0].key);
+		expect(anchor[0].url).toBe(`https://queue.fal.run/${FAL_MODEL}/edit`);
+		expect(anchor[0].body.image_urls).toEqual(['https://event.test/visuals/lens/solarpunk.jpg']);
+
+		const other = await submitFor('lens', ZONES[1].key);
+		expect(other[0].url).toBe(`https://queue.fal.run/${FAL_MODEL}`);
+		expect(other[0].body.image_urls).toBeUndefined();
 	});
 });

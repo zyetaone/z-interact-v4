@@ -148,6 +148,26 @@ export async function mayReopen(d: D1Database, eventId: string, table: number): 
 	}
 }
 
+/**
+ * Every table currently holding a live grant, for the admin poll's per-row
+ * "granted" indicator — one query rather than `TABLE_COUNT` calls to
+ * `mayReopen`. Poll-safe: never throws, fails closed (empty set) like
+ * `mayReopen` does.
+ */
+export async function grantedTables(d: D1Database, eventId: string): Promise<Set<number>> {
+	try {
+		const db = await dbWith(d, 'table_reopen', TABLE_REOPEN_SCHEMA);
+		if (!db) return new Set();
+		const { results } = await db
+			.prepare(`SELECT table_no FROM table_reopen WHERE event_id = ?`)
+			.bind(eventId)
+			.all<{ table_no: number }>();
+		return new Set((results ?? []).map((r) => r.table_no));
+	} catch {
+		return new Set();
+	}
+}
+
 /** Grants a specific table permission to submit one more time. */
 export async function grantReopen(d: D1Database, eventId: string, table: number): Promise<void> {
 	const db = await dbWith(d, 'table_reopen', TABLE_REOPEN_SCHEMA);

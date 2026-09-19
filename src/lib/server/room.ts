@@ -542,3 +542,382 @@ export async function markFailed(d: D1Database, id: string, error: string): Prom
 		throw e;
 	}
 }
+
+/* -------------------------------------------------------------------------- */
+/* Admin additions — everything below is ADDITIVE (admin.remote.ts's         */
+/* workstream). No existing export above this line is changed: `insertPrompt`*/
+/* still returns just an id, `getCurrentImage`/`insertQueuedImage` keep their*/
+/* signatures, `answers.remote.ts`/`generate.ts`/`ticker.ts` are untouched.  */
+/* -------------------------------------------------------------------------- */
+
+/** Reads back one prompt row in full — `insertPrompt` only returns an id, and nothing else in this file reads a prompt row back. Admin's regenerate (copy the layers forward into a new row) and export (report them) both need it. */
+export interface PromptRow {
+	id: string;
+	mood: string;
+	material: string;
+	programme: string;
+	feel: string;
+	wildcard: string | null;
+	composed: string;
+	negative: string;
+	editedByTable: boolean;
+	actor: string;
+	createdAt: number;
+}
+
+interface PromptRawRow {
+	id: string;
+	mood: string;
+	material: string;
+	programme: string;
+	feel: string;
+	wildcard: string | null;
+	composed: string;
+	negative: string;
+	edited_by_table: number;
+	actor: string;
+	created_at: number;
+}
+
+export async function getPromptRowById(d: D1Database, id: string): Promise<PromptRow | null> {
+	const db = await dbWith(d, 'prompt', PROMPT_SCHEMA);
+	if (!db) return null;
+	const row = await db
+		.prepare(
+			`SELECT id, mood, material, programme, feel, wildcard, composed, negative, edited_by_table, actor, created_at
+             FROM prompt WHERE id = ?`
+		)
+		.bind(id)
+		.first<PromptRawRow>();
+	if (!row) return null;
+	return {
+		id: row.id,
+		mood: row.mood,
+		material: row.material,
+		programme: row.programme,
+		feel: row.feel,
+		wildcard: row.wildcard,
+		composed: row.composed,
+		negative: row.negative,
+		editedByTable: !!row.edited_by_table,
+		actor: row.actor,
+		createdAt: row.created_at
+	};
+}
+
+/* -------------------------------------------------------------------------- */
+/* Beat — the projector's current stage direction (game-flow.md §4/§5). A    */
+/* SEPARATE table from gate.ts's `room_state` (the submission lock): the two */
+/* are different concerns polled by different screens, and `d1.ts`'s "adding */
+/* a column is a no-op locally / throws in production" rule means a         */
+/* `room_state` column can't be added after the fact anyway. One row per     */
+/* event, `id` always 1, same upsert shape `gate.ts`'s lock already uses.    */
+/* -------------------------------------------------------------------------- */
+
+export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus';
+
+export const ROOM_BEAT_SCHEMA = `CREATE TABLE IF NOT EXISTS room_beat (
+	event_id TEXT NOT NULL,
+	id INTEGER NOT NULL,
+	beat TEXT NOT NULL,
+	focus_table INTEGER,
+	set_at INTEGER NOT NULL,
+	PRIMARY KEY (event_id, id)
+)`;
+
+export interface BeatState {
+	beat: Beat;
+	focusTable: number | null;
+}
+
+/** `focusTable` is only meaningful when `beat === 'focus'`; callers pass null otherwise. */
+export async function setBeat(d: D1Database, eventId: string, beat: Beat, focusTable: number | null = null): Promise<void> {
+	const db = await dbWith(d, 'room_beat', ROOM_BEAT_SCHEMA);
+	if (!db) return;
+	await db
+		.prepare(
+			`INSERT INTO room_beat (event_id, id, beat, focus_table, set_at) VALUES (?, 1, ?, ?, ?)
+             ON CONFLICT(event_id, id) DO UPDATE SET beat = excluded.beat, focus_table = excluded.focus_table, set_at = excluded.set_at`
+		)
+		.bind(eventId, beat, focusTable, Date.now())
+		.run();
+}
+
+/** Poll-safe: never throws, defaults to `lobby`/no focus on any failure or before the first `setBeat` call — same posture as `gate.ts`'s `lockedAt`/`mayReopen`. */
+export async function getBeat(d: D1Database, eventId: string): Promise<BeatState> {
+	try {
+		const db = await dbWith(d, 'room_beat', ROOM_BEAT_SCHEMA);
+		if (!db) return { beat: 'lobby', focusTable: null };
+		const row = await db
+			.prepare(`SELECT beat, focus_table FROM room_beat WHERE event_id = ? AND id = 1`)
+			.bind(eventId)
+			.first<{ beat: string; focus_table: number | null }>();
+		if (!row) return { beat: 'lobby', focusTable: null };
+		return { beat: row.beat as Beat, focusTable: row.focus_table };
+	} catch {
+		return { beat: 'lobby', focusTable: null };
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+/* Table reset — a watermark, not a delete (game-flow.md §5/§8's "table 6"). */
+/*                                                                            */
+/* `answer`/`prompt`/`image` are append-only-or-lifecycle-only above for a   */
+/* reason: nothing in this file may delete or rewrite a row's content. So    */
+/* "reset table 6" is NOT a tombstone on old rows (`currentAnswers`/         */
+/* `getCurrentImage` would still return them) and NOT a new column on        */
+/* `event_table` (d1.ts: adding a column is a silent no-op locally, throws   */
+/* in production). It is a new append-only table holding one watermark      */
+/* timestamp per reset; every row created before it is still in D1 for the  */
+/* audit trail, just not "current" to a *Since read taken after it.         */
+/*                                                                            */
+/* HANDOFF: `getTableState`/`getCurrentAnswers`/`getCurrentImage` — the read */
+/* paths `answers.remote.ts` and the three tickers already call — do NOT    */
+/* consult this watermark. This workstream only ADDS `getCurrentAnswersSince`*/
+/* / `getCurrentImageSince` for admin's own reads (the poll + export);       */
+/* wiring the phone/projector's own reads to respect a reset is a follow-up */
+/* for whoever owns those call sites, flagged rather than done here.        */
+/* -------------------------------------------------------------------------- */
+
+export const TABLE_RESET_SCHEMA = `CREATE TABLE IF NOT EXISTS table_reset (
+	event_id TEXT NOT NULL,
+	table_no INTEGER NOT NULL,
+	reset_at INTEGER NOT NULL,
+	actor TEXT NOT NULL,
+	created_at INTEGER NOT NULL
+)`;
+
+export const TABLE_RESET_IDX = `CREATE INDEX IF NOT EXISTS table_reset_idx ON table_reset (event_id, table_no, reset_at DESC)`;
+
+/** The most recent reset watermark for a table, or 0 (the epoch) if it was never reset — so `createdAt > getResetAt(...)` is always a valid filter. */
+export async function getResetAt(d: D1Database, eventId: string, table: number): Promise<number> {
+	const db = await dbWith(d, 'table_reset', TABLE_RESET_SCHEMA);
+	if (!db) return 0;
+	const row = await db
+		.prepare(`SELECT MAX(reset_at) as reset_at FROM table_reset WHERE event_id = ? AND table_no = ?`)
+		.bind(eventId, table)
+		.first<{ reset_at: number | null }>();
+	return row?.reset_at ?? 0;
+}
+
+/**
+ * Appends a reset watermark and clears `event_table.submitted_at` — the
+ * latter is a lifecycle-field mutation of the same kind `finishTable`
+ * already performs (not a content edit of an append-only row), and is what
+ * lets the table's phone treat itself as unsubmitted again. Every answer,
+ * prompt and image row from before the reset stays in D1 untouched.
+ */
+export async function resetTable(d: D1Database, eventId: string, table: number, actor: 'admin' | 'system' = 'admin'): Promise<void> {
+	const db = await dbWith(d, 'table_reset', TABLE_RESET_SCHEMA);
+	await dbWith(d, 'table_reset_idx', TABLE_RESET_IDX);
+	if (db) {
+		await db
+			.prepare(`INSERT INTO table_reset (event_id, table_no, reset_at, actor, created_at) VALUES (?, ?, ?, ?, ?)`)
+			.bind(eventId, table, Date.now(), actor, Date.now())
+			.run();
+	}
+	const et = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	if (et) {
+		await et
+			.prepare(`UPDATE event_table SET submitted_at = NULL WHERE event_id = ? AND table_no = ?`)
+			.bind(eventId, table)
+			.run();
+	}
+}
+
+/** `getCurrentAnswers`, filtered to what's current SINCE a reset — the resolved (latest-wins) row's own `createdAt` is what's compared, so a question untouched since the reset correctly reads as unanswered again. */
+export async function getCurrentAnswersSince(d: D1Database, eventId: string, table: number, sinceTs: number): Promise<AnswerRow[]> {
+	const rows = await getCurrentAnswers(d, eventId, table);
+	return rows.filter((r) => r.createdAt > sinceTs);
+}
+
+/** `getCurrentImage`, filtered the same way. */
+export async function getCurrentImageSince(
+	d: D1Database,
+	eventId: string,
+	table: number,
+	zoneKey: string,
+	sinceTs: number
+): Promise<ImageRow | null> {
+	const row = await getCurrentImage(d, eventId, table, zoneKey);
+	return row && row.createdAt > sinceTs ? row : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin room read — BATCHED, not TABLE_COUNT×N point reads (game-flow.md    */
+/* §8's "one runnable check per non-trivial rule" applies to cost too: a     */
+/* poll every 3s cannot cost 20×(1 event_table + 1 answer-count + 4 image)   */
+/* reads). Three queries total regardless of table count: event_table,      */
+/* answer existence, current images (SQLite's documented "bare column       */
+/* follows a lone MAX()" rule gives the winning row's `state` for free) —   */
+/* merged with the reset watermark in JS.                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminImageState {
+	zoneKey: string;
+	state: GenerationState;
+	createdAt: number;
+}
+
+export interface AdminRoomRow {
+	table: number;
+	futureKey: string | null;
+	submittedAt: number | null;
+	lastSeenAt: number | null;
+	/** Distinct question ids with a current (post-reset) answer — a rough step count, not `getTableState`'s exact one. */
+	answeredCount: number;
+	/** Current (post-reset) image state per zone this table has ever drawn. */
+	images: AdminImageState[];
+}
+
+export async function countTables(d: D1Database, eventId: string): Promise<number> {
+	const db = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	if (!db) return 0;
+	const row = await db.prepare(`SELECT COUNT(*) as n FROM event_table WHERE event_id = ?`).bind(eventId).first<{ n: number }>();
+	return row?.n ?? 0;
+}
+
+export async function getAdminRoomRows(d: D1Database, eventId: string, tableCount: number): Promise<AdminRoomRow[]> {
+	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	const answerDb = await dbWith(d, 'answer', ANSWER_SCHEMA);
+	const imageDb = await dbWith(d, 'image', IMAGE_SCHEMA);
+	const resetDb = await dbWith(d, 'table_reset', TABLE_RESET_SCHEMA);
+
+	const [etRes, answerRes, imageRes, resetRes] = await Promise.all([
+		etDb
+			? etDb
+					.prepare(`SELECT table_no, future_key, submitted_at, last_seen_at FROM event_table WHERE event_id = ?`)
+					.bind(eventId)
+					.all<{ table_no: number; future_key: string | null; submitted_at: number | null; last_seen_at: number | null }>()
+			: Promise.resolve({ results: [] as never[] }),
+		answerDb
+			? answerDb
+					.prepare(`SELECT table_no, question_id, MAX(created_at) as created_at FROM answer WHERE event_id = ? GROUP BY table_no, question_id`)
+					.bind(eventId)
+					.all<{ table_no: number; question_id: string; created_at: number }>()
+			: Promise.resolve({ results: [] as never[] }),
+		imageDb
+			? imageDb
+					.prepare(`SELECT table_no, zone_key, state, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`)
+					.bind(eventId)
+					.all<{ table_no: number; zone_key: string; state: string; created_at: number }>()
+			: Promise.resolve({ results: [] as never[] }),
+		resetDb
+			? resetDb
+					.prepare(`SELECT table_no, MAX(reset_at) as reset_at FROM table_reset WHERE event_id = ? GROUP BY table_no`)
+					.bind(eventId)
+					.all<{ table_no: number; reset_at: number }>()
+			: Promise.resolve({ results: [] as never[] })
+	]);
+
+	const resetAt = new Map<number, number>((resetRes.results ?? []).map((r) => [r.table_no, r.reset_at]));
+	const byTable = new Map<number, { futureKey: string | null; submittedAt: number | null; lastSeenAt: number | null }>();
+	for (const r of etRes.results ?? []) byTable.set(r.table_no, { futureKey: r.future_key, submittedAt: r.submitted_at, lastSeenAt: r.last_seen_at });
+
+	const answeredByTable = new Map<number, Set<string>>();
+	for (const r of answerRes.results ?? []) {
+		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
+		let set = answeredByTable.get(r.table_no);
+		if (!set) answeredByTable.set(r.table_no, (set = new Set()));
+		set.add(r.question_id);
+	}
+
+	const imagesByTable = new Map<number, AdminImageState[]>();
+	for (const r of imageRes.results ?? []) {
+		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
+		let arr = imagesByTable.get(r.table_no);
+		if (!arr) imagesByTable.set(r.table_no, (arr = []));
+		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at });
+	}
+
+	const rows: AdminRoomRow[] = [];
+	for (let t = 1; t <= tableCount; t++) {
+		const et = byTable.get(t);
+		rows.push({
+			table: t,
+			futureKey: et?.futureKey ?? null,
+			submittedAt: et?.submittedAt ?? null,
+			lastSeenAt: et?.lastSeenAt ?? null,
+			answeredCount: answeredByTable.get(t)?.size ?? 0,
+			images: imagesByTable.get(t) ?? []
+		});
+	}
+	return rows;
+}
+
+/** Fills every table 1..tableCount with a bare `event_table` row, refusing (rather than overwriting) if the room already has any — "refuses if the room is not empty" (game-flow.md §5). `ON CONFLICT ... DO NOTHING` makes a re-run after a partial failure safe to retry. */
+export async function seedTables(
+	d: D1Database,
+	eventId: string,
+	tableCount: number
+): Promise<{ ok: true; seeded: number } | { ok: false; reason: string }> {
+	const db = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	if (!db) return { ok: false, reason: 'no environment' };
+	if ((await countTables(d, eventId)) > 0) return { ok: false, reason: 'the room already has tables — seed only runs on an empty room' };
+	const now = Date.now();
+	for (let t = 1; t <= tableCount; t++) {
+		await db
+			.prepare(
+				`INSERT INTO event_table (id, event_id, table_no, mode, last_seen_at, created_at)
+                 VALUES (?, ?, ?, 'tap', ?, ?)
+                 ON CONFLICT(event_id, table_no) DO NOTHING`
+			)
+			.bind(newId(), eventId, t, now, now)
+			.run();
+	}
+	return { ok: true, seeded: tableCount };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Export — one JSON per table, taken before any destructive verb            */
+/* (game-flow.md §5). Point reads, not batched: export is a rare admin       */
+/* action, not the 3s poll (`getAdminRoomRows` above is what stays batched). */
+/* `zoneKeys` is passed in rather than imported — this file stays content-   */
+/* free, per its own module note; the caller (admin.remote.ts) supplies      */
+/* `ZONES.map(z => z.key)`.                                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface ExportTableRow {
+	table: number;
+	futureKey: string | null;
+	submittedAt: number | null;
+	resetAt: number;
+	answers: AnswerRow[];
+	images: { zoneKey: string; r2Key: string | null; state: GenerationState; createdAt: number; prompt: PromptRow | null }[];
+}
+
+export async function exportRoomRows(d: D1Database, eventId: string, tableCount: number, zoneKeys: readonly string[]): Promise<ExportTableRow[]> {
+	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	const rows: ExportTableRow[] = [];
+	for (let t = 1; t <= tableCount; t++) {
+		const since = await getResetAt(d, eventId, t);
+		const answers = await getCurrentAnswersSince(d, eventId, t, since);
+		const et = etDb
+			? await etDb
+					.prepare(`SELECT future_key, submitted_at FROM event_table WHERE event_id = ? AND table_no = ?`)
+					.bind(eventId, t)
+					.first<{ future_key: string | null; submitted_at: number | null }>()
+			: null;
+		const images: ExportTableRow['images'] = [];
+		for (const zoneKey of zoneKeys) {
+			const img = await getCurrentImageSince(d, eventId, t, zoneKey, since);
+			if (!img) continue;
+			images.push({
+				zoneKey,
+				r2Key: img.r2Key,
+				state: img.state,
+				createdAt: img.createdAt,
+				prompt: await getPromptRowById(d, img.promptId)
+			});
+		}
+		rows.push({
+			table: t,
+			futureKey: et?.future_key ?? null,
+			submittedAt: et?.submitted_at ?? null,
+			resetAt: since,
+			answers,
+			images
+		});
+	}
+	return rows;
+}

@@ -50,7 +50,7 @@ export class TablePage {
 	 * app's own documented resume behavior for a replacement phone.
 	 */
 	async pickFutureAndAdvance(futureNameSubstring: string, dir: string) {
-		const card = this.page.getByRole('button', { name: new RegExp(escapeRegex(futureNameSubstring)) });
+		const card = this.page.getByRole('radio', { name: new RegExp(escapeRegex(futureNameSubstring)) });
 		await card.click();
 		// Prove the pick landed server-side: the era chip row only renders
 		// once `flow.status.future` comes back non-null from the server.
@@ -59,10 +59,13 @@ export class TablePage {
 		await this.page.reload();
 	}
 
-	/** One of screens 4-13. Selects each label (single/multi/pick-n all use the same tap-to-toggle control), then Next. */
+	/** One of screens 4-13. Selects each label — a `radio` on single-select questions, a `checkbox` on multi/pick-n — then Next. */
 	async answerQuestion(answer: QuestionAnswer) {
 		for (const label of answer.labels) {
-			await this.page.getByRole('button', { name: label, exact: true }).click();
+			await this.page
+				.getByRole('radio', { name: label, exact: true })
+				.or(this.page.getByRole('checkbox', { name: label, exact: true }))
+				.click();
 		}
 		await this.page.getByRole('button', { name: 'Next' }).click();
 	}

@@ -21,12 +21,17 @@
   --card-solid: #1a2740;
   --ink: #f4ede0;
   --ink-dim: rgba(244, 237, 224, 0.62);
-  --ink-faint: rgba(244, 237, 224, 0.38);
+  /* 0.55, not 0.38: the 12-13px meta text (step counter, field labels, counts)
+     has to clear 4.5:1 in a glazed daylit room — see design-review.md fix 7. */
+  --ink-faint: rgba(244, 237, 224, 0.55);
   --gold: #c9a05a;
   --teal: #3ec9b0;
   --warn: #e08a5a;
   --line: rgba(244, 237, 224, 0.14);
   --line-strong: rgba(244, 237, 224, 0.28);
+  /* THE caption scrim: 70% ground to transparent over the lower ~45% of an image.
+     One token for the lens cards and the workspace tiles — design-review.md §3. */
+  --scrim: linear-gradient(180deg, rgba(10, 16, 32, 0) 0%, rgba(10, 16, 32, 0) 55%, rgba(10, 16, 32, 0.7) 100%);
 
   --display: "Playfair Display", "Iowan Old Style", Georgia, serif;
   --body: "DM Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -104,7 +109,7 @@ button {
 }
 
 .topbar .progress {
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -138,6 +143,31 @@ button {
   text-transform: uppercase;
   font-size: 11px;
   margin-right: 6px;
+}
+
+/* A table-talk prompt — spoken at the table, never typed. Styled apart from
+   the field label so the same sentence is not printed twice (fix 8). */
+.talk {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--gold);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+.talk .push-label {
+  flex: 0 0 auto;
+  font-style: normal;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  line-height: 1.9;
 }
 
 .grow {
@@ -178,23 +208,57 @@ button {
   background: rgba(62, 201, 176, 0.1);
 }
 
-.opt[aria-pressed="true"] {
+.opt[aria-checked="true"] {
   border-color: var(--gold);
   background: rgba(201, 160, 90, 0.14);
 }
 
+/* Round means one. A single-select (`role=radio`) row keeps the circle;
+   a multi-select (`role=checkbox`) row gets a square with a check (fix 5). */
 .opt .mark {
   flex: 0 0 18px;
   height: 18px;
   margin-top: 2px;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #10192a;
 }
 
-.opt[aria-pressed="true"] .mark {
+.opt[role="checkbox"] .mark {
+  border-radius: 4px;
+}
+
+.opt[aria-checked="true"] .mark {
   border-color: var(--gold);
   background: var(--gold);
+}
+
+.opt[role="radio"][aria-checked="true"] .mark {
   box-shadow: inset 0 0 0 3px var(--card-solid);
+}
+
+.opt[role="checkbox"][aria-checked="true"] .mark::after {
+  content: "\2713";
+}
+
+/* Running count and the maximum, stated ABOVE the options before the
+   first tap (design-review.md §3). */
+.count-lead {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-lead strong {
+  color: var(--gold);
+  font-weight: 600;
 }
 
 /* --- fields ------------------------------------------------------------- */
@@ -218,7 +282,7 @@ button {
 
 .field-label {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -226,7 +290,7 @@ button {
 }
 
 .count {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-faint);
   text-align: right;
   margin-top: 6px;
@@ -283,6 +347,30 @@ button {
   text-decoration: underline;
   flex: 0 0 auto;
   padding: 0 8px;
+}
+
+/* --- focus + motion ------------------------------------------------------ */
+
+/* One visible focus ring for every primary control — gold, not teal, so it is
+   not confused with a field's own ring (fix 9). `.field` keeps its teal. */
+.opt:focus-visible,
+.btn:focus-visible,
+.chip:focus-visible,
+.lens:focus-visible,
+.card:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt,
+  .btn,
+  .lens,
+  .card,
+  .lens *,
+  .card * {
+    transition: none !important;
+  }
 }
 
 /* --- banners ------------------------------------------------------------ */

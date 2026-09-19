@@ -8,6 +8,12 @@
 	 * A blocked nudge is greyed **with its reason shown**, never silently
 	 * refused — the reason comes from `era.ts`'s rules, not from prose
 	 * written here.
+	 *
+	 * The seven lenses are image cards (design-review.md §3): one column of
+	 * 3:2 bands, name and one-line blurb over the shared `--scrim`, and a
+	 * selection state that is not colour-only — unselected cards sit at 75%
+	 * brightness, the chosen one at 100% with a gold border and a check.
+	 * The cards are a `radiogroup`: exactly one future, announced as such.
 	 */
 	import { FUTURES } from '$lib/game/futures';
 	import { LENS_IMAGE } from '$lib/game/visuals';
@@ -55,19 +61,18 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem">Choose your lens.</h1>
+<h1 class="stem" id="lens-stem">Choose your lens.</h1>
 <p class="hint">A worldview, not a character. It sets the light, the materials and the skyline.</p>
 
-<ul class="futures">
+<ul class="futures" role="radiogroup" aria-labelledby="lens-stem">
 	{#each FUTURES as future (future.key)}
+		{@const picked = future.key === futureKey}
 		<li>
-			<!-- An image card, not an `.opt` row: the lens IS the picture, the name and
-			     blurb sit over a bottom gradient. `aria-pressed` keeps the selected
-			     state addressable exactly as the text row was; `onpick` is unchanged. -->
 			<button
 				type="button"
+				role="radio"
 				class="lens"
-				aria-pressed={future.key === futureKey}
+				aria-checked={picked}
 				onclick={() => onpick(future.key)}
 			>
 				<img class="lens-img" src={LENS_IMAGE[future.key]} alt={future.name} loading="lazy" />
@@ -89,6 +94,7 @@
 			<button
 				type="button"
 				class="chip nudge"
+				aria-label="Earlier"
 				disabled={!earlier || earlier.verdict === 'blocked'}
 				onclick={() => earlier && onera(earlier.era)}>&larr;</button
 			>
@@ -96,6 +102,7 @@
 			<button
 				type="button"
 				class="chip nudge"
+				aria-label="Later"
 				disabled={!later || later.verdict === 'blocked'}
 				onclick={() => later && onera(later.era)}>&rarr;</button
 			>
@@ -124,7 +131,7 @@
 				value={protectReply}
 				onchange={(e) => onprotect(e.currentTarget.value)}
 			></textarea>
-			<p class="count">Optional. Added to the prompt word for word.</p>
+			<p class="count">Optional — added to the prompt word for word.</p>
 		</section>
 	{/if}
 {/if}
@@ -141,30 +148,31 @@
 
 <style>
 	.futures {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		display: flex;
+		flex-direction: column;
 		gap: 10px;
 		margin: 0 0 22px;
 		padding: 0;
 		list-style: none;
 	}
 
-	/* 4:3 on a 390-wide phone gives ~180x135 per card — well clear of the
-	   44pt tap minimum. The card is the whole button. */
+	/* A 3:2 band, full width: ~358x239 on a 390pt phone, so three cards
+	   fit a screen (design-review.md §3). Never square — the skyline is
+	   the point of the choice. The card is the whole control. */
 	.lens {
 		position: relative;
 		display: block;
 		width: 100%;
-		aspect-ratio: 4 / 3;
+		aspect-ratio: 3 / 2;
 		padding: 0;
 		overflow: hidden;
-		border: 1px solid var(--line);
+		border: 2px solid var(--line);
 		border-radius: var(--radius);
 		background: var(--card-solid);
 		color: var(--ink);
 		text-align: left;
 		cursor: pointer;
-		transition: box-shadow 0.12s ease, border-color 0.12s ease;
+		transition: border-color 0.12s ease;
 	}
 
 	.lens-img {
@@ -174,12 +182,16 @@
 		height: 100%;
 		object-fit: cover;
 		display: block;
+		/* Third selection channel: brightness, which reads in daylight
+		   where a border alone does not. */
+		filter: brightness(0.75);
+		transition: filter 0.12s ease;
 	}
 
 	.lens-shade {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(180deg, rgba(10, 16, 32, 0) 35%, rgba(10, 16, 32, 0.92) 100%);
+		background: var(--scrim);
 	}
 
 	.lens-body {
@@ -189,57 +201,55 @@
 		bottom: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
-		padding: 10px 10px 9px;
+		gap: 3px;
+		padding: 12px 14px 12px;
 	}
 
 	.name {
 		font-family: var(--display);
-		font-size: 16px;
+		font-size: 20px;
 		line-height: 1.15;
+		text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
 	}
 
 	.blurb {
-		font-size: 11px;
-		line-height: 1.3;
+		font-size: 13px;
+		line-height: 1.35;
 		color: var(--ink-dim);
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
+		text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
 	}
 
 	.lens-check {
 		position: absolute;
-		top: 8px;
-		right: 8px;
-		width: 24px;
-		height: 24px;
+		top: 10px;
+		right: 10px;
+		width: 28px;
+		height: 28px;
 		border-radius: 50%;
 		background: var(--gold);
 		color: #10192a;
-		font-size: 14px;
+		font-size: 16px;
 		font-weight: 700;
-		line-height: 24px;
+		line-height: 28px;
 		text-align: center;
 		opacity: 0;
 		transform: scale(0.6);
-		transition: opacity 0.12s ease, transform 0.12s ease;
+		transition:
+			opacity 0.12s ease,
+			transform 0.12s ease;
 	}
 
-	.lens[aria-pressed='true'] {
+	.lens[aria-checked='true'] {
 		border-color: var(--gold);
-		box-shadow: 0 0 0 2px var(--gold);
 	}
 
-	.lens[aria-pressed='true'] .lens-check {
+	.lens[aria-checked='true'] .lens-img {
+		filter: brightness(1);
+	}
+
+	.lens[aria-checked='true'] .lens-check {
 		opacity: 1;
 		transform: scale(1);
-	}
-
-	.lens:active {
-		border-color: var(--line-strong);
 	}
 
 	.chip-row {
@@ -297,5 +307,9 @@
 
 	.protect {
 		margin-bottom: 18px;
+	}
+
+	.protect .count {
+		text-align: left;
 	}
 </style>

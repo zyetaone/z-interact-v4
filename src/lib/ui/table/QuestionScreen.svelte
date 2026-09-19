@@ -2,10 +2,11 @@
 	/**
 	 * Screens 4-13 — one question per screen. The stem is verbatim; Q4 and
 	 * Q9 additionally carry a one-line `lead` shown just under the stem
-	 * before their facet options. The Push line (where the question has
-	 * one) sits under the options as a grey hint, and on Q2 and Q10 that
-	 * same line is also a typed field, because those replies are spliced
-	 * into the prompt rather than only spoken.
+	 * before their facet options. The Push line is printed ONCE (design-
+	 * review.md fix 8): where the question captures a reply (Q2, Q10) it is
+	 * the field's label and nothing else; where it is only spoken at the
+	 * table it is a `.talk` prompt, styled apart from any field label so it
+	 * never looks like a question with nowhere to answer.
 	 *
 	 * The screen never advances on an unsaved answer: a failed save leaves
 	 * the selection on screen with a retry banner (game-flow.md §1).
@@ -45,8 +46,8 @@
 {#if question.lead}
 	<p class="lead">{question.lead}</p>
 {/if}
-{#if question.push}
-	<p class="hint"><span class="push-label">Push</span>{question.push}</p>
+{#if question.push && !question.pushCapturesReply}
+	<p class="talk"><span class="push-label">Talk</span><span>{question.push}</span></p>
 {/if}
 
 {#if failed}
@@ -62,10 +63,11 @@
 			id="push"
 			class="field"
 			rows="2"
-			placeholder="Optional — added to the prompt"
+			placeholder="In your own words"
 			value={pushReply}
 			onchange={(e) => onpush(e.currentTarget.value)}
 		></textarea>
+		<p class="count note">Optional — added to the prompt word for word.</p>
 	</section>
 {/if}
 
@@ -84,5 +86,8 @@
 	}
 	.push-field {
 		margin-bottom: 18px;
+	}
+	.note {
+		text-align: left;
 	}
 </style>

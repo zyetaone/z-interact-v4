@@ -106,9 +106,20 @@
 	}
 
 	.frame {
+		position: relative;
 		width: 100%;
 		aspect-ratio: 3 / 2;
 		background: var(--card-solid);
+	}
+
+	/* The same caption scrim the lens cards use — white serif straight
+	   onto a real render vanishes (design-review.md §3). */
+	.frame::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: var(--scrim);
+		pointer-events: none;
 	}
 
 	.gallery img {

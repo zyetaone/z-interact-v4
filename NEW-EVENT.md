@@ -31,6 +31,7 @@ reads exactly like a dead one.
 | `MAX_RENDERS_PER_TABLE` | var | falls back to **12**, never to "no cap". Unparseable values also fall back rather than disabling the cap |
 | `SIMULATE_ENABLED` | var | the rehearsal route is off unless this is exactly `true` |
 | `PUBLIC_EVENT_TITLE` | var | the Lobby beat reads "Twenty Tables" |
+| `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
 - [ ] `FAL_KEY` set and confirmed live/billable
 - [ ] `FAL_WEBHOOK_SECRET` set — used as the webhook URL's shared-secret query param
@@ -38,6 +39,16 @@ reads exactly like a dead one.
 - [ ] `EVENT_ID` set to `<app>-<YYYY-MM>`
 - [ ] `MAX_RENDERS_PER_TABLE` reviewed against the budget (see below)
 - [ ] `SIMULATE_ENABLED` unset (or anything but `true`) **before the doors open**
+- [ ] `REFERENCE_MODE` left unset unless the mood match has been judged on a real table
+
+## How much the lens picture decides the render
+
+`REFERENCE_MODE=none` (the default) renders every zone from text alone: four
+distinct rooms, mood carried by the shared base prompt, no zone waiting on
+another. `lens` anchors only zone 1 to the chosen lens picture; `chain`
+anchors zones 2-4 to zone 1 as well, which matches the lens mood most closely
+but makes all four zones the same composition with small edits, because the
+edit endpoint reproduces a reference's framing rather than recomposing.
 
 ## Spend
 

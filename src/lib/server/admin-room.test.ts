@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeD1 } from './fake-d1';
 import { setBeat, getBeat, resetTable, getResetAt, getCurrentAnswersSince, getCurrentImageSince, seedTables, countTables } from './room';
-import { saveAnswer, getTableState, finishTable, insertPrompt, insertQueuedImage, getCurrentImage } from './room';
+import { saveAnswer, getTableState, finishTable, insertPrompt, insertQueuedImage, getCurrentImage, getTableFutures, getRoom } from './room';
 import { grantReopen, mayReopen, grantedTables } from './gate';
 
 const EVENT = 'ev-test';
@@ -96,6 +96,41 @@ describe('reopenTable grant (gate.ts)', () => {
 		// assertCanSubmit's own consumeReopen path is exercised in gate.test.ts;
 		// here we only check the batched read admin.remote.ts's poll uses.
 		expect(await grantedTables(d, 'a-different-event')).toEqual(new Set());
+	});
+});
+
+describe('getTableFutures', () => {
+	it('reads the future pick from the `future` answer row, not the dead event_table column', async () => {
+		const d = fakeD1();
+		await saveAnswer(d, { eventId: EVENT, table: 4, questionId: 'future', keys: ['solarpunk'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 5, questionId: 'q1', keys: ['recognisably-2035'], actor: 'table', source: 'tap' });
+
+		const futures = await getTableFutures(d, EVENT);
+		expect(futures.get(4)).toBe('solarpunk');
+		expect(futures.get(5)).toBeUndefined(); // table 5 never answered the future question
+	});
+
+	it('latest-wins when a table changes its pick', async () => {
+		const d = fakeD1();
+		await saveAnswer(d, { eventId: EVENT, table: 2, questionId: 'future', keys: ['arcology'], actor: 'table', source: 'tap' });
+		await new Promise((r) => setTimeout(r, 2));
+		await saveAnswer(d, { eventId: EVENT, table: 2, questionId: 'future', keys: ['garden-city'], actor: 'table', source: 'tap' });
+		expect((await getTableFutures(d, EVENT)).get(2)).toBe('garden-city');
+	});
+});
+
+describe('getRoom currentStep', () => {
+	it('is the highest q<N> reached, not the hardcoded 0 it used to be', async () => {
+		const d = fakeD1();
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q1', keys: ['x'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q4', keys: ['y'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q2', keys: ['z'], actor: 'table', source: 'tap' });
+		// A non-numbered pseudo-question must not move the count.
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'future', keys: ['solarpunk'], actor: 'table', source: 'tap' });
+
+		const room = await getRoom(d, EVENT, 3);
+		expect(room.tables.find((t) => t.table === 1)?.currentStep).toBe(4);
+		expect(room.tables.find((t) => t.table === 2)?.currentStep).toBe(0);
 	});
 });
 

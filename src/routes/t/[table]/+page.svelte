@@ -36,9 +36,17 @@
 	const initial = (await tableStatus({ table })) as TableStatus;
 	const flow = createTableState(initial);
 
-	/** Pull the server's snapshot back in. The one place `status` is replaced. */
+	/**
+	 * Pull the server's snapshot back in — the one place `status` is
+	 * replaced. `refresh()`, not a bare re-await: a query is cached by its
+	 * arguments, so `await tableStatus({ table })` hands back the value
+	 * already on the client and the 2s poll would never reach the server,
+	 * never run the ticker, and never see an image arrive.
+	 */
 	async function refresh() {
-		flow.status = (await tableStatus({ table })) as TableStatus;
+		const q = tableStatus({ table });
+		await q.refresh();
+		flow.status = (q.current ?? (await q)) as TableStatus;
 	}
 
 	let saving = $state(false);
@@ -181,6 +189,7 @@
 			prompt={flow.status.prompt}
 			images={flow.status.images}
 			regenerating={saving}
+			{failed}
 			{refresh}
 			onregenerate={() => run(() => regenerate({ table }), false)}
 			ondone={() => flow.go('done')}

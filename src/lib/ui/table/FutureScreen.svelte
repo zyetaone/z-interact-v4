@@ -54,7 +54,7 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem">Pick the future you are arguing from.</h1>
+<h1 class="stem">Choose your lens.</h1>
 <p class="hint">A worldview, not a character. It sets the light, the materials and the skyline.</p>
 
 <ul class="futures">

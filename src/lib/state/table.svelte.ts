@@ -14,7 +14,7 @@
  * lands on the same step with no session to restore. The cursor only
  * exists so *Back* can walk behind the resume point.
  */
-import { QUESTIONS, WILDCARD } from "$lib/game/questions";
+import { ACTIVE_QUESTIONS, WILDCARD } from "$lib/game/questions";
 import type { Era } from "$lib/game/era";
 
 export interface StatusAnswer {
@@ -47,8 +47,9 @@ export interface TableStatus {
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
 export const FUTURE_ID = "future";
 
-/** Q2..Q11 — Q1 is folded into the future card as the era chip (game-flow.md §0/§1). */
-export const FLOW_QUESTIONS = QUESTIONS.filter((q) => q.id !== "q1");
+/** Q2..Q11 (plus q12 when `ENABLE_PROPOSED_QUESTIONS` is on) — Q1 is folded
+ *  into the future card as the era chip (game-flow.md §0/§1). */
+export const FLOW_QUESTIONS = ACTIVE_QUESTIONS.filter((q) => q.id !== "q1");
 
 export type Step =
   | { kind: "landing" }

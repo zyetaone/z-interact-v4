@@ -72,3 +72,22 @@ export async function dbWith(
 export function _resetReadyForTests(d: D1Database): void {
 	ready.delete(d);
 }
+
+/**
+ * A strictly increasing "clock" for `created_at`/`updated_at` on append-only
+ * rows (`room.ts`'s `answer`/`prompt`/`images`). Plain `Date.now()` is not
+ * enough: two writes issued back to back — the exact append-only edit case,
+ * e.g. an admin correction landing right after a table's own save — can
+ * legitimately share a millisecond, and `currentAnswers()`'s tie-break
+ * (`createdAt > held.createdAt`, strict) would then keep the OLDER row as
+ * "current" simply because it read as `!(newer > older)` when they're
+ * equal. This never repeats a value: each call is `max(Date.now(), last +
+ * 1)`, so ordering by `created_at` alone is always correct, and the values
+ * still read as real epoch milliseconds (only nudged forward under
+ * contention, same trick a Lamport/HLC clock uses).
+ */
+let lastMonotonic = 0;
+export function monotonicNow(): number {
+	lastMonotonic = Math.max(Date.now(), lastMonotonic + 1);
+	return lastMonotonic;
+}

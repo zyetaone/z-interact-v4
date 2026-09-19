@@ -29,6 +29,7 @@
  *  - **Every command is throttled by table number**, never by client IP
  *    (one venue router is one IP).
  */
+import { FAL_MODEL } from '$lib/server/fal';
 import * as v from "valibot";
 import { command, query } from "$app/server";
 import {
@@ -51,6 +52,9 @@ import {
   saveAnswer as saveAnswerRow,
   getTableState,
   getCurrentAnswers,
+  getCurrentAnswersSince,
+  getCurrentImageSince,
+  getResetAt,
   finishTable as finishTableRow,
   insertPrompt,
   insertQueuedImage,
@@ -83,8 +87,18 @@ const eraSchema = v.picklist(ERA_SCALE);
 /** The pseudo-question id the future pick is stored under. `q1` stores the era. */
 const FUTURE_ID = "future";
 
+/**
+ * What a skipped future card stores (game-flow.md §1, screen 3's failure
+ * state: "stored as `skipped`"). It has to be a real key rather than an
+ * empty array, or the answer reads as unanswered for ever: the review
+ * button stays on "still missing 1 answer" and resume sends the table
+ * back to the future screen on every reload. `futureOf` returns null for
+ * it, so the mood layer still falls back to the house register.
+ */
+const SKIPPED = "skipped";
+
 /** fal model id — TODO(content): set once the model is chosen (also stubbed in ticker.ts). */
-const MODEL = "TODO(content): fal model id";
+const MODEL = FAL_MODEL;
 
 // One per isolate — best-effort, see throttle.ts's module note.
 const throttle = createThrottle();
@@ -183,11 +197,20 @@ export const tableStatus = query(
     }
     const event = eventId(env);
     const state = await getTableState(env.DB, event, table);
-    const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
+    // An admin reset (room.ts's `table_reset` watermark) must be visible
+    // here: `getCurrentAnswers`/`getCurrentImage` alone would still surface
+    // pre-reset rows as "current" (they're append-only, never deleted), so
+    // this phone read is filtered to what's current SINCE the table's most
+    // recent reset — same rule admin's own reads already apply.
+    const since = await getResetAt(env.DB, event, table);
+    const answers = answersOf(
+      await getCurrentAnswersSince(env.DB, event, table, since),
+    );
 
     // TICKER: advance every in-flight generation for this table by one
     // step, each submitting its OWN row's composed prompt.
     for (const row of await getPendingImagesForTable(env.DB, event, table)) {
+      if (row.createdAt <= since) continue; // pre-reset attempt — not resumed
       const zone = ZONES.find((z) => z.key === row.zoneKey);
       const stored = await getPromptById(env.DB, row.promptId);
       if (!zone || !stored) continue;
@@ -207,7 +230,7 @@ export const tableStatus = query(
 
     const images = [];
     for (const zone of ZONES) {
-      const row = await getCurrentImage(env.DB, event, table, zone.key);
+      const row = await getCurrentImageSince(env.DB, event, table, zone.key, since);
       const arrived = row?.state === "stored" || row?.state === "done";
       images.push({
         zoneKey: zone.key,
@@ -284,7 +307,7 @@ export const saveFuture = command(
         eventId: event,
         table,
         questionId: FUTURE_ID,
-        keys: future ? [future.key] : [],
+        keys: [future ? future.key : SKIPPED],
         actor: "table",
         source: "tap",
       });
@@ -523,6 +546,16 @@ export const regenerate = command(
         return {
           ok: false as const,
           reason: "The room is closed — the screen has moved on.",
+        };
+      }
+      // "Regenerate (throttled, per table)" (game-flow §1, screen 17).
+      // `withTableLock` only covers concurrent CALLS, which release in
+      // milliseconds; this covers a generation still in flight, so a
+      // double-tap cannot queue eight rows.
+      if ((await getPendingImagesForTable(env.DB, event, table)).length > 0) {
+        return {
+          ok: false as const,
+          reason: "Still drawing — wait for this one before asking for another.",
         };
       }
       const result = await queueGeneration(env, event, table, {

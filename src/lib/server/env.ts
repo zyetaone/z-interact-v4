@@ -22,6 +22,8 @@ export interface Env {
 	SIMULATE_ENABLED?: string;
 	/** `<app>-<YYYY-MM>` per NEW-EVENT.md. No event name is hardcoded in source — this is how every row gets its `event_id`. */
 	EVENT_ID?: string;
+	/** Shared-secret query token gating the hidden `/admin` URL (admin.remote.ts's `checkToken`). Unset in `dev` opens the gate; unset in production fails closed. */
+	ADMIN_TOKEN?: string;
 }
 
 /** Falls back to a dev-only placeholder so local `npm run dev` works before NEW-EVENT.md's checklist sets a real one. */

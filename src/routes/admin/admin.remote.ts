@@ -5,15 +5,16 @@
  * ponytail: `ADMIN_TOKEN` is a shared-secret query param carried on the
  * hidden admin URL (`?token=...`), checked on every command AND on the
  * poll query itself — not real auth, just a gate against a stranger who
- * doesn't have the URL. `env.ts` (out of this workstream's ownership) does
- * not declare `ADMIN_TOKEN` on its `Env` type yet, so `checkToken` reads it
- * via a loose cast rather than adding the field there; flagged as a
- * follow-up for whoever owns `env.ts`. Fails OPEN (any token, including
- * empty, passes) when the var is unset, so `npm run dev` keeps working
- * without a `.dev.vars` entry — tighten to fail closed before a real event.
+ * doesn't have the URL. `env.ts` now declares `ADMIN_TOKEN` on its `Env`
+ * type, so `checkToken` reads it directly. It fails OPEN (any token,
+ * including empty, passes) only in `dev` — so `npm run dev` keeps working
+ * without a `.dev.vars` entry — and fails CLOSED (every token rejected) in
+ * production when the var is unset, so a real event can't ship with the
+ * admin screen wide open by omission.
  */
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { dev } from '$app/environment';
 import { requestEnv, eventId, requestOrigin, requestWaitUntil } from '$lib/server/env';
 import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gate';
 import {
@@ -23,6 +24,7 @@ import {
 	insertPrompt,
 	getPromptRowById,
 	getAdminRoomRows,
+	getTableFutures,
 	countTables,
 	seedTables,
 	resetTable as resetTableRow,
@@ -52,8 +54,8 @@ const throttle = createThrottle();
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 function checkToken(env: Env, token: string): boolean {
-	const expected = (env as unknown as Record<string, string | undefined>).ADMIN_TOKEN;
-	if (!expected) return true;
+	const expected = env.ADMIN_TOKEN;
+	if (!expected) return dev; // unset: open in dev, closed in production
 	return token === expected;
 }
 
@@ -72,24 +74,25 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 	if (!env || !checkToken(env, token)) return emptyRoom();
 	const event = eventId(env);
 
-	// TICKER: walk EVERY non-terminal image in the event.
-	// TODO(content/plumbing): same placeholder `answers.remote.ts`'s
-	// `tableStatus` already carries — reading the real composed prompt by
-	// `row.promptId` (via `getPromptRowById`, added by this workstream) is
-	// a one-line follow-up once that placeholder is retired everywhere.
+	// TICKER: walk EVERY non-terminal image in the event, submitting each
+	// row's REAL composed prompt (read by `promptId` via `getPromptRowById`)
+	// rather than a placeholder — the one-line follow-up the earlier
+	// `TODO(content/plumbing)` note here named is now wired.
 	for (const row of await getPendingImagesForEvent(env.DB, event)) {
+		const prompt = await getPromptRowById(env.DB, row.promptId);
 		await tickAndPersist(
 			env.DB,
 			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
-			'TODO(content): prompt',
+			prompt?.composed ?? '',
 			realGenerateDeps(env, event, row.table, row.zoneKey, row.id)
 		);
 	}
 
-	const [closed, beatState, rows, granted, tableCount] = await Promise.all([
+	const [closed, beatState, rows, futures, granted, tableCount] = await Promise.all([
 		lockedAt(env.DB, event),
 		getBeat(env.DB, event),
 		getAdminRoomRows(env.DB, event, TABLE_COUNT),
+		getTableFutures(env.DB, event),
 		grantedTables(env.DB, event),
 		countTables(env.DB, event)
 	]);
@@ -104,7 +107,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 			const images = ZONES.map((z) => imagesByZone.get(z.key)?.state ?? ('none' as const));
 			return {
 				table: r.table,
-				futureKey: r.futureKey,
+				futureKey: futures.get(r.table) ?? null,
 				step: r.answeredCount,
 				totalSteps: TOTAL_STEPS,
 				submittedAt: r.submittedAt,

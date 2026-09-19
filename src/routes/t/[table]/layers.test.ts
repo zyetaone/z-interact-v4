@@ -1,5 +1,5 @@
 /**
- * The layer builder, driven by one fixed set of answers.
+ * The layer builder, driven by one fixed set of VERSION 3 answers.
  *
  * Every expected string below is typed out verbatim rather than read back
  * from `questions.ts`, so a fragment that silently changes fails here
@@ -10,28 +10,38 @@
 import { describe, it, expect } from 'vitest';
 import { FUTURES } from '$lib/game/futures';
 import { ZONE_SETS } from '$lib/game/zones';
-import { NO_TEXT } from '$lib/server/prompt';
+import { NO_TEXT, houseBase } from '$lib/server/prompt';
 import { buildLayerInputs, composeBase, composeZonePrompt, resolveZone, type AnswerLike } from './layers';
 
 const SOLARPUNK = FUTURES.find((f) => f.key === 'solarpunk')!;
+const PRAGMATIST = FUTURES.find((f) => f.key === 'pragmatist-retrofit')!;
 const ERA_2040 =
 	'set in a hyper-futuristic 2040, technology fully integrated and visible throughout the architecture';
+const LENS_SOLARPUNK = `seen through the lens of ${SOLARPUNK.name}: ${SOLARPUNK.moodLine.replace(/\.$/, '')}`;
 
 const ANSWERS: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['raw-elemental'], pushReply: 'raw concrete and brushed steel' },
-	{ questionId: 'q3', keys: ['both-in-order'], text: { 'both-in-order': 'human first, then the AI' } },
-	{ questionId: 'q4', keys: ['light-paths'] },
-	{ questionId: 'q5', keys: ['null-zones'], pushReply: 'a null zone for thinking, the garden for after' },
+	{ questionId: 'q3', keys: ['human-or-ai-order'], text: { 'human-or-ai-order': 'human first, then the AI' } },
+	{
+		questionId: 'q4',
+		keys: ['sub-35db-acoustic', 'what-its-made-of'],
+		text: { 'what-its-made-of': 'rammed earth and glass' }
+	},
+	{ questionId: 'q5', keys: ['nap-walk-water-dark'] },
 	{
 		questionId: 'q6',
 		keys: ['rooms-change-size', 'disappeared-by-2035'],
 		text: { 'disappeared-by-2035': 'the assigned desk' }
 	},
-	{ questionId: 'q7', keys: ['analogue-zones'] },
+	{ questionId: 'q7', keys: ['analogue-zones', 'senses-and-adjusts'] },
 	{ questionId: 'q8', keys: ['deliberate-pockets'] },
-	{ questionId: 'q9', keys: ['adjusts-before-you-ask'], pushReply: 'the lights warm as you sit down' },
-	{ questionId: 'q10', keys: ['robots-visible-or-hidden'] },
+	{
+		questionId: 'q9',
+		keys: ['deciding-together', 'refused-to-automate'],
+		text: { 'refused-to-automate': 'who gets fired' }
+	},
+	{ questionId: 'q10', keys: ['knows-when-to-step-back'], pushReply: 'the acoustic core' },
 	{ questionId: 'q11', keys: ['calm', 'focused', 'alive'] },
 	{ questionId: 'wildcard', keys: ['wildcard-open'], text: { 'wildcard-open': 'a room with a working fireplace' } }
 ];
@@ -39,17 +49,22 @@ const ANSWERS: AnswerLike[] = [
 const built = buildLayerInputs({ futureKey: 'solarpunk', era: 'hyperfuturistic-2040', answers: ANSWERS });
 
 describe('buildLayerInputs', () => {
-	it('puts the future first in mood and appends the era only because the chip was nudged', () => {
-		expect(built.mood).toBe(`${SOLARPUNK.moodLine.replace(/\.$/, '')}. ${ERA_2040}`);
+	it('opens mood with the house base, then the lens line, then appends the era only because the chip was nudged', () => {
+		expect(built.mood).toBe(`${houseBase('2040')}. ${LENS_SOLARPUNK}. ${ERA_2040}`);
 	});
 
-	it('leaves the era out of mood when the chip sits on the future default', () => {
+	it('orders the house base ahead of the lens line even with no era nudge', () => {
 		const onDefault = buildLayerInputs({
 			futureKey: 'solarpunk',
 			era: 'recognisably-2035',
 			answers: [{ questionId: 'q1', keys: ['recognisably-2035'] }]
 		});
-		expect(onDefault.mood).toBe(SOLARPUNK.moodLine.replace(/\.$/, ''));
+		expect(onDefault.mood).toBe(`${houseBase('2035')}. ${LENS_SOLARPUNK}`);
+	});
+
+	it('reads the house base year off the era chip, not a hardcoded 2035', () => {
+		expect(built.mood.startsWith(houseBase('2040'))).toBe(true);
+		expect(built.mood).not.toContain(houseBase('2035'));
 	});
 
 	it('falls back to the house register when the table skipped the future card', () => {
@@ -57,34 +72,50 @@ describe('buildLayerInputs', () => {
 		expect(skipped.mood).toContain('moody rather than stark');
 	});
 
-	it('appends Q1s push reply verbatim when the era landed on 2026', () => {
+	it('appends Q1s push reply verbatim when the era landed on 2026, after the house base and lens', () => {
 		const protecting = buildLayerInputs({
 			futureKey: 'pragmatist-retrofit',
 			era: 'same-as-2026',
 			answers: [{ questionId: 'q1', keys: ['same-as-2026'], pushReply: 'the window seat everyone fights over' }]
 		});
-		expect(protecting.mood.endsWith('the window seat everyone fights over')).toBe(true);
-	});
-
-	it('builds materialsAndLight from q2, q5 and q8 plus q5s push reply', () => {
-		expect(built.materialsAndLight).toBe(
-			'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture. ' +
-				'a null zone with no signal at all — deliberately unconnected, unmarked, a room the network does not reach. ' +
-				'deliberate, curated pockets of greenery placed at specific pause points, not everywhere. ' +
-				'a null zone for thinking, the garden for after'
+		expect(protecting.mood).toBe(
+			`${houseBase('2026')}. seen through the lens of ${PRAGMATIST.name}: ${PRAGMATIST.moodLine.replace(/\.$/, '')}. the window seat everyone fights over`
 		);
 	});
 
-	it('builds programme from q3, q4, q6, q7, q9, q10 plus q9s push reply, splicing open options', () => {
+	it('builds materialsAndLight from q2 plus its push reply, then q7s material-adjacent fragments', () => {
+		expect(built.materialsAndLight).toBe(
+			'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture. ' +
+				'raw concrete and brushed steel. ' +
+				'a space that senses noise, air, occupancy and mood in real time, and adjusts before it is asked to — visibly mid-adjustment. ' +
+				'deliberately analogue zones with no technology at all, paper, pen and unpowered furniture'
+		);
+	});
+
+	it('keeps q2s push reply out of the layer when the table typed nothing', () => {
+		const quiet = buildLayerInputs({
+			futureKey: 'solarpunk',
+			answers: [{ questionId: 'q2', keys: ['raw-elemental'] }]
+		});
+		expect(quiet.materialsAndLight).toBe(
+			'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture'
+		);
+	});
+
+	it('does not pull q4, q5 or q8 into the top-level materialsAndLight layer (they feed zones instead)', () => {
+		expect(built.materialsAndLight).not.toContain('acoustic core');
+		expect(built.materialsAndLight).not.toContain('nap');
+		expect(built.materialsAndLight).not.toContain('greenery');
+	});
+
+	it('builds programme from q3 and q6, then a dedicated centaur clause, then a dedicated agile clause, then q10s push reply', () => {
 		expect(built.programme).toBe(
-			'a layered arrival combining AI guidance and a human welcome, in an order the table specifies: human first, then the AI. ' +
-				'movement guided by illuminated light paths embedded in the floor, tracing the route ahead. ' +
+			'an arrival that blends a human welcome and an AI one, ordered as the table specifies: human first, then the AI. ' +
 				'rooms with movable walls that visibly change size to fit the group inside them. ' +
 				'a workplace with one conspicuous absence, specified by the table: the assigned desk, deliberately missing. ' +
-				'deliberately analogue zones with no technology at all, paper, pen and unpowered furniture. ' +
-				'a building adjusting climate, sound or layout a moment before it is asked to, visibly mid-adjustment. ' +
-				'service robots present, either visibly moving through the space or working out of sight. ' +
-				'the lights warm as you sit down'
+				"the centaur room where humans and AI work as one unit: a shared table where the human and the AI are visibly deciding something together, one decision the table refused to hand to the AI, specified by the table: who gets fired, kept deliberately human. " +
+				"this workplace's agility: an agile workplace that recedes when it is not needed — technology and structure stepping back to leave room for people. " +
+				'the acoustic core'
 		);
 	});
 
@@ -107,13 +138,22 @@ describe('buildLayerInputs', () => {
 	});
 
 	it('drops an open options {text} slot rather than rendering the placeholder', () => {
-		const untyped = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q3', keys: ['both-in-order'] }] });
+		const untyped = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q3', keys: ['human-or-ai-order'] }] });
 		expect(untyped.programme).not.toContain('{text}');
-		expect(untyped.programme).toBe('a layered arrival combining AI guidance and a human welcome, in an order the table specifies');
+		expect(untyped.programme).toBe('an arrival that blends a human welcome and an AI one, ordered as the table specifies');
 	});
 });
 
 describe('composeBase / composeZonePrompt', () => {
+	it('composes a full example for a Garden City table on its default era — base, then lens, nothing else answered', () => {
+		const GARDEN_CITY = FUTURES.find((f) => f.key === 'garden-city')!;
+		const gc = buildLayerInputs({ futureKey: 'garden-city', answers: [] });
+		const composed = composeBase(gc);
+		expect(composed).toBe(
+			`${houseBase('2035')}. seen through the lens of ${GARDEN_CITY.name}: ${GARDEN_CITY.moodLine.replace(/\.$/, '')}`
+		);
+	});
+
 	it('orders the base mood, materials, programme, feel, wildcard and adds no guards', () => {
 		const base = composeBase(built);
 		expect(base.indexOf(built.materialsAndLight)).toBeGreaterThan(base.indexOf(built.mood));
@@ -123,12 +163,20 @@ describe('composeBase / composeZonePrompt', () => {
 		expect(base).not.toContain(NO_TEXT);
 	});
 
-	it('resolves a zones {qN} placeholders from the answers', () => {
+	it('resolves the library zones {q4}/{q5} placeholders from the answers', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		const resolved = resolveZone(library, ANSWERS);
+		expect(resolved.renderSuffix).not.toContain('{q4}');
 		expect(resolved.renderSuffix).not.toContain('{q5}');
-		expect(resolved.renderSuffix).toContain('a null zone with no signal at all');
-		expect(resolved.renderSuffix).toContain('deliberately analogue zones');
+		expect(resolved.renderSuffix).toContain('an acoustic core rated below 35 decibels');
+		expect(resolved.renderSuffix).toContain('rammed earth and glass');
+		expect(resolved.renderSuffix).toContain('restoration through the plainest tools');
+	});
+
+	it('falls back to "as the table left it" for an unanswered zone question', () => {
+		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
+		const resolved = resolveZone(library, []);
+		expect(resolved.renderSuffix).toContain('as the table left it');
 	});
 
 	it('wraps the base in NO_TEXT at both ends with the zone suffix in between', () => {

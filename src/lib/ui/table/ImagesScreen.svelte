@@ -10,6 +10,7 @@
 		prompt,
 		images,
 		regenerating,
+		failed,
 		refresh,
 		onregenerate,
 		ondone
@@ -17,6 +18,8 @@
 		prompt: string;
 		images: { zoneKey: string; state: string; url: string | null; error: string | null }[];
 		regenerating: boolean;
+		/** Why the last *Draw again* was refused — the throttle's own words, not a generic line. */
+		failed: string;
 		refresh: () => Promise<unknown>;
 		onregenerate: () => void;
 		ondone: () => void;
@@ -27,6 +30,10 @@
 </script>
 
 <h1 class="stem">Your workspace.</h1>
+
+{#if failed}
+	<p class="banner">{failed}</p>
+{/if}
 
 {#if beat.stale}
 	<p class="banner">No answer from the room for {beat.staleSeconds}s — this may not be the latest.</p>

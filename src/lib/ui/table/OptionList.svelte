@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
 	 * One question's options. Honours all three `SelectKind`s from
-	 * `game/questions.ts`: `one` replaces, `many` toggles, `pick n` toggles
+	 * `game/questions.ts`: `one` replaces, `many` toggles (capped at its
+	 * optional `max`, e.g. Q4/Q7/Q9's "up to 3" facets), `pick n` toggles
 	 * and drops the oldest selection once n are held — so the table never
 	 * hits a dead end where nothing responds to a tap.
 	 *
@@ -24,7 +25,9 @@
 	} = $props();
 
 	const select = $derived('select' in question ? question.select : { kind: 'one' as const });
-	const limit = $derived(select.kind === 'pick' ? select.n : Infinity);
+	const limit = $derived(
+		select.kind === 'pick' ? select.n : select.kind === 'many' && select.max ? select.max : Infinity
+	);
 
 	function toggle(key: string) {
 		let next: string[];
@@ -68,6 +71,8 @@
 
 {#if select.kind === 'pick'}
 	<p class="count">{keys.length} of {select.n} chosen</p>
+{:else if select.kind === 'many' && select.max}
+	<p class="count">{keys.length} of {select.max} chosen</p>
 {/if}
 
 <style>

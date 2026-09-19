@@ -51,6 +51,9 @@ export interface SubmitZoneImageResult {
 	responseUrl: string;
 }
 
+/** The production model, the same slug the sibling apps use. */
+export const FAL_MODEL = 'fal-ai/nano-banana-2';
+
 export async function submitZoneImage(input: SubmitZoneImageInput): Promise<SubmitZoneImageResult> {
 	if (falFake()) {
 		const requestId = `${FAKE_PREFIX}${crypto.randomUUID()}`;

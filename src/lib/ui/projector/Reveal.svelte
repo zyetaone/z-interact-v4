@@ -15,10 +15,11 @@
 
 <!-- Reveal beat (game-flow.md §4, tag C): plain 5x4 grid, one tile per table. -->
 <section class="reveal">
+	<header>Every table</header>
 	<div class="grid">
 		{#each tables as t (t.table)}
 			{@const img = firstImage(t)}
-			<figure class="cell">
+			<figure class="cell" class:empty-cell={!img}>
 				{#if img}
 					<img src={img.url} alt="Table {t.table} zone render" loading="lazy" />
 				{:else}
@@ -34,12 +35,34 @@
 </section>
 
 <style>
+	/* box-sizing:border-box throughout — the previous `height:100%` +
+	   content-box padding combination pushed the border box past the
+	   viewport (overflow silently clipped by the projector root's
+	   `overflow:hidden`), which is why row 4 (tables 16-20) went missing at
+	   1920x1080. Flex column + `flex:1` + `min-height:0` on `.grid` (not
+	   `height:100%`) is what actually keeps 20 tiles inside one screen with
+	   no page scroll, ever. */
+	.reveal,
+	.reveal * {
+		box-sizing: border-box;
+	}
 	.reveal {
 		height: 100%;
-		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		padding: 1.25rem 2rem 2rem;
+		gap: 0.75rem;
+	}
+	header {
+		flex: 0 0 auto;
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--ink-muted);
 	}
 	.grid {
-		height: 100%;
+		flex: 1;
+		min-height: 0;
 		display: grid;
 		grid-template-columns: repeat(5, 1fr);
 		grid-template-rows: repeat(4, 1fr);
@@ -52,6 +75,7 @@
 		overflow: hidden;
 		background: var(--card);
 		display: flex;
+		min-height: 0;
 	}
 	.cell img {
 		width: 100%;
@@ -59,13 +83,20 @@
 		object-fit: cover;
 		display: block;
 	}
+	/* Quieter than a drawn tile, on purpose — the eye should land on what
+	   exists, not on the 20-tile placeholder grid around it. */
+	.cell.empty-cell {
+		background: transparent;
+		border: 1px dashed var(--line);
+		opacity: 0.55;
+	}
 	.empty {
 		flex: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: var(--ink-muted);
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 	}
@@ -78,8 +109,15 @@
 		background: linear-gradient(0deg, rgba(0, 0, 0, 0.65), transparent);
 		font-size: 0.85rem;
 	}
+	.empty-cell figcaption {
+		background: none;
+	}
 	.table-no {
 		font-weight: 700;
+	}
+	.empty-cell .table-no {
+		font-weight: 500;
+		color: var(--ink-muted);
 	}
 	.future {
 		color: var(--gold);

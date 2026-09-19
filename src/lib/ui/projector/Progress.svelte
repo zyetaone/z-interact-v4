@@ -42,12 +42,20 @@
 </section>
 
 <style>
+	/* border-box, not content-box: `height:100%` plus content-box padding
+	   pushes the border box past the viewport (silently clipped by the
+	   projector root's `overflow:hidden`) — the same bug fixed in
+	   Reveal.svelte, hardened here before it shows up the same way. */
+	.progress,
+	.progress * {
+		box-sizing: border-box;
+	}
 	.progress {
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-		padding: 3rem 4rem;
-		gap: 1.5rem;
+		padding: 2rem 3rem 2.5rem;
+		gap: 1.25rem;
 	}
 	h2 {
 		font-family: 'Playfair Display', Georgia, serif;
@@ -57,6 +65,7 @@
 	}
 	.grid {
 		flex: 1;
+		min-height: 0;
 		display: grid;
 		grid-template-columns: repeat(5, 1fr);
 		grid-template-rows: repeat(4, 1fr);

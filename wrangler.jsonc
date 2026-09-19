@@ -1,0 +1,45 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "z-interact-v4",
+	"compatibility_date": "2026-09-19",
+	// nodejs_compat: server modules may read process.env at runtime; with
+	// nodejs_compat and a compatibility_date >= 2025-04-01 the Workers runtime
+	// populates process.env from `vars`/secrets, so no code change is needed.
+	// nodejs_als: SvelteKit's getRequestEvent() (env.ts's requestEnv, and every
+	// remote function) is built on Node's AsyncLocalStorage — required on
+	// Pages per Cloudflare's own SvelteKit guidance and z-common-ground's
+	// wrangler.jsonc comment (the gap it hit in its first live session).
+	"compatibility_flags": ["nodejs_compat", "nodejs_als"],
+	// Cloudflare Pages, not a Worker. Deploy with `wrangler pages deploy`, not
+	// `wrangler deploy`; test the build locally with
+	// `wrangler pages dev .svelte-kit/cloudflare`.
+	"pages_build_output_dir": ".svelte-kit/cloudflare",
+	// D1 — one database per event (NEW-EVENT.md). CREATE TABLE IF NOT EXISTS
+	// runs on first request (see src/lib/server/d1.ts); there is no migration
+	// step and no remote resource is touched by `npm run dev` (adapter's
+	// platformProxy creates a local D1 from this file).
+	//
+	// database_id is a placeholder — NEW-EVENT.md's checklist creates the real
+	// D1 and fills this in per event. Do not point this at an existing event's
+	// database.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "z-interact-v4-db",
+			"database_id": "REPLACE_WITH_NEW_D1_ID"
+		}
+	],
+	// R2 — full-size renders and (once the tile upgrade lands) a ~512px tile
+	// per image. See src/lib/server/r2.ts's `// ponytail:` note.
+	"r2_buckets": [
+		{
+			"binding": "IMAGES",
+			"bucket_name": "z-interact-v4-images"
+		}
+	]
+	// A secret set here is a PAGES secret, not a Workers one:
+	//   wrangler pages secret put FAL_KEY --project-name z-interact-v4
+	// `wrangler secret put` is the plain-Workers command and does not reach a
+	// Pages project — following it leaves the key unset in production, where
+	// a perfectly good key reads exactly like a dead one.
+}

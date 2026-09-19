@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local dev. .dev.vars is gitignored — never commit real keys.
+FAL_KEY=
+FAL_WEBHOOK_SECRET=
+SIMULATE_ENABLED=false
+EVENT_ID=dev-event

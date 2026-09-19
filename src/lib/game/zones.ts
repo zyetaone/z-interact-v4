@@ -4,6 +4,11 @@
  * iterates in `fal.ts`/`prompt.ts`, and each `key` is also the R2/D1 key
  * component (`r2.ts`'s `imageKey`).
  *
+ * Re-derived for VERSION 3 of the questions (`game/questions.ts`): Q4
+ * (hardest thinking) and Q9 (centaurs) are new; Q7 absorbed the old
+ * sensing content that used to live on Q9; Q3 now covers both arrival and
+ * wayfinding. Every zone below cites the V3 question ids it actually reads.
+ *
  * Two candidate sets, both implemented behind one export so the lead's call
  * (still pending) is a one-line change:
  *
@@ -11,9 +16,9 @@
  *   Studio, Plaza, Garden (futures.md §6, p.202's "neural-state biomes").
  *   The content owner reviews slides and may expect their own book's frame
  *   reflected on stage.
- * - `questions`: zones derived directly from Q3-Q10 (zones-and-video.md §1,
- *   set (b), the design spike's own recommendation) — every one of the 8
- *   relevant questions attaches to exactly one zone, no answer orphaned.
+ * - `questions`: zones derived directly from the question set
+ *   (zones-and-video.md §1, set (b)) — every zone-worthy question attaches
+ *   to exactly one zone, no answer orphaned.
  *
  * Type extension beyond the original stub (documented per the brief):
  * `ZoneRef` (owned by `server/prompt.ts`, off-limits to this workstream)
@@ -35,56 +40,59 @@ export interface Zone extends ZoneRef {
  * The book's four functions (futures.md §6). `renderSuffix` fragments here are authored from
  * the chapter's own "engineered for" definitions — the source gives the zone names and their
  * question mapping, not literal prompt text (that's only worked out for the `questions` set
- * below, in zones-and-video.md §1(b)).
+ * below, in zones-and-video.md §1(b)). V3 mapping: library <- q4+q5 (hardest thinking, what
+ * else restores); studio <- q6+q7+q9 (furniture, tech, centaurs); plaza <- q3+q10 (arrival,
+ * agility); garden <- q8+q5 (nature, restoration — q5 shared with library, single-select so
+ * only the table's one pick renders in each).
  */
 const BOOK_ZONES: Zone[] = [
 	{
 		key: 'library',
-		questionIds: ['q5', 'q7'],
+		questionIds: ['q4', 'q5'],
 		renderSuffix:
-			'wide establishing shot of the library: a space engineered for deep focus, features that protect attention ({q5}), technology kept {q7}'
+			'wide establishing shot of the library: a space engineered for the hardest thinking ({q4}), and what protects and restores attention afterward ({q5})'
 	},
 	{
 		key: 'studio',
-		questionIds: ['q6', 'q7'],
+		questionIds: ['q6', 'q7', 'q9'],
 		renderSuffix:
-			'wide establishing shot of the studio: a space engineered for creativity, furniture and gathering ({q6}), technology kept {q7}'
+			'wide establishing shot of the studio: a space engineered for creativity, furniture and gathering ({q6}), technology that is {q7}, and the centaur room where humans and AI work together ({q9})'
 	},
 	{
 		key: 'plaza',
-		questionIds: ['q3', 'q4', 'q6'],
+		questionIds: ['q3', 'q10'],
 		renderSuffix:
-			'wide establishing shot of the plaza: a space engineered for collaboration, arrival ({q3}), movement ({q4}), meeting and gathering ({q6})'
+			'wide establishing shot of the plaza: a space engineered for collaboration, arrival ({q3}), and the agility of the workplace itself ({q10})'
 	},
 	{
 		key: 'garden',
 		questionIds: ['q8', 'q5'],
 		renderSuffix:
-			'wide establishing shot of the garden: a space engineered for restoration, nature ({q8}), a place for recovering after two hours of uninterrupted thought ({q5})'
+			'wide establishing shot of the garden: a space engineered for restoration, nature ({q8}), a place for recovering and protecting attention ({q5})'
 	}
 ];
 
-/** Zones derived directly from Q3-Q10 (zones-and-video.md §1, set (b)). Fragments ported verbatim. */
+/** Zones derived directly from the V3 question set (zones-and-video.md §1, set (b)). */
 const QUESTION_ZONES: Zone[] = [
 	{
 		key: 'arrival',
-		questionIds: ['q3', 'q4', 'q8'],
-		renderSuffix: 'the entrance and circulation of a 2035 office: {q3}, wayfinding by {q4}, greenery: {q8}'
+		questionIds: ['q3', 'q8'],
+		renderSuffix: 'the entrance and circulation of the office: {q3}, greenery: {q8}'
 	},
 	{
 		key: 'focus',
-		questionIds: ['q5'],
-		renderSuffix: 'a space that protects attention: {q5}, for two hours of uninterrupted thought'
+		questionIds: ['q4', 'q5'],
+		renderSuffix: 'a space that protects and restores attention: {q4}, {q5}'
 	},
 	{
 		key: 'meeting',
-		questionIds: ['q6'],
-		renderSuffix: 'a meeting or gathering space: {q6}'
+		questionIds: ['q6', 'q9'],
+		renderSuffix: 'a meeting or gathering space, including where the centaurs work: {q6}; {q9}'
 	},
 	{
-		key: 'sensing',
-		questionIds: ['q7', 'q9', 'q10'],
-		renderSuffix: 'an environment where {q7}; the building {q9}; {q10} runs itself'
+		key: 'agile',
+		questionIds: ['q7', 'q10'],
+		renderSuffix: 'an environment where the technology is {q7}, and the workplace shows its agility as {q10}'
 	}
 ];
 

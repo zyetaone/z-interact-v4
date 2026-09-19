@@ -15,6 +15,7 @@
 	 *
 	 * Still no future names: the lens is hidden analysis on every surface.
 	 */
+	import { stillAnswering } from './grouping';
 	import type { ProjectorBeat, TableView } from './types';
 
 	let {
@@ -32,15 +33,22 @@
 		finale: 'Look up'
 	};
 
-	const answering = $derived(tables.filter((t) => t.beatState !== 'done').length);
+	// Unsubmitted tables only — see `stillAnswering`. A table whose render
+	// failed is the desk's problem, not something to put in front of the
+	// room on the surface people use to work out whether to keep going.
+	const answering = $derived(stillAnswering(tables));
 </script>
 
 <section class="ledger">
 	<p class="instruction">{INSTRUCTION[beat]}</p>
-	<p class="line">
-		<span class="n">{answering}</span>
-		<span class="what">{answering === 1 ? 'table still answering' : 'tables still answering'}</span>
-	</p>
+	{#if answering > 0}
+		<p class="line">
+			<span class="n">{answering}</span>
+			<span class="what">{answering === 1 ? 'table still answering' : 'tables still answering'}</span>
+		</p>
+	{:else}
+		<p class="line"><span class="what">every table is in</span></p>
+	{/if}
 	<p class="line">
 		{#if focusTable}
 			<span class="what">on the wall</span>

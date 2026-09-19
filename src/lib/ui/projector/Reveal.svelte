@@ -125,11 +125,20 @@
 		height: 100%;
 		overflow: hidden;
 	}
+	/* EXPLICIT ROWS. With columns declared and rows left implicit, a row is
+	   sized by its content, and a tile's `height: 100%` image then resolves
+	   against `auto` and falls back to the picture's own height. On the last
+	   page of a 2x2 — the page that is not full — that showed one tile
+	   filling only the top half of its frame with navy beneath, while its
+	   neighbours looked right. Both axes are fractions now, and
+	   `grid-auto-rows` covers a page that is not full. */
 	.page {
 		position: absolute;
 		inset: 0;
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
+		grid-template-rows: repeat(2, 1fr);
+		grid-auto-rows: 1fr;
 		gap: 1.5vh;
 		padding: 2vh 2vh 6vh;
 	}
@@ -137,6 +146,7 @@
 	.page.wide {
 		grid-template-columns: repeat(5, 1fr);
 		grid-template-rows: 1fr;
+		grid-auto-rows: 1fr;
 	}
 	.tile {
 		position: relative;

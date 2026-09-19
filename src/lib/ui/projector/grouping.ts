@@ -31,3 +31,27 @@ export function byLensThenTable(tables: TableView[]): TableView[] {
 	const rank = (t: TableView) => futureIndexOf(t.futureKey) ?? FUTURES.length;
 	return [...tables].sort((a, b) => rank(a) - rank(b) || a.table - b.table);
 }
+
+/**
+ * Tables that have not sent their answers yet.
+ *
+ * "Still answering" counted every table that was not `done`, which on the
+ * night read "4 tables still answering" while all twenty had submitted —
+ * the four it was counting had submitted and then lost one zone to a
+ * failed render. A table waiting on an image is not a table the room is
+ * waiting on, and telling nineteen tables otherwise sends them looking for
+ * someone who is already finished.
+ *
+ * `drawing` and `done` are both past the submit; everything before them is
+ * not.
+ */
+const UNSUBMITTED: ReadonlySet<TableView['beatState']> = new Set([
+	'not-started',
+	'choosing',
+	'answering',
+	'reviewing'
+] as const);
+
+export function stillAnswering(tables: TableView[]): number {
+	return tables.filter((t) => UNSUBMITTED.has(t.beatState)).length;
+}

@@ -5,11 +5,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import { FUTURES } from '$lib/game/futures';
-import { byLensThenTable, futureIndexOf } from './grouping';
+import { byLensThenTable, futureIndexOf, stillAnswering } from './grouping';
 import type { TableView } from './types';
 
 function table(n: number, futureKey: string | null): TableView {
 	return { table: n, beatState: 'done', step: null, totalSteps: 10, futureKey, images: [] };
+}
+
+function inState(n: number, beatState: TableView['beatState']): TableView {
+	return { table: n, beatState, step: null, totalSteps: 10, futureKey: null, images: [] };
 }
 
 describe('futureIndexOf', () => {
@@ -42,5 +46,30 @@ describe('byLensThenTable', () => {
 		const input = [table(3, FUTURES[1].key), table(1, FUTURES[0].key)];
 		byLensThenTable(input);
 		expect(input.map((t) => t.table)).toEqual([3, 1]);
+	});
+});
+
+describe('stillAnswering', () => {
+	it('counts only tables that have not sent their answers', () => {
+		const room = [
+			inState(1, 'not-started'),
+			inState(2, 'choosing'),
+			inState(3, 'answering'),
+			inState(4, 'reviewing'),
+			inState(5, 'drawing'),
+			inState(6, 'done')
+		];
+		expect(stillAnswering(room)).toBe(4);
+	});
+
+	it('does not count a table that submitted and is waiting on a render', () => {
+		// The live defect: the ledger read "4 tables still answering" with
+		// every table submitted, because four were waiting on a zone that had
+		// failed. A table waiting on an image is not one the room waits for.
+		expect(stillAnswering([inState(1, 'drawing'), inState(2, 'drawing')])).toBe(0);
+	});
+
+	it('is zero for a finished room, which is what makes the line disappear', () => {
+		expect(stillAnswering([inState(1, 'done'), inState(2, 'done')])).toBe(0);
 	});
 });

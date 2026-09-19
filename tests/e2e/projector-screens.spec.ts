@@ -76,15 +76,38 @@ test.describe('projector wall captures', () => {
 		// tiles from the grid rather than from the number of tables, so the
 		// bug cannot come back with more data — this measures it anyway,
 		// because that is the assertion, not the reasoning.
+		const tileHeights = () =>
+			page.locator('figure img').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+
+		async function assertTilesFill(height: number, where: string) {
+			const boxes = await tileHeights();
+			expect(boxes.length, where).toBeGreaterThan(0);
+			for (const h of boxes) expect(h, where).toBeGreaterThan(height * 0.3);
+			// Every tile on a page is the same height. A lenient floor missed
+			// the real defect: one tile filling the top half of its frame
+			// while its neighbours filled theirs, because the grid's rows were
+			// implicit and sized themselves from content.
+			expect(Math.max(...boxes) - Math.min(...boxes), where).toBeLessThan(2);
+		}
+
 		for (const size of [WALL, TV]) {
 			await page.setViewportSize(size);
 			await page.goto('/projector?fixtures=1&beat=reveal');
 			await page.waitForLoadState('networkidle');
-			const boxes = await page.locator('figure img').evaluateAll((els) =>
-				els.map((e) => e.getBoundingClientRect().height)
+			await assertTilesFill(size.height, `${size.width} page 1`);
+
+			// The defect was reported on page 2, which is the page that is NOT
+			// full: a first page always holds exactly its quota, so measuring
+			// only what loads first cannot see it. The page turns itself on an
+			// eight second timer.
+			const first = await tileHeights();
+			await page.waitForFunction(
+				(n) => document.querySelectorAll('figure img').length !== n,
+				first.length,
+				{ timeout: 15_000 }
 			);
-			expect(boxes.length).toBeGreaterThan(0);
-			for (const h of boxes) expect(h).toBeGreaterThan(size.height * 0.3);
+			await page.waitForLoadState('networkidle');
+			await assertTilesFill(size.height, `${size.width} page 2`);
 		}
 	});
 

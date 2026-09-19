@@ -81,9 +81,55 @@ export async function submitZoneImage(input: SubmitZoneImageInput): Promise<Subm
 	return { requestId: body.request_id, statusUrl: body.status_url, responseUrl: body.response_url };
 }
 
+/**
+ * fal's own status vocabulary is `IN_QUEUE` / `IN_PROGRESS` / `COMPLETED`.
+ * A failure surfaces either as the webhook body's `ERROR` status or as an
+ * `error`/`detail` payload alongside some other string. `ERROR` is this
+ * app's fifth value for "the provider is finished and it did not work" —
+ * without it `generate.ts`'s `requested` branch reads every unrecognised
+ * status as "not ready yet" and the row waits for ever.
+ */
+export type FalStatusName = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'ERROR';
+
 export interface FalStatus {
-	status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED';
+	status: FalStatusName;
 	queuePosition?: number;
+	/** Short provider-side reason. Only set when `status` is `ERROR`. */
+	error?: string;
+}
+
+/**
+ * The unknown-status rule, split out so `fal.test.ts` drives it with no
+ * network call. Anything that is not one of fal's three live states is an
+ * ERROR — an unmodelled status is a row nobody can advance, which is the
+ * failure mode this whole change exists to remove.
+ */
+export function normaliseStatus(body: {
+	status?: unknown;
+	queue_position?: number;
+	error?: unknown;
+	detail?: unknown;
+}): FalStatus {
+	const status = body.status;
+	if (status === 'IN_QUEUE' || status === 'IN_PROGRESS') {
+		return { status, queuePosition: body.queue_position };
+	}
+	if (status === 'COMPLETED') return { status: 'COMPLETED' };
+	return { status: 'ERROR', error: falErrorText(body.error ?? body.detail, status) };
+}
+
+/** A short, human-readable reason from whatever shape fal put the failure in. */
+export function falErrorText(detail: unknown, status?: unknown): string {
+	if (typeof detail === 'string' && detail.trim()) return detail.trim().slice(0, 200);
+	if (detail != null) {
+		try {
+			return JSON.stringify(detail).slice(0, 200);
+		} catch {
+			/* fall through to the status-based wording */
+		}
+	}
+	if (typeof status === 'string' && status.trim()) return `the image model reported ${status.trim()}`.slice(0, 200);
+	return 'the image model reported an error';
 }
 
 export async function pollStatus(falKey: string, model: string, requestId: string): Promise<FalStatus> {
@@ -92,8 +138,8 @@ export async function pollStatus(falKey: string, model: string, requestId: strin
 		headers: { Authorization: `Key ${falKey}` }
 	});
 	if (!res.ok) throw new Error(`fal status failed: ${res.status}`);
-	const body = (await res.json()) as { status: FalStatus['status']; queue_position?: number };
-	return { status: body.status, queuePosition: body.queue_position };
+	const body = (await res.json()) as { status?: unknown; queue_position?: number; error?: unknown; detail?: unknown };
+	return normaliseStatus(body);
 }
 
 /** The result payload once `status` reports COMPLETED. Shape is model-specific; `images[0].url` is the nano-banana-class convention this app targets. */

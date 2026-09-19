@@ -17,6 +17,47 @@
 export const NO_TEXT = 'no text, no labels, no UI chrome, no watermark';
 
 /**
+ * The ceiling on the table-editable prompt. Screen 15's textarea is free
+ * text that becomes the ENTIRE prompt sent to a paid third-party API and
+ * then shown on a public screen, so it had to stop being unbounded. Long
+ * enough for a real edit of the composed base (which runs a few hundred
+ * characters), short enough that it cannot be used as a payload.
+ */
+export const MAX_COMPOSED_CHARS = 1200;
+
+/**
+ * What a table is allowed to put in the prompt: printable text, one line's
+ * worth of whitespace, and no more than `MAX_COMPOSED_CHARS` of it.
+ *
+ * Control characters are stripped rather than rejected — a paste from a
+ * document carries them invisibly, and refusing the paste would read to the
+ * table as the app being broken. Truncation is on a word boundary where one
+ * is near the cut, so the prompt ends as a phrase rather than mid-word.
+ */
+export function sanitizeComposed(raw: string, max: number = MAX_COMPOSED_CHARS): string {
+	// eslint-disable-next-line no-control-regex -- stripping them is the point
+	const stripped = raw.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ');
+	const collapsed = stripped.replace(/\s+/g, ' ').trim();
+	if (collapsed.length <= max) return collapsed;
+	const cut = collapsed.slice(0, max);
+	const lastSpace = cut.lastIndexOf(' ');
+	return (lastSpace > max - 80 ? cut.slice(0, lastSpace) : cut).trim();
+}
+
+/**
+ * The house negative, phrased as an instruction inside the prompt rather
+ * than sent as an API field. fal's per-model schemas differ on whether a
+ * `negative_prompt` parameter exists, and this app submits to `queue.fal.run`
+ * over raw fetch with no schema introspection — an unrecognised field would
+ * be silently ignored, which is the failure mode where the negative looks
+ * applied and is not. In the prompt it always lands.
+ */
+export function negativeClause(negative: string | undefined): string {
+	const terms = (negative ?? '').trim().replace(/[.\s]+$/, '');
+	return terms ? `Avoid: ${terms}` : '';
+}
+
+/**
  * THE HOUSE BASE — the fixed opening frame every table's prompt starts
  * from, before any future's lens is applied: still a workplace interior,
  * still photoreal, still an establishing view, regardless of which future
@@ -48,7 +89,12 @@ export interface ZoneRef {
 	renderSuffix: string;
 }
 
-export function composeLayers(inputs: LayerInputs, zone: ZoneRef): string {
+/**
+ * `negative` rides in just before the closing NO_TEXT guard, so the
+ * both-ends rule this module exists to hold (and `prompt.test.ts` asserts)
+ * is unchanged, and the last thing the model reads is still the guard.
+ */
+export function composeLayers(inputs: LayerInputs, zone: ZoneRef, negative?: string): string {
 	const fragments = [
 		NO_TEXT,
 		inputs.mood,
@@ -57,6 +103,7 @@ export function composeLayers(inputs: LayerInputs, zone: ZoneRef): string {
 		inputs.feel,
 		zone.renderSuffix,
 		...(inputs.wildcard ? [inputs.wildcard] : []),
+		negativeClause(negative),
 		NO_TEXT
 	];
 	return fragments.filter((f) => f && f.trim().length > 0).join('. ');

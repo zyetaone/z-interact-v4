@@ -52,7 +52,7 @@ import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import type { Zone } from '$lib/game/zones';
-import { composeLayers, houseBase, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+import { composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
 
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
@@ -227,9 +227,19 @@ export function resolveZone(zone: Zone, answers: readonly AnswerLike[]): ZoneRef
  * The exact string submitted to fal for one zone. The base (edited or not)
  * rides in as the single leading clause so `composeLayers` still owns the
  * NO_TEXT-at-both-ends rule that `prompt.test.ts` asserts.
+ *
+ * Two things happen here that used not to: the base is run through
+ * `sanitizeComposed` (a table-edited prompt is free text that becomes the
+ * whole prompt, so it is capped and stripped of control characters), and
+ * the house negative is appended. Every submit path goes through this one
+ * function, so neither guard can be skipped by a caller.
  */
-export function composeZonePrompt(base: string, zone: ZoneRef): string {
-	return composeLayers({ mood: base, materialsAndLight: '', programme: '', feel: '' }, zone);
+export function composeZonePrompt(base: string, zone: ZoneRef, negative?: string): string {
+	return composeLayers(
+		{ mood: sanitizeComposed(base), materialsAndLight: '', programme: '', feel: '' },
+		zone,
+		negative
+	);
 }
 
 export { ERA_SCALE };

@@ -25,7 +25,7 @@
  * regenerations and mutable within one attempt's lifecycle — both rules
  * hold at once, at different grain.
  */
-import { dbWith, isTransientD1Error } from './d1';
+import { dbWith, isTransientD1Error, monotonicNow } from './d1';
 import type { GenerationState } from './generate';
 
 export const EVENT_TABLE_SCHEMA = `CREATE TABLE IF NOT EXISTS event_table (
@@ -153,7 +153,7 @@ export async function saveAnswer(d: D1Database, input: AnswerInput): Promise<voi
 				input.actor ?? 'table',
 				input.source ?? 'tap',
 				input.supersedesId ?? null,
-				Date.now()
+				monotonicNow()
 			)
 			.run();
 	} catch (e) {
@@ -421,7 +421,7 @@ export async function insertPrompt(d: D1Database, input: PromptInput): Promise<s
 			input.editedByTable ? 1 : 0,
 			input.actor ?? 'table',
 			input.supersedesId ?? null,
-			Date.now()
+			monotonicNow()
 		)
 		.run();
 	return id;
@@ -466,7 +466,7 @@ export async function insertQueuedImage(d: D1Database, input: ImageInsertInput):
 	await dbWith(d, 'image_current_idx', IMAGE_CURRENT_IDX);
 	await dbWith(d, 'image_pending_idx', IMAGE_PENDING_IDX);
 	const id = newId();
-	const createdAt = Date.now();
+	const createdAt = monotonicNow();
 	if (db) {
 		await db
 			.prepare(
@@ -502,6 +502,100 @@ export async function insertQueuedImage(d: D1Database, input: ImageInsertInput):
 		error: null,
 		createdAt
 	};
+}
+
+/**
+ * The CROSS-ISOLATE idempotent submit: inserts a `queued` attempt only if
+ * this table+zone has no non-terminal row already, in ONE statement, and
+ * returns null when it did not insert.
+ *
+ * `insertQueuedImage`'s callers read-then-write ("is there a current image?
+ * no — insert one"), which two isolates can both pass before either writes.
+ * That is the double-tap that queued two full generation sets for one
+ * table. `INSERT ... SELECT ... WHERE NOT EXISTS` makes the check and the
+ * write the same statement, so the database decides, not the reader.
+ *
+ * `sinceTs` is the table's reset watermark: a pre-reset attempt is history,
+ * never a reason to refuse a fresh one.
+ */
+export async function insertQueuedImageIfIdle(
+	d: D1Database,
+	input: ImageInsertInput,
+	sinceTs = 0
+): Promise<ImageRow | null> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	await dbWith(d, 'image_current_idx', IMAGE_CURRENT_IDX);
+	await dbWith(d, 'image_pending_idx', IMAGE_PENDING_IDX);
+	const id = newId();
+	const createdAt = monotonicNow();
+	if (!db) return null;
+	const res = (await db
+		.prepare(
+			`INSERT INTO image (id, event_id, table_no, zone_key, prompt_id, model, reference_image_id, state, actor, supersedes_id, created_at)
+                 SELECT ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM image
+                     WHERE event_id = ? AND table_no = ? AND zone_key = ?
+                       AND state IN ('queued', 'requested') AND created_at > ?
+                 )`
+		)
+		.bind(
+			id,
+			input.eventId,
+			input.table,
+			input.zoneKey,
+			input.promptId,
+			input.model,
+			input.referenceImageId ?? null,
+			input.actor ?? 'table',
+			input.supersedesId ?? null,
+			createdAt,
+			input.eventId,
+			input.table,
+			input.zoneKey,
+			sinceTs
+		)
+		.run()) as unknown as { meta?: { changes?: number } };
+	if ((res?.meta?.changes ?? 0) === 0) return null;
+	return {
+		id,
+		eventId: input.eventId,
+		table: input.table,
+		zoneKey: input.zoneKey,
+		promptId: input.promptId,
+		r2Key: null,
+		tileKey: null,
+		fullKey: null,
+		model: input.model,
+		state: 'queued',
+		falRequestId: null,
+		error: null,
+		createdAt
+	};
+}
+
+/**
+ * What one table has already spent: how many render rows it holds since its
+ * last reset, and when the newest one was inserted. Both spend limits
+ * (`limits.ts`) are derived from this rather than from an in-isolate timer,
+ * which an isolate recycle or a second isolate would silently reset.
+ */
+export async function getRenderBudget(
+	d: D1Database,
+	eventId: string,
+	table: number,
+	sinceTs = 0
+): Promise<{ used: number; lastRenderAt: number }> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return { used: 0, lastRenderAt: 0 };
+	const row = await db
+		.prepare(
+			`SELECT COUNT(*) as n, COALESCE(MAX(created_at), 0) as last_at
+                 FROM image WHERE event_id = ? AND table_no = ? AND created_at > ?`
+		)
+		.bind(eventId, table, sinceTs)
+		.first<{ n: number; last_at: number }>();
+	return { used: row?.n ?? 0, lastRenderAt: row?.last_at ?? 0 };
 }
 
 interface ImageRawRow {
@@ -599,30 +693,71 @@ export async function getImageById(d: D1Database, id: string): Promise<ImageRow 
 	return row ? toImageRow(row) : null;
 }
 
-/** `tick()`'s `queued -> requested` transition, written back in place (same attempt, not a new row). */
-export async function markRequested(d: D1Database, id: string, falRequestId: string): Promise<void> {
-	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
-	await db.prepare(`UPDATE image SET state = 'requested', fal_request_id = ? WHERE id = ?`).bind(falRequestId, id).run();
-}
+/* -------------------------------------------------------------------------- */
+/* STATE TRANSITIONS ARE COMPARE-AND-SWAP                                     */
+/*                                                                            */
+/* Three tickers (phone poll, admin poll, fal webhook) run on independent     */
+/* clocks in independent isolates and each decides from a snapshot its own    */
+/* caller read. A bare `WHERE id = ?` let two of them both read a row as      */
+/* `queued` and both submit it to fal — two paid jobs, and whichever          */
+/* `markRequested` landed last silently dropped the other's request id.       */
+/*                                                                            */
+/* Every write below is `... WHERE id = ? AND state = <the state we decided   */
+/* from>` and returns whether it changed a row. Zero changes means another    */
+/* ticker got there first, and the caller stops rather than acting on a       */
+/* decision that is no longer true. `changes` is D1's own result field, and   */
+/* `fake-d1.ts` surfaces the same one from SQLite.                            */
+/* -------------------------------------------------------------------------- */
 
-/** `tick()`'s `requested -> stored` transition. */
-export async function markStored(d: D1Database, id: string, r2Key: string): Promise<void> {
+/** True when the UPDATE actually changed a row. A D1 wobble reads as "did not win" rather than throwing — the next poll retries. */
+async function swap(d: D1Database, sql: string, binds: unknown[]): Promise<boolean> {
 	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
-	await db.prepare(`UPDATE image SET state = 'stored', r2_key = ? WHERE id = ?`).bind(r2Key, id).run();
-}
-
-/** Any transition -> `failed`. Called by a caller that catches a `tick()` dependency throwing, so a transient wobble doesn't wedge the row forever without a record of why. */
-export async function markFailed(d: D1Database, id: string, error: string): Promise<void> {
-	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
+	if (!db) return false;
 	try {
-		await db.prepare(`UPDATE image SET state = 'failed', error = ? WHERE id = ?`).bind(error.slice(0, 500), id).run();
+		const res = (await db
+			.prepare(sql)
+			.bind(...binds)
+			.run()) as unknown as { meta?: { changes?: number } };
+		return (res?.meta?.changes ?? 0) > 0;
 	} catch (e) {
-		if (isTransientD1Error(e)) return;
+		if (isTransientD1Error(e)) return false;
 		throw e;
 	}
+}
+
+/**
+ * CLAIM the row before spending money on it: `queued -> requested`, with the
+ * fal request id still null. The winner is whoever's UPDATE changes the row;
+ * every other ticker gets `false` and stops before calling fal at all.
+ *
+ * Claiming BEFORE the submit, rather than swapping after it, is the whole
+ * point. A compare-and-swap on the way back would still have let both
+ * tickers submit; it would only have decided whose request id survived.
+ */
+export async function claimQueued(d: D1Database, id: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'requested' WHERE id = ? AND state = 'queued'`, [id]);
+}
+
+/** Records the fal request id against a row this ticker already claimed. Guarded so a late duplicate cannot overwrite a live id. */
+export async function markRequested(d: D1Database, id: string, falRequestId: string): Promise<boolean> {
+	return swap(
+		d,
+		`UPDATE image SET state = 'requested', fal_request_id = ? WHERE id = ? AND state = 'requested' AND fal_request_id IS NULL`,
+		[falRequestId, id]
+	);
+}
+
+/** `tick()`'s `requested -> stored` transition. The R2 key derives from the image row id, so a losing ticker's duplicate put wrote identical bytes to the same key — only the D1 write needed guarding. */
+export async function markStored(d: D1Database, id: string, r2Key: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'stored', r2_key = ? WHERE id = ? AND state = 'requested'`, [r2Key, id]);
+}
+
+/** Any non-terminal state -> `failed`. Guarded so a slow failure report cannot overwrite a render that has since succeeded. */
+export async function markFailed(d: D1Database, id: string, error: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'failed', error = ? WHERE id = ? AND state IN ('queued', 'requested')`, [
+		error.slice(0, 500),
+		id
+	]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -696,7 +831,7 @@ export async function getPromptRowById(d: D1Database, id: string): Promise<Promp
 /* event, `id` always 1, same upsert shape `gate.ts`'s lock already uses.    */
 /* -------------------------------------------------------------------------- */
 
-export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus';
+export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus' | 'finale';
 
 export const ROOM_BEAT_SCHEMA = `CREATE TABLE IF NOT EXISTS room_beat (
 	event_id TEXT NOT NULL,
@@ -795,7 +930,7 @@ export async function resetTable(d: D1Database, eventId: string, table: number, 
 	if (db) {
 		await db
 			.prepare(`INSERT INTO table_reset (event_id, table_no, reset_at, actor, created_at) VALUES (?, ?, ?, ?, ?)`)
-			.bind(eventId, table, Date.now(), actor, Date.now())
+			.bind(eventId, table, monotonicNow(), actor, monotonicNow())
 			.run();
 	}
 	const et = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
@@ -804,6 +939,26 @@ export async function resetTable(d: D1Database, eventId: string, table: number, 
 			.prepare(`UPDATE event_table SET submitted_at = NULL WHERE event_id = ? AND table_no = ?`)
 			.bind(eventId, table)
 			.run();
+	}
+	// Renders already in flight for this table are ABANDONED, not left
+	// running. The watermark only filters READS; a `queued`/`requested` row
+	// stays pending, and the admin poll's ticker walks every pending row in
+	// the event, so a reset mid-generation used to be followed by fal bills
+	// for work the desk had just thrown away. `failed` is terminal, so every
+	// ticker skips them from here on.
+	const img = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (img) {
+		try {
+			await img
+				.prepare(
+					`UPDATE image SET state = 'failed', error = 'the desk reset this table'
+                     WHERE event_id = ? AND table_no = ? AND state IN ('queued', 'requested')`
+				)
+				.bind(eventId, table)
+				.run();
+		} catch (e) {
+			if (!isTransientD1Error(e)) throw e;
+		}
 	}
 }
 
@@ -839,6 +994,8 @@ export interface AdminImageState {
 	zoneKey: string;
 	state: GenerationState;
 	createdAt: number;
+	/** The stored object's key, or null before it lands. Carried so the projector's own read can build image URLs from this ONE batched query instead of a point read per table per zone. */
+	r2Key: string | null;
 }
 
 export interface AdminRoomRow {
@@ -879,9 +1036,11 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 			: Promise.resolve({ results: [] as never[] }),
 		imageDb
 			? imageDb
-					.prepare(`SELECT table_no, zone_key, state, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`)
+					.prepare(
+						`SELECT table_no, zone_key, state, r2_key, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`
+					)
 					.bind(eventId)
-					.all<{ table_no: number; zone_key: string; state: string; created_at: number }>()
+					.all<{ table_no: number; zone_key: string; state: string; r2_key: string | null; created_at: number }>()
 			: Promise.resolve({ results: [] as never[] }),
 		resetDb
 			? resetDb
@@ -908,7 +1067,7 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
 		let arr = imagesByTable.get(r.table_no);
 		if (!arr) imagesByTable.set(r.table_no, (arr = []));
-		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at });
+		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at, r2Key: r.r2_key });
 	}
 
 	const rows: AdminRoomRow[] = [];

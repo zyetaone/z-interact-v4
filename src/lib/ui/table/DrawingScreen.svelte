@@ -28,7 +28,8 @@
 		submitted: 'sent to the model',
 		rendering: 'drawing',
 		stored: 'done',
-		failed: 'did not land'
+		done: 'done',
+		failed: 'failed — draw again'
 	};
 </script>
 

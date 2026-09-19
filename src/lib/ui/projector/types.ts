@@ -26,14 +26,21 @@ export interface ZoneImageView {
 export interface TableView {
 	table: number;
 	beatState: TableBeatState;
-	/** Current question index, 1-based; null when not meaningfully known (see gallery.remote.ts note). */
+	/** How many questions have a current answer, or `totalSteps` once submitted. Null only in fixtures that deliberately omit it. */
 	step: number | null;
 	totalSteps: number;
-	/** The future this table chose, or null if unknown (real data can't see this yet — see gallery.remote.ts). */
+	/** The future this table chose, or null before the future card is answered. */
 	futureKey: string | null;
 	images: ZoneImageView[];
 }
 
+/** Mirrors `room.ts`'s `Beat`. The wall follows this, not the URL. */
+export type ProjectorBeat = 'lobby' | 'progress' | 'reveal' | 'focus' | 'finale';
+
 export interface ProjectorRoom {
+	/** What the desk last pressed (`room_beat`), or `lobby` before anything was pressed. */
+	beat: ProjectorBeat;
+	/** The table the `focus` beat is pointed at. */
+	focusTable: number | null;
 	tables: TableView[];
 }

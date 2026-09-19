@@ -26,27 +26,47 @@
 
 export type GenerationState = 'queued' | 'requested' | 'stored' | 'done' | 'failed';
 
+/**
+ * How long a `requested` row may sit with no fal request id before it is
+ * given up on. That combination means a ticker CLAIMED the row (see
+ * `room.ts`'s `claimQueued`) and then died before its submit landed — rare,
+ * but the price of claiming before spending. Without this the row reads as
+ * "cannot resume" for ever, which is the same stuck table the claim exists
+ * to prevent. Two minutes is comfortably longer than a submit round-trip.
+ */
+export const STALE_CLAIM_MS = 2 * 60 * 1000;
+
 export interface GenerationRow {
 	id: string;
 	state: GenerationState;
 	falRequestId: string | null;
+	/** When this attempt's row was inserted — the claim happens moments later, so it doubles as the claim clock for `STALE_CLAIM_MS`. */
+	createdAt?: number;
 	/** The composed prompt this attempt submits. Set at insert time (queued), never changed by tick(). */
 	prompt: string;
 	/** This app's own idempotency/logging key — `${table}:${zone}:${imageId}` is a reasonable default for a caller to use. */
 	requestKey: string;
 }
 
+/** The subset of `fal.ts`'s `FalStatus` this state machine reads. `ERROR` is a real, terminal answer — see `fal.ts`'s note on why it has to be modelled. */
+export interface PolledStatus {
+	status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'ERROR';
+	error?: string;
+}
+
 export interface GenerateDeps {
 	submit(prompt: string, requestKey: string): Promise<{ requestId: string }>;
-	pollStatus(requestId: string): Promise<{ status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' }>;
+	pollStatus(requestId: string): Promise<PolledStatus>;
 	fetchResult(requestId: string): Promise<{ imageUrl: string }>;
-	fetchBytes(imageUrl: string): Promise<ArrayBuffer>;
-	putR2(bytes: ArrayBuffer): Promise<{ r2Key: string }>;
+	/** Bounded and host-checked — see `fetch-image.ts`. Returns the SNIFFED content type so R2 stores what actually arrived. */
+	fetchBytes(imageUrl: string): Promise<{ bytes: ArrayBuffer; contentType: string }>;
+	putR2(image: { bytes: ArrayBuffer; contentType: string }): Promise<{ r2Key: string }>;
 }
 
 export type TickResult =
 	| { handled: true; nextState: 'requested'; falRequestId: string }
 	| { handled: true; nextState: 'stored'; r2Key: string }
+	| { handled: true; nextState: 'failed'; reason: string }
 	| { handled: false; reason: string };
 
 /**
@@ -55,7 +75,7 @@ export type TickResult =
  * thrown error from `deps` as the caller's job to catch and mark `failed`
  * (see `markFailed` below), so a transient wobble doesn't wedge the row.
  */
-export async function tick(row: GenerationRow, deps: GenerateDeps): Promise<TickResult> {
+export async function tick(row: GenerationRow, deps: GenerateDeps, now: number = Date.now()): Promise<TickResult> {
 	switch (row.state) {
 		case 'queued': {
 			const { requestId } = await deps.submit(row.prompt, row.requestKey);
@@ -63,15 +83,36 @@ export async function tick(row: GenerationRow, deps: GenerateDeps): Promise<Tick
 		}
 		case 'requested': {
 			if (!row.falRequestId) {
+				// Claimed, then the claimer died before its submit landed. Wait a
+				// little (a submit in flight looks identical), then fail it so the
+				// table can draw again instead of watching a row nobody owns.
+				if (row.createdAt != null && now - row.createdAt > STALE_CLAIM_MS) {
+					return {
+						handled: true,
+						nextState: 'failed',
+						reason: 'the drawing was claimed but never sent — draw again'
+					};
+				}
 				return { handled: false, reason: 'requested with no fal_request_id — cannot resume' };
 			}
 			const status = await deps.pollStatus(row.falRequestId);
+			// A provider-side failure is an ANSWER, not a "not yet". Reporting it
+			// as `handled: false` (the pre-change behaviour for every non-COMPLETED
+			// status) left the row `requested` for ever with no ticker able to
+			// move it, which showed up as a table stuck on the Drawing screen.
+			if (status.status === 'ERROR') {
+				return {
+					handled: true,
+					nextState: 'failed',
+					reason: (status.error ?? 'the image model reported an error').slice(0, 200)
+				};
+			}
 			if (status.status !== 'COMPLETED') {
 				return { handled: false, reason: `fal status is ${status.status}, not ready yet` };
 			}
 			const { imageUrl } = await deps.fetchResult(row.falRequestId);
-			const bytes = await deps.fetchBytes(imageUrl);
-			const { r2Key } = await deps.putR2(bytes);
+			const image = await deps.fetchBytes(imageUrl);
+			const { r2Key } = await deps.putR2(image);
 			return { handled: true, nextState: 'stored', r2Key };
 		}
 		case 'stored':

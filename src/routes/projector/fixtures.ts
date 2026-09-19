@@ -65,5 +65,10 @@ function buildTable(table: number): TableView {
 }
 
 export const FIXTURE_ROOM: ProjectorRoom = {
+	// Fixtures carry a beat like real data does, so `?fixtures=1` exercises
+	// the same switch. `?beat=` overrides it, which is how the finer beats
+	// are demonstrated without a desk.
+	beat: 'reveal',
+	focusTable: null,
 	tables: Array.from({ length: 20 }, (_, i) => buildTable(i + 1))
 };

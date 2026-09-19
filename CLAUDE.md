@@ -42,7 +42,10 @@ Deploy (manual, not wired to CI yet):
 wrangler pages deploy .svelte-kit/cloudflare --project-name <project>
 wrangler pages secret put FAL_KEY --project-name <project>
 wrangler pages secret put FAL_WEBHOOK_SECRET --project-name <project>
+wrangler pages secret put ADMIN_TOKEN --project-name <project>
 ```
+`NEW-EVENT.md` has the full variable table and what each one's absence does.
+All three secrets above FAIL CLOSED when unset in production.
 `wrangler secret put` (no `pages`) does **not** reach a Pages project — it
 leaves the key unset in production, which then looks exactly like a dead key.
 
@@ -59,7 +62,11 @@ src/lib/server/
   r2.ts        # image key scheme (keyed by image row id) + put/get (see its ponytail note re: tiles)
   fal.ts       # queue.fal.run submit/status/result over raw fetch
   prompt.ts    # composeLayers — pure, content-free layer ordering
-  throttle.ts  # createThrottle() — keyed by table number, never by IP
+  throttle.ts  # createThrottle() — an in-isolate optimisation, NOT a guard (see its note)
+  limits.ts    # pure spend rules: per-table render cap + regenerate cooldown
+  fetch-image.ts # the ONE place image bytes come off the internet: host allow-list, byte cap, type sniff
+  secret.ts    # constant-time secret compare, hand-written (no Cloudflare-only API)
+  simulate.ts  # the PURE rehearsal plan (seeded); the route drives it through the real commands
 src/lib/game/
   questions.ts # the 11 questions + wildcard (content landed — futures-palette/game-flow workstreams)
   futures.ts   # the seven named futures + era fields
@@ -72,7 +79,8 @@ src/routes/
   t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, stub +page.svelte
   projector/           # gallery.remote.ts, stub +page.svelte
   admin/                # admin.remote.ts (no auth yet — see its ponytail note), stub +page.svelte, polls roomLock
-  api/fal-webhook/      # +server.ts: validates body + token + image_id, calls the shared ticker inside waitUntil
+  api/fal-webhook/      # +server.ts: token (fail-closed, constant-time) + image_id + request_id match, then the shared ticker inside waitUntil
+  simulate/             # +server.ts: POST, drives N tables through the REAL remote commands (SIMULATE_ENABLED + ADMIN_TOKEN, both fail closed)
 ```
 
 ## Generation is a resumable state machine, not fire-and-forget
@@ -92,6 +100,24 @@ own bespoke logic:**
 3. The fal webhook (`routes/api/fal-webhook/+server.ts`) — ticks the one row
    its `image_id` query param names, with deps that resolve immediately from
    the payload instead of re-polling fal.
+
+**Every state transition is a compare-and-swap.** The three tickers run on
+independent clocks in independent isolates and each decides from a snapshot
+its own caller read, so a bare `WHERE id = ?` let two of them both submit
+one row to fal. `room.ts`'s `claimQueued` is the atomic `queued -> requested`
+that decides which ticker may spend; `markRequested`/`markStored`/`markFailed`
+all carry `AND state = <the state we decided from>` and report whether they
+changed a row. A ticker that loses stops — losing is the normal case, not an
+error. Cost of claiming before spending: a claimer that dies between the
+claim and the submit leaves a `requested` row with a null request id, which
+`tick()` fails after `STALE_CLAIM_MS` (2 min) so the table can draw again.
+
+**`failed` is reachable, and visible.** `fal.ts` types `ERROR` alongside
+fal's three live states and maps any unrecognised status to it, so a real
+provider failure becomes a `failed` row rather than a row waiting for ever.
+The phone leaves the Drawing screen once every render is terminal and offers
+*Draw again*; the projector draws a failed tile differently from a tile that
+has not arrived yet.
 
 `requestWaitUntil` (`env.ts`) kicks the FIRST tick right after `finishTable`
 queues a row — an optimisation, not the mechanism. If it's cut short (dead
@@ -132,9 +158,31 @@ unchanged", which is what the original scaffold already did.
 - **The URL is the credential, not an auth token.** `/t/[table]` has no
   cookie or signed token; every command re-validates `table` server-side
   against `1..TABLE_COUNT` with valibot.
-- **"A generation already in flight is returned, not duplicated."**
-  `finishTable` checks for a current non-failed `image` row per zone before
-  inserting a new one.
+- **"A generation already in flight is returned, not duplicated."** The
+  check and the write are ONE statement — `insertQueuedImageIfIdle`'s
+  `INSERT ... SELECT ... WHERE NOT EXISTS`. A read-then-write is per-isolate
+  and two isolates both pass it, which is how a double-tap queued two full
+  generation sets per table.
+- **Spend is capped in three places, and the third is not in this repo.**
+  `MAX_RENDERS_PER_TABLE` (default 12, never "no cap" on a bad value) and a
+  60 s per-table regenerate cooldown, both derived from `image` rows rather
+  than from an in-isolate timer — an isolate recycle, or simply a second
+  isolate, hands a double-tap an empty timer and therefore no limit. The
+  third is a hard cap on the fal dashboard; it is the only one that survives
+  a bug in the other two.
+- **Nothing reaches fal or R2 unbounded.** `fetch-image.ts` is the single
+  image-fetch path for both the poll and the webhook: https-only allow-list
+  of fal's hosts (the CDN is `*.fal.media`, a different domain from the
+  `*.fal.ai` API), an 8 MB cap enforced by the read loop, and `image/*`
+  required as both declared type and sniffed bytes. The composed prompt is
+  capped at 1,200 characters and stripped of control characters, and the
+  house negative is always appended.
+- **Secrets fail closed.** `ADMIN_TOKEN`, `FAL_WEBHOOK_SECRET` and
+  `SIMULATE_ENABLED` all reject when unset in production; `secretEquals`
+  treats a missing expected value as "not equal" so a forgotten variable
+  shuts a gate rather than opening it.
+- **The projector follows the desk.** `room_beat` drives `/projector`;
+  `?beat=`/`?table=` are a manual override with a visible badge.
 - **Retention is an explicit parameter** on every fal submit call, never a
   library default.
 - **`event_id` is a column on every table** from day one, so the archive
@@ -162,20 +210,40 @@ unchanged", which is what the original scaffold already did.
    TODO(content) once the real question set's resume semantics (skipped
    questions, listen-mode extractions) are wired.
 
+## Rehearsal
+
+`POST /simulate` drives N tables through the REAL remote-function commands —
+the same gate, throttle, caps and prompt composition a phone hits. Seeded, so
+the same `seed` replays the same room. Gated on `SIMULATE_ENABLED === 'true'`
+AND `ADMIN_TOKEN`. It spends real money with a live key; `answersOnly: true`
+stops before any render and `FAL_FAKE=1` runs the whole loop with no fal call.
+The response's `disagreements` (tables whose reported submit disagrees with
+what the room reads back) must be empty. Curl lines are in `NEW-EVENT.md`.
+
 ## What's still open for the content/plumbing workstreams
 
-- `answers.remote.ts`'s `finishTable` composes `LayerInputs` from placeholder
-  strings, not the real future/answer mapping (`LAYER_OF_QUESTION` now
-  exists in the game-flow design and should replace the stub).
-- `tableStatus`/`roomLock`'s tickers pass a placeholder prompt string rather
-  than reading `prompt.composed` by the image row's `promptId` — wiring that
-  read is the last piece connecting `room.ts`'s `insertPrompt` output to the
-  ticker.
-- `src/routes/t/[table]/+page.svelte` — replace the stub with the 18-screen
-  tap flow (game-flow.md §1).
-- `src/routes/projector/+page.svelte` and `gallery.remote.ts`'s `roomImages`
-  — gallery grouped by future, per-table zone sequence.
-- `src/routes/admin/+page.svelte` and `admin.remote.ts`'s `seedRoom`/
-  `deleteTable`/`resetRoom`/`exportRoom` — currently `not implemented` stubs.
-- fal model id is `'TODO(content): fal model id'` in `ticker.ts` — set once
-  chosen.
+The earlier list here (placeholder prompts, stub screens, an unset fal model
+id, an ungrouped gallery) is **done** — the tap flow, the admin desk, the
+three tickers' real composed prompts, the grouped Reveal and the model id all
+landed. What is actually still open:
+
+- **Lens and option images** — `src/lib/game/visuals.ts` and
+  `static/visuals/**` land on a separate branch; `FutureScreen`/`OptionList`
+  are deliberately untouched here.
+- **The tile step.** `stored -> done` stays unreachable until a real resizer
+  is wired — see `r2.ts`'s `// ponytail:` note. Nothing downstream is blocked
+  by it; the projector and phones serve the full-size object.
+- **fal webhook signature verification (ed25519).** The route's auth is still
+  a shared-secret query token, now fail-closed and constant-time compared,
+  with the callback's `request_id` matched against the row. Verifying fal's
+  own signature is the upgrade.
+- **Admin's destructive verbs.** game-flow.md §5 lists "delete one table /
+  clear the room"; `resetTable` (a watermark, never a delete) and `exportRoom`
+  exist, the hard-reset paths do not.
+- **Listen mode and the vote phase** — neither is started (schema.draft.ts's
+  `clip`/`transcript`/`extraction`/`vote` tables are not created).
+- **The zone set.** `ZONES` defaults to `book`; `questions` is implemented
+  behind `ZONE_SETS` and the lead's call is a one-line change.
+- **`event_table` has no `current_step` column** — step is still derived from
+  the answer count. The batched admin/projector read now gives a real count,
+  so this only matters for resume semantics with skipped questions.

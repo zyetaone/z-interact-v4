@@ -17,7 +17,7 @@
 	import { FUTURES } from '$lib/game/futures';
 	import type { AdminRoom, Beat } from '$lib/ui/admin/types';
 
-	const BEATS: Beat[] = ['lobby', 'progress', 'reveal', 'focus'];
+	const BEATS: Beat[] = ['lobby', 'progress', 'reveal', 'finale', 'focus'];
 
 	const fixturesMode = page.url.searchParams.get('fixtures') === '1';
 	const token = page.url.searchParams.get('token') ?? '';

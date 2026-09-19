@@ -24,6 +24,8 @@ export interface Env {
 	EVENT_ID?: string;
 	/** Shared-secret query token gating the hidden `/admin` URL (admin.remote.ts's `checkToken`). Unset in `dev` opens the gate; unset in production fails closed. */
 	ADMIN_TOKEN?: string;
+	/** Total renders one table may spend across the whole event — first submit plus every regenerate. Parsed by `limits.ts`'s `maxRendersPerTable`, which falls back to 12 rather than to "no cap". */
+	MAX_RENDERS_PER_TABLE?: string;
 }
 
 /** Falls back to a dev-only placeholder so local `npm run dev` works before NEW-EVENT.md's checklist sets a real one. */

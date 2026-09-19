@@ -22,7 +22,8 @@ import { DatabaseSync } from 'node:sqlite';
 interface FakeStatement {
 	bind(...args: unknown[]): FakeStatement;
 	first<T>(): Promise<T | null>;
-	run(): Promise<{ success: true }>;
+	/** `meta.changes` matches D1's own result shape — it is what every compare-and-swap in `room.ts` reads to decide whether it won the row. */
+	run(): Promise<{ success: true; meta: { changes: number } }>;
 	all<T>(): Promise<{ results: T[]; success: true }>;
 }
 
@@ -40,8 +41,8 @@ export function fakeD1(): D1Database {
 				return (row as T) ?? null;
 			},
 			async run() {
-				db.prepare(sql).run(...(args as never[]));
-				return { success: true as const };
+				const info = db.prepare(sql).run(...(args as never[])) as { changes?: number | bigint };
+				return { success: true as const, meta: { changes: Number(info?.changes ?? 0) } };
 			},
 			async all<T>() {
 				const rows = db.prepare(sql).all(...(args as never[]));

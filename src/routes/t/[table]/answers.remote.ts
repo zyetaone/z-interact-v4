@@ -60,7 +60,14 @@ import {
   insertQueuedImage,
   getCurrentImage,
   getPendingImagesForTable,
+  insertQueuedImageIfIdle,
+  getRenderBudget,
 } from "$lib/server/room";
+import {
+  checkCooldown,
+  checkRenderCap,
+  maxRendersPerTable,
+} from "$lib/server/limits";
 import { createThrottle } from "$lib/server/throttle";
 import {
   tickAndPersist,
@@ -68,6 +75,7 @@ import {
   buildWebhookUrl,
 } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
+import { sanitizeComposed } from "$lib/server/prompt";
 import {
   buildLayerInputs,
   composeBase,
@@ -104,6 +112,22 @@ const MODEL = FAL_MODEL;
 const throttle = createThrottle();
 
 type Fail = { ok: false; reason: string };
+
+/**
+ * `refresh()` pushes a fresh snapshot to the CLIENT that made the call. It
+ * is a courtesy — the 2 s poll would pick the change up anyway — and it has
+ * no meaning when the caller is not a browser (the simulator route drives
+ * these same commands server-side). A failure there must never fail the
+ * save that already landed.
+ */
+function refreshQuietly(table: number): void {
+  try {
+    void Promise.resolve(tableStatus({ table }).refresh()).catch(() => {});
+  } catch {
+    /* not a client call — nothing to refresh */
+  }
+}
+
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 /** Every command runs inside this: one in-flight write per table, always released. */
@@ -140,6 +164,43 @@ function depsFor(
     imageId,
     buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, imageId),
   );
+}
+
+/**
+ * The lock check every per-answer save now runs. Only `finishTable` used to
+ * check anything, so a table could keep editing its answers after it had
+ * submitted, and after the desk had closed the room — and those edits feed
+ * `resolveZone` on the next poll or regenerate, silently changing what gets
+ * sent to fal.
+ *
+ * Deliberately NOT `assertCanSubmit`: that function CONSUMES a one-shot
+ * reopen grant on success, so calling it from a per-tap save would burn the
+ * desk's grant on the first question the table answered. This reads the
+ * same state without consuming anything and applies the same pure rule —
+ * the pattern `tableStatus`'s own gate read already uses.
+ */
+async function assertCanSave(
+  env: Env,
+  event: string,
+  table: number,
+): Promise<{ ok: true } | Fail> {
+  const state = await getTableState(env.DB, event, table);
+  const alreadyAnswered = !!state.submittedAt;
+  const [locked, granted] = await Promise.all([
+    lockedAt(env.DB, event),
+    alreadyAnswered
+      ? mayReopen(env.DB, event, table)
+      : Promise.resolve(false),
+  ]);
+  const decision = decideSubmit({
+    reachable: true,
+    locked: !!locked,
+    alreadyAnswered,
+    granted,
+  });
+  return decision.ok
+    ? { ok: true as const }
+    : { ok: false as const, reason: decision.reason };
 }
 
 function answersOf(
@@ -220,10 +281,15 @@ export const tableStatus = query(
           id: row.id,
           state: row.state,
           falRequestId: row.falRequestId,
+          createdAt: row.createdAt,
           table,
           zoneKey: row.zoneKey,
         },
-        composeZonePrompt(stored.composed, resolveZone(zone, answers)),
+        composeZonePrompt(
+          stored.composed,
+          resolveZone(zone, answers),
+          stored.negative,
+        ),
         depsFor(env, event, table, row.zoneKey, row.id),
       );
     }
@@ -297,12 +363,14 @@ export const saveFuture = command(
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
+      const event = eventId(env);
+      const gate = await assertCanSave(env, event, table);
+      if (!gate.ok) return gate;
       const future = futureKey
         ? FUTURES.find((f) => f.key === futureKey)
         : undefined;
       if (futureKey && !future)
         return { ok: false as const, reason: "unknown future" };
-      const event = eventId(env);
       await saveAnswerRow(env.DB, {
         eventId: event,
         table,
@@ -321,7 +389,7 @@ export const saveFuture = command(
           source: "tap",
         });
       }
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -342,6 +410,8 @@ export const saveEra = command(
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
       const event = eventId(env);
+      const gate = await assertCanSave(env, event, table);
+      if (!gate.ok) return gate;
       const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
       const future = FUTURES.find((f) => f.key === futureOf(answers));
       // The greying rule is data (era.ts), so it is enforced here too —
@@ -361,7 +431,7 @@ export const saveEra = command(
         actor: "table",
         source: "tap",
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -379,6 +449,8 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
   withTableLock(input.table, async () => {
     const env = requestEnv();
     if (!env) return { ok: false as const, reason: "no environment" };
+    const gate = await assertCanSave(env, eventId(env), input.table);
+    if (!gate.ok) return gate;
     await saveAnswerRow(env.DB, {
       eventId: eventId(env),
       table: input.table,
@@ -389,7 +461,7 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
       actor: "table",
       source: "tap",
     });
-    void tableStatus({ table: input.table }).refresh();
+    refreshQuietly(input.table);
     return { ok: true as const };
   }),
 );
@@ -401,6 +473,8 @@ export const saveWildcard = command(
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
+      const gate = await assertCanSave(env, eventId(env), table);
+      if (!gate.ok) return gate;
       const trimmed = text.trim();
       await saveAnswerRow(env.DB, {
         eventId: eventId(env),
@@ -411,7 +485,7 @@ export const saveWildcard = command(
         actor: "table",
         source: "tap",
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -433,16 +507,22 @@ async function queueGeneration(
   env: Env,
   event: string,
   table: number,
-  opts: { composedOverride?: string; regenerate: boolean },
-): Promise<{ promptId: string; composed: string; queued: number }> {
+  opts: { composedOverride?: string; regenerate: boolean; since: number },
+): Promise<{ promptId: string; composed: string; queued: number; inFlight: number }> {
   const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
   const layers = buildLayerInputs({
     futureKey: futureOf(answers),
     era: eraOf(answers),
     answers,
   });
+  // A table-edited prompt is free text that becomes the ENTIRE prompt sent
+  // to fal and then shown on a public screen. It is capped and stripped
+  // here as well as in `composeZonePrompt`, so the `prompt` row stores what
+  // was actually submitted rather than the raw paste.
   const edited = !!opts.composedOverride?.trim();
-  const composed = edited ? opts.composedOverride!.trim() : composeBase(layers);
+  const composed = sanitizeComposed(
+    edited ? opts.composedOverride! : composeBase(layers),
+  );
   const previous = await getLatestPrompt(env.DB, event, table);
 
   const promptId = await insertPrompt(env.DB, {
@@ -461,23 +541,42 @@ async function queueGeneration(
   });
 
   let queued = 0;
+  let inFlight = 0;
   for (const zone of ZONES) {
     const existing = await getCurrentImage(env.DB, event, table, zone.key);
     // "A generation already in flight is returned, not duplicated"
-    // (game-flow §8) — but a regenerate deliberately supersedes it.
+    // (game-flow §8) — but a regenerate deliberately supersedes a FINISHED
+    // attempt. Neither case may start a second attempt while one is live.
     if (!opts.regenerate && existing && existing.state !== "failed") continue;
 
-    const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers));
-    const image = await insertQueuedImage(env.DB, {
-      eventId: event,
-      table,
-      zoneKey: zone.key,
-      promptId,
-      prompt: zonePrompt,
-      model: MODEL,
-      actor: "table",
-      supersedesId: existing?.id ?? null,
-    });
+    const zonePrompt = composeZonePrompt(
+      composed,
+      resolveZone(zone, answers),
+      layers.negative,
+    );
+    // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
+    // The read-then-write above is per-isolate and two isolates can both
+    // pass it — that is the double-tap that queued two full sets per table.
+    // A null return means another isolate got there first; its attempt is
+    // the one this call returns, rather than a second one being started.
+    const image = await insertQueuedImageIfIdle(
+      env.DB,
+      {
+        eventId: event,
+        table,
+        zoneKey: zone.key,
+        promptId,
+        prompt: zonePrompt,
+        model: MODEL,
+        actor: "table",
+        supersedesId: existing?.id ?? null,
+      },
+      opts.since,
+    );
+    if (!image) {
+      inFlight += 1;
+      continue;
+    }
     queued += 1;
 
     // waitUntil kicks the first tick; the phone/admin polls and the
@@ -489,6 +588,7 @@ async function queueGeneration(
           id: image.id,
           state: image.state,
           falRequestId: image.falRequestId,
+          createdAt: image.createdAt,
           table,
           zoneKey: zone.key,
         },
@@ -497,7 +597,7 @@ async function queueGeneration(
       ),
     );
   }
-  return { promptId, composed, queued };
+  return { promptId, composed, queued, inFlight };
 }
 
 /** Screen 15's *Draw our workspace*. `composed` is the edited textarea, when the table changed it. */
@@ -518,12 +618,25 @@ export const finishTable = command(
       );
       if (!decision.ok) return { ok: false as const, reason: decision.reason };
 
+      const since = await getResetAt(env.DB, event, table);
+      // The cap is about total spend per table, so it binds the first
+      // submit as well as *Draw again* — a table that has burned its budget
+      // has burned it whichever button spent it.
+      const budget = await getRenderBudget(env.DB, event, table, since);
+      const cap = checkRenderCap({
+        used: budget.used,
+        about: ZONES.length,
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+      });
+      if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
       await finishTableRow(env.DB, event, table);
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: false,
+        since,
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const, queued: result.queued };
     }),
 );
@@ -548,6 +661,17 @@ export const regenerate = command(
           reason: "The room is closed — the screen has moved on.",
         };
       }
+      // *Draw again* redraws something. A table that has never submitted has
+      // nothing to redraw, and letting it through meant anyone who could
+      // reach a `/t/<n>` URL could burn that table's whole render budget on
+      // an empty prompt without answering a single question.
+      const regenState = await getTableState(env.DB, event, table);
+      if (!regenState.submittedAt) {
+        return {
+          ok: false as const,
+          reason: "Nothing to redraw yet — send your answers first.",
+        };
+      }
       // "Regenerate (throttled, per table)" (game-flow §1, screen 17).
       // `withTableLock` only covers concurrent CALLS, which release in
       // milliseconds; this covers a generation still in flight, so a
@@ -558,11 +682,37 @@ export const regenerate = command(
           reason: "Still drawing — wait for this one before asking for another.",
         };
       }
+
+      // Both limits read the `image` table, never an in-isolate timer: a
+      // recycled isolate, or simply a second one, would hand a double-tap
+      // an empty timer and no limit at all (see `limits.ts`).
+      const since = await getResetAt(env.DB, event, table);
+      const budget = await getRenderBudget(env.DB, event, table, since);
+      const cooldown = checkCooldown({
+        lastRenderAt: budget.lastRenderAt,
+        now: Date.now(),
+      });
+      if (!cooldown.ok)
+        return { ok: false as const, reason: cooldown.reason };
+      const cap = checkRenderCap({
+        used: budget.used,
+        about: ZONES.length,
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+      });
+      if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: true,
+        since,
       });
-      void tableStatus({ table }).refresh();
+      if (result.queued === 0 && result.inFlight > 0) {
+        return {
+          ok: false as const,
+          reason: "Still drawing — wait for this one before asking for another.",
+        };
+      }
+      refreshQuietly(table);
       return { ok: true as const, queued: result.queued };
     }),
 );

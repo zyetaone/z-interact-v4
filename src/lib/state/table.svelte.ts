@@ -44,6 +44,9 @@ export interface TableStatus {
   gateReason: string;
 }
 
+/** `generate.ts`'s terminal states — a row in one of these will never change again. */
+export const TERMINAL_IMAGE_STATES: ReadonlySet<string> = new Set(["stored", "done", "failed"]);
+
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
 export const FUTURE_ID = "future";
 
@@ -102,7 +105,13 @@ function answered(answers: readonly StatusAnswer[], id: string): boolean {
 export function resumeIndex(status: TableStatus): number {
   if (status.submittedAt) {
     const anyImage = status.images.some((i) => i.url);
-    return indexOfStep(anyImage ? "images" : "drawing");
+    // Every render has ANSWERED, even if the answer was "it failed". Without
+    // this, a table whose four renders all failed waits on the Drawing screen
+    // for ever — there is nothing left to arrive, and *Draw again* only
+    // exists on the Images screen.
+    const settled =
+      status.images.length > 0 && status.images.every((i) => TERMINAL_IMAGE_STATES.has(i.state));
+    return indexOfStep(anyImage || settled ? "images" : "drawing");
   }
   if (status.answers.length === 0) return indexOfStep("landing");
   for (const id of ANSWER_IDS) {

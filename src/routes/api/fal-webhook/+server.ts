@@ -17,7 +17,10 @@ import * as v from 'valibot';
 import { envOf } from '$lib/server/env';
 import { getImageById } from '$lib/server/room';
 import { tickAndPersist } from '$lib/server/ticker';
+import { falErrorText } from '$lib/server/fal';
 import { imageKey, putImage } from '$lib/server/r2';
+import { extForContentType, fetchImageBytes } from '$lib/server/fetch-image';
+import { secretEquals } from '$lib/server/secret';
 import type { RequestHandler } from './$types';
 
 /** fal's own callback body shape (verified against fal.ai/docs/model-endpoints/queue) — fal does not echo back custom fields, so this app's own `image_id` cannot travel in here. */
@@ -35,7 +38,13 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 	// ponytail: a shared-secret query token, not a verified fal signature.
 	// Upgrade: verify fal's webhook signature (ed25519) once confirmed live
 	// for this account — see fal's webhook docs.
-	if (env.FAL_WEBHOOK_SECRET && url.searchParams.get('token') !== env.FAL_WEBHOOK_SECRET) {
+	//
+	// FAILS CLOSED. The previous form was `if (env.FAL_WEBHOOK_SECRET && ...)`,
+	// which skipped the check entirely when the variable was unset — the
+	// default outcome of forgetting one line in the Pages dashboard, and
+	// indistinguishable from a working deploy. `secretEquals` also refuses a
+	// missing expected value outright, and compares in constant time.
+	if (!secretEquals(env.FAL_WEBHOOK_SECRET, url.searchParams.get('token'))) {
 		return json({ ok: false, reason: 'bad token' }, { status: 401 });
 	}
 
@@ -53,6 +62,16 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 	const row = await getImageById(env.DB, imageId);
 	if (!row) return json({ ok: false, reason: 'unknown image_id' }, { status: 404 });
 
+	// The callback has to be for the request this row actually submitted.
+	// `image_id` is NOT secret — `tableStatus` publishes each row's id in its
+	// own image URLs — so without this, anyone holding the token could post a
+	// payload at any row and have its `url` fetched and served on the
+	// projector. A null `falRequestId` means our own `markRequested` has not
+	// landed yet; rejecting is correct, and the poll resumes the row.
+	if (!row.falRequestId || row.falRequestId !== body.request_id) {
+		return json({ ok: false, reason: 'request_id does not match this image' }, { status: 409 });
+	}
+
 	const imageUrl = body.status === 'OK' ? body.payload?.images?.[0]?.url : undefined;
 
 	// waitUntil: return 200 to fal fast, let the R2 write continue after the
@@ -61,7 +80,14 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 	platform?.context.waitUntil(
 		tickAndPersist(
 			env.DB,
-			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
+			{
+				id: row.id,
+				state: row.state,
+				falRequestId: row.falRequestId,
+				createdAt: row.createdAt,
+				table: row.table,
+				zoneKey: row.zoneKey
+			},
 			// prompt text isn't needed for the requested->stored step this
 			// webhook drives (generate.ts only reads it from the 'queued'
 			// branch); passed through for type-shape completeness.
@@ -74,20 +100,37 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 					throw new Error('webhook ticker should never see a queued row');
 				},
 				async pollStatus() {
-					return { status: imageUrl ? ('COMPLETED' as const) : ('IN_PROGRESS' as const) };
+					// fal said the job is finished and it failed. Reporting that as
+					// IN_PROGRESS (the pre-change behaviour) left the row `requested`
+					// with nothing able to advance it; ERROR routes it to `failed`
+					// through the shared ticker like any other terminal answer.
+					if (body.status === 'ERROR') {
+						return { status: 'ERROR' as const, error: falErrorText(body.error, 'ERROR') };
+					}
+					if (imageUrl) return { status: 'COMPLETED' as const };
+					// status OK but no image in the payload — also terminal, not a wait.
+					return { status: 'ERROR' as const, error: 'the image model returned no image' };
 				},
 				async fetchResult() {
-					if (!imageUrl) throw new Error(body.error ?? 'fal reported ERROR with no image');
+					if (!imageUrl) throw new Error(falErrorText(body.error, 'ERROR'));
 					return { imageUrl };
 				},
-				async fetchBytes(url) {
-					const res = await fetch(url);
-					if (!res.ok) throw new Error(`fetch image failed: ${res.status}`);
-					return res.arrayBuffer();
+				async fetchBytes(imageUrl) {
+					// The one guarded fetch (`fetch-image.ts`): allow-listed fal host,
+					// 8 MB cap, `image/*` declared AND sniffed. This URL arrives from
+					// outside, so a bare fetch here was an SSRF with a public screen
+					// and an R2 bucket on the other end of it.
+					return fetchImageBytes(imageUrl);
 				},
-				async putR2(bytes) {
-					const key = imageKey({ event: row.eventId, table: row.table, zone: row.zoneKey, imageId: row.id, ext: 'webp' });
-					await putImage({ bucket: env.IMAGES, key, bytes, contentType: 'image/webp' });
+				async putR2({ bytes, contentType }) {
+					const key = imageKey({
+						event: row.eventId,
+						table: row.table,
+						zone: row.zoneKey,
+						imageId: row.id,
+						ext: extForContentType(contentType)
+					});
+					await putImage({ bucket: env.IMAGES, key, bytes, contentType });
 					return { r2Key: key };
 				}
 			}

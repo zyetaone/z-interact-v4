@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { FUTURES } from '$lib/game/futures';
+	import { ZONE_STEP_SECONDS } from './tokens';
 	import type { TableView } from './types';
 
 	let { table }: { table: TableView } = $props();
 
 	const futureName = new Map(FUTURES.map((f) => [f.key, f.name]));
-	const STEP_SECONDS = 6;
+	const STEP_SECONDS = ZONE_STEP_SECONDS;
 
 	/** Only zones with a stored image cycle — an unrendered zone would
 	 *  otherwise hold an empty slot in the loop for its whole turn. */

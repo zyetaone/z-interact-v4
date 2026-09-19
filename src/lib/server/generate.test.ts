@@ -17,7 +17,7 @@ function fakeDeps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
 		submit: vi.fn(async () => ({ requestId: 'req-1' })),
 		pollStatus: vi.fn(async () => ({ status: 'COMPLETED' as const })),
 		fetchResult: vi.fn(async () => ({ imageUrl: 'https://fal.example/a.webp' })),
-		fetchBytes: vi.fn(async () => new ArrayBuffer(4)),
+		fetchBytes: vi.fn(async () => ({ bytes: new ArrayBuffer(4), contentType: 'image/webp' })),
 		putR2: vi.fn(async () => ({ r2Key: 'event/1/overview/img-1.webp' })),
 		...overrides
 	};
@@ -52,6 +52,29 @@ describe('tick', () => {
 		const result = await tick(row({ state: 'requested', falRequestId: null }), deps);
 		expect(result).toEqual({ handled: false, reason: expect.any(String) });
 		expect(deps.pollStatus).not.toHaveBeenCalled();
+	});
+
+	it('requested + ERROR -> failed: the row reaches a terminal state, not an endless wait', async () => {
+		// The bug this closes: every non-COMPLETED status used to return
+		// `handled: false`, so a real fal failure left the row `requested` with
+		// no ticker able to move it and the table stuck on the Drawing screen.
+		const deps = fakeDeps({
+			pollStatus: vi.fn(async () => ({ status: 'ERROR' as const, error: 'content policy' }))
+		});
+		const result = await tick(row({ state: 'requested', falRequestId: 'req-1' }), deps);
+		expect(result).toEqual({ handled: true, nextState: 'failed', reason: 'content policy' });
+		expect(deps.fetchResult).not.toHaveBeenCalled();
+		expect(deps.putR2).not.toHaveBeenCalled();
+	});
+
+	it('an ERROR with no reason still fails, with a sentence a table can read', async () => {
+		const deps = fakeDeps({ pollStatus: vi.fn(async () => ({ status: 'ERROR' as const })) });
+		const result = await tick(row({ state: 'requested', falRequestId: 'req-1' }), deps);
+		expect(result).toEqual({
+			handled: true,
+			nextState: 'failed',
+			reason: 'the image model reported an error'
+		});
 	});
 
 	it('ticking a stored row is a no-op — no dependency is called', async () => {

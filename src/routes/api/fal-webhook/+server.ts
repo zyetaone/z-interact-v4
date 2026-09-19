@@ -62,7 +62,14 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 	platform?.context.waitUntil(
 		tickAndPersist(
 			env.DB,
-			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
+			{
+				id: row.id,
+				state: row.state,
+				falRequestId: row.falRequestId,
+				createdAt: row.createdAt,
+				table: row.table,
+				zoneKey: row.zoneKey
+			},
 			// prompt text isn't needed for the requested->stored step this
 			// webhook drives (generate.ts only reads it from the 'queued'
 			// branch); passed through for type-shape completeness.

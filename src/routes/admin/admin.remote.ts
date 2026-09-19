@@ -82,7 +82,14 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 		const prompt = await getPromptRowById(env.DB, row.promptId);
 		await tickAndPersist(
 			env.DB,
-			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
+			{
+				id: row.id,
+				state: row.state,
+				falRequestId: row.falRequestId,
+				createdAt: row.createdAt,
+				table: row.table,
+				zoneKey: row.zoneKey
+			},
 			prompt?.composed ?? '',
 			realGenerateDeps(env, event, row.table, row.zoneKey, row.id)
 		);
@@ -226,7 +233,14 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 			await requestWaitUntil(
 				tickAndPersist(
 					env.DB,
-					{ id: image.id, state: image.state, falRequestId: image.falRequestId, table, zoneKey: zone.key },
+					{
+						id: image.id,
+						state: image.state,
+						falRequestId: image.falRequestId,
+						createdAt: image.createdAt,
+						table,
+						zoneKey: zone.key
+					},
 					composed,
 					realGenerateDeps(env, event, table, zone.key, image.id, buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, image.id))
 				)

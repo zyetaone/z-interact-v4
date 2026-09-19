@@ -26,10 +26,22 @@
 
 export type GenerationState = 'queued' | 'requested' | 'stored' | 'done' | 'failed';
 
+/**
+ * How long a `requested` row may sit with no fal request id before it is
+ * given up on. That combination means a ticker CLAIMED the row (see
+ * `room.ts`'s `claimQueued`) and then died before its submit landed — rare,
+ * but the price of claiming before spending. Without this the row reads as
+ * "cannot resume" for ever, which is the same stuck table the claim exists
+ * to prevent. Two minutes is comfortably longer than a submit round-trip.
+ */
+export const STALE_CLAIM_MS = 2 * 60 * 1000;
+
 export interface GenerationRow {
 	id: string;
 	state: GenerationState;
 	falRequestId: string | null;
+	/** When this attempt's row was inserted — the claim happens moments later, so it doubles as the claim clock for `STALE_CLAIM_MS`. */
+	createdAt?: number;
 	/** The composed prompt this attempt submits. Set at insert time (queued), never changed by tick(). */
 	prompt: string;
 	/** This app's own idempotency/logging key — `${table}:${zone}:${imageId}` is a reasonable default for a caller to use. */
@@ -62,7 +74,7 @@ export type TickResult =
  * thrown error from `deps` as the caller's job to catch and mark `failed`
  * (see `markFailed` below), so a transient wobble doesn't wedge the row.
  */
-export async function tick(row: GenerationRow, deps: GenerateDeps): Promise<TickResult> {
+export async function tick(row: GenerationRow, deps: GenerateDeps, now: number = Date.now()): Promise<TickResult> {
 	switch (row.state) {
 		case 'queued': {
 			const { requestId } = await deps.submit(row.prompt, row.requestKey);
@@ -70,6 +82,16 @@ export async function tick(row: GenerationRow, deps: GenerateDeps): Promise<Tick
 		}
 		case 'requested': {
 			if (!row.falRequestId) {
+				// Claimed, then the claimer died before its submit landed. Wait a
+				// little (a submit in flight looks identical), then fail it so the
+				// table can draw again instead of watching a row nobody owns.
+				if (row.createdAt != null && now - row.createdAt > STALE_CLAIM_MS) {
+					return {
+						handled: true,
+						nextState: 'failed',
+						reason: 'the drawing was claimed but never sent — draw again'
+					};
+				}
 				return { handled: false, reason: 'requested with no fal_request_id — cannot resume' };
 			}
 			const status = await deps.pollStatus(row.falRequestId);

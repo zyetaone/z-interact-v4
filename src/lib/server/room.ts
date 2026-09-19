@@ -25,7 +25,7 @@
  * regenerations and mutable within one attempt's lifecycle — both rules
  * hold at once, at different grain.
  */
-import { dbWith, isTransientD1Error } from './d1';
+import { dbWith, isTransientD1Error, monotonicNow } from './d1';
 import type { GenerationState } from './generate';
 
 export const EVENT_TABLE_SCHEMA = `CREATE TABLE IF NOT EXISTS event_table (
@@ -153,7 +153,7 @@ export async function saveAnswer(d: D1Database, input: AnswerInput): Promise<voi
 				input.actor ?? 'table',
 				input.source ?? 'tap',
 				input.supersedesId ?? null,
-				Date.now()
+				monotonicNow()
 			)
 			.run();
 	} catch (e) {
@@ -421,7 +421,7 @@ export async function insertPrompt(d: D1Database, input: PromptInput): Promise<s
 			input.editedByTable ? 1 : 0,
 			input.actor ?? 'table',
 			input.supersedesId ?? null,
-			Date.now()
+			monotonicNow()
 		)
 		.run();
 	return id;
@@ -466,7 +466,7 @@ export async function insertQueuedImage(d: D1Database, input: ImageInsertInput):
 	await dbWith(d, 'image_current_idx', IMAGE_CURRENT_IDX);
 	await dbWith(d, 'image_pending_idx', IMAGE_PENDING_IDX);
 	const id = newId();
-	const createdAt = Date.now();
+	const createdAt = monotonicNow();
 	if (db) {
 		await db
 			.prepare(
@@ -599,30 +599,71 @@ export async function getImageById(d: D1Database, id: string): Promise<ImageRow 
 	return row ? toImageRow(row) : null;
 }
 
-/** `tick()`'s `queued -> requested` transition, written back in place (same attempt, not a new row). */
-export async function markRequested(d: D1Database, id: string, falRequestId: string): Promise<void> {
-	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
-	await db.prepare(`UPDATE image SET state = 'requested', fal_request_id = ? WHERE id = ?`).bind(falRequestId, id).run();
-}
+/* -------------------------------------------------------------------------- */
+/* STATE TRANSITIONS ARE COMPARE-AND-SWAP                                     */
+/*                                                                            */
+/* Three tickers (phone poll, admin poll, fal webhook) run on independent     */
+/* clocks in independent isolates and each decides from a snapshot its own    */
+/* caller read. A bare `WHERE id = ?` let two of them both read a row as      */
+/* `queued` and both submit it to fal — two paid jobs, and whichever          */
+/* `markRequested` landed last silently dropped the other's request id.       */
+/*                                                                            */
+/* Every write below is `... WHERE id = ? AND state = <the state we decided   */
+/* from>` and returns whether it changed a row. Zero changes means another    */
+/* ticker got there first, and the caller stops rather than acting on a       */
+/* decision that is no longer true. `changes` is D1's own result field, and   */
+/* `fake-d1.ts` surfaces the same one from SQLite.                            */
+/* -------------------------------------------------------------------------- */
 
-/** `tick()`'s `requested -> stored` transition. */
-export async function markStored(d: D1Database, id: string, r2Key: string): Promise<void> {
+/** True when the UPDATE actually changed a row. A D1 wobble reads as "did not win" rather than throwing — the next poll retries. */
+async function swap(d: D1Database, sql: string, binds: unknown[]): Promise<boolean> {
 	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
-	await db.prepare(`UPDATE image SET state = 'stored', r2_key = ? WHERE id = ?`).bind(r2Key, id).run();
-}
-
-/** Any transition -> `failed`. Called by a caller that catches a `tick()` dependency throwing, so a transient wobble doesn't wedge the row forever without a record of why. */
-export async function markFailed(d: D1Database, id: string, error: string): Promise<void> {
-	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
-	if (!db) return;
+	if (!db) return false;
 	try {
-		await db.prepare(`UPDATE image SET state = 'failed', error = ? WHERE id = ?`).bind(error.slice(0, 500), id).run();
+		const res = (await db
+			.prepare(sql)
+			.bind(...binds)
+			.run()) as unknown as { meta?: { changes?: number } };
+		return (res?.meta?.changes ?? 0) > 0;
 	} catch (e) {
-		if (isTransientD1Error(e)) return;
+		if (isTransientD1Error(e)) return false;
 		throw e;
 	}
+}
+
+/**
+ * CLAIM the row before spending money on it: `queued -> requested`, with the
+ * fal request id still null. The winner is whoever's UPDATE changes the row;
+ * every other ticker gets `false` and stops before calling fal at all.
+ *
+ * Claiming BEFORE the submit, rather than swapping after it, is the whole
+ * point. A compare-and-swap on the way back would still have let both
+ * tickers submit; it would only have decided whose request id survived.
+ */
+export async function claimQueued(d: D1Database, id: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'requested' WHERE id = ? AND state = 'queued'`, [id]);
+}
+
+/** Records the fal request id against a row this ticker already claimed. Guarded so a late duplicate cannot overwrite a live id. */
+export async function markRequested(d: D1Database, id: string, falRequestId: string): Promise<boolean> {
+	return swap(
+		d,
+		`UPDATE image SET state = 'requested', fal_request_id = ? WHERE id = ? AND state = 'requested' AND fal_request_id IS NULL`,
+		[falRequestId, id]
+	);
+}
+
+/** `tick()`'s `requested -> stored` transition. The R2 key derives from the image row id, so a losing ticker's duplicate put wrote identical bytes to the same key — only the D1 write needed guarding. */
+export async function markStored(d: D1Database, id: string, r2Key: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'stored', r2_key = ? WHERE id = ? AND state = 'requested'`, [r2Key, id]);
+}
+
+/** Any non-terminal state -> `failed`. Guarded so a slow failure report cannot overwrite a render that has since succeeded. */
+export async function markFailed(d: D1Database, id: string, error: string): Promise<boolean> {
+	return swap(d, `UPDATE image SET state = 'failed', error = ? WHERE id = ? AND state IN ('queued', 'requested')`, [
+		error.slice(0, 500),
+		id
+	]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -795,7 +836,7 @@ export async function resetTable(d: D1Database, eventId: string, table: number, 
 	if (db) {
 		await db
 			.prepare(`INSERT INTO table_reset (event_id, table_no, reset_at, actor, created_at) VALUES (?, ?, ?, ?, ?)`)
-			.bind(eventId, table, Date.now(), actor, Date.now())
+			.bind(eventId, table, monotonicNow(), actor, monotonicNow())
 			.run();
 	}
 	const et = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);

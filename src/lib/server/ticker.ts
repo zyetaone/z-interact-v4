@@ -17,7 +17,7 @@
  */
 import type { Env } from './env';
 import { tick, isTerminal, type GenerateDeps, type GenerationState } from './generate';
-import { markRequested, markStored, markFailed } from './room';
+import { claimQueued, markRequested, markStored, markFailed } from './room';
 import { FAL_MODEL, submitZoneImage, pollStatus as pollFalStatus, fetchResult as fetchFalResult } from './fal';
 import { imageKey, putImage } from './r2';
 
@@ -36,6 +36,8 @@ export interface TickableImageRow {
 	falRequestId: string | null;
 	table: number;
 	zoneKey: string;
+	/** Insert time of this attempt — `generate.ts` reads it to give up on a claim whose owner died. Optional so the webhook, which never sees a `queued` row, need not carry it. */
+	createdAt?: number;
 }
 
 /** The real fal + R2 backed deps — used by the phone/admin pollers. `webhookUrl`, when the caller can build one (see `env.ts`'s `requestOrigin`), registers this app's `/api/fal-webhook` as fal's push notification for this submit — the poll-based deps above still resume the row if that push never arrives. */
@@ -95,12 +97,23 @@ export async function tickAndPersist(
 	deps: GenerateDeps
 ): Promise<void> {
 	if (isTerminal(row.state as GenerationState)) return;
+
+	// CLAIM FIRST, SPEND SECOND. `row.state` is a snapshot this caller read
+	// some time ago; two tickers routinely hold the same `queued` snapshot.
+	// `claimQueued` is the atomic `queued -> requested` that decides which of
+	// them is allowed to call fal at all. Losing is the normal case, not an
+	// error — the winner is already generating this exact row.
+	if (row.state === 'queued') {
+		if (!(await claimQueued(db, row.id))) return;
+	}
+
 	try {
 		const result = await tick(
 			{
 				id: row.id,
 				state: row.state as GenerationState,
 				falRequestId: row.falRequestId,
+				createdAt: row.createdAt,
 				prompt,
 				requestKey: `${row.table}:${row.zoneKey}:${row.id}`
 			},

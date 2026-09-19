@@ -1,233 +1,198 @@
 <script lang="ts">
 	/**
-	 * REVEAL, GROUPED BY LENS (game-flow.md §4, beat 3: "every table's
-	 * overview image, **grouped by future**"). A flat 5x4 grid said nothing
-	 * about the argument the room had just had; a band per future says who
-	 * argued for what, which is the point of the beat.
+	 * REVEAL — BIG PICTURES, PAGED.
 	 *
-	 * Bands, not columns: the futures are unevenly chosen (three tables may
-	 * pick Solarpunk and none pick Broadacre), and equal columns would give a
-	 * one-table future the same width as a six-table one. A band sized to its
-	 * own contents keeps the tiles the same size across the wall.
+	 * The grid this replaces put all twenty tables on screen at once. At
+	 * 1920x1080 that was a quarter of the frame; at 5760x1080 it was a
+	 * sliver down the left edge, and the tile a delegate came to see was
+	 * roughly a postage stamp at 20 m. It also spent most of its area on
+	 * tables that had not rendered yet, drawn as dashed empty boxes.
+	 *
+	 * So the beat pages instead. A page holds four or five BIG tiles, each
+	 * one zone render with its table number over it; the page turns itself
+	 * on a timer and crossfades. Only tables with something drawn are in
+	 * the rotation: a table that has not rendered is skipped, never shown
+	 * as an empty box, because an empty box on the wall reads as a fault.
+	 *
+	 * Tiles per page is a readability decision, not a layout convenience:
+	 *   wide wall — five across one row, each ~1/5 of the frame (~1150 px
+	 *               on the venue wall), which is the size the brief asked
+	 *               for and the back of the room can actually read.
+	 *   16:9      — four as 2x2, each ~half the frame. Five across a 1920
+	 *               frame would be 384 px wide, which is the postage stamp
+	 *               again under a different arrangement.
+	 *
+	 * Grouping survives as ORDER and COLOUR only (`grouping.ts`): tables
+	 * that argued from the same future page together and carry the same
+	 * accent, and no beat prints the future's name.
 	 */
-	import { FUTURES } from '$lib/game/futures';
+	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { accentForFuture } from './tokens';
+	import { byLensThenTable, futureIndexOf } from './grouping';
 	import type { TableView } from './types';
 
 	let { tables, panels = 1 }: { tables: TableView[]; panels?: number } = $props();
 
-	/** One band per future that actually has tables, in the palette's own order, with anything unchosen last. */
-	const bands = $derived.by(() => {
-		const byKey = new Map<string, TableView[]>();
-		for (const t of tables) {
-			const key = t.futureKey ?? '';
-			const held = byKey.get(key);
-			if (held) held.push(t);
-			else byKey.set(key, [t]);
-		}
-		// A band carries its accent and its count. It does NOT carry its
-		// future's name: the lens is hidden analysis, so the room reads a
-		// colour and a number of tables, never "GARDEN CITY".
-		const out: { key: string; accent: string | null; tables: TableView[] }[] = [];
-		FUTURES.forEach((f, i) => {
-			const group = byKey.get(f.key);
-			if (group?.length) out.push({ key: f.key, accent: accentForFuture(i), tables: group });
-		});
-		const undecided = byKey.get('');
-		if (undecided?.length) out.push({ key: '', accent: null, tables: undecided });
+	/** Seconds a page holds the wall. Long enough to find your own table's number and look at the picture. */
+	const PAGE_SECONDS = 8;
+
+	const perPage = $derived(panels > 1 ? 5 : 4);
+
+	/** Only tables with a render. Skipping is the whole point — see the note above. */
+	const drawn = $derived(byLensThenTable(tables.filter((t) => t.images.some((i) => i.url))));
+
+	const pages = $derived.by(() => {
+		const out: TableView[][] = [];
+		for (let i = 0; i < drawn.length; i += perPage) out.push(drawn.slice(i, i + perPage));
 		return out;
 	});
 
-	/** The tile this table shows in the grid: its first zone image that landed. */
-	function firstImage(t: TableView) {
-		return t.images.find((i) => i.url) ?? null;
+	// Wall-clock paging. Same shape, and the same justification, as
+	// `Finale`'s cursor: the page turns with TIME, which is not derivable
+	// from any other state, and the timer has to start and stop with the
+	// component. The Svelte autofixer flags it; this is the exception the
+	// rule leaves room for.
+	let cursor = $state(0);
+
+	const pageIndex = $derived(pages.length ? cursor % pages.length : 0);
+	const current = $derived(pages[pageIndex] ?? []);
+
+	$effect(() => {
+		if (pages.length <= 1) return;
+		const id = setTimeout(() => {
+			cursor += 1;
+		}, PAGE_SECONDS * 1000);
+		return () => clearTimeout(id);
+	});
+
+	/** Transitions do not honour reduced-motion on their own; on the wall a crossfade becomes a cut. */
+	const fadeMs = $derived(prefersReducedMotion.current ? 0 : 600);
+
+	function accentFor(t: TableView): string {
+		const i = futureIndexOf(t.futureKey);
+		return i == null ? 'var(--line)' : accentForFuture(i);
 	}
 
-	/** No tile AND nothing still coming: the render failed, which the wall says
-	 *  plainly rather than showing the same "no image yet" a queued table shows. */
-	function hasFailed(t: TableView): boolean {
-		return (
-			!t.images.some((i) => i.url) &&
-			t.images.length > 0 &&
-			t.images.every((i) => i.state === 'failed' || i.state === 'stored' || i.state === 'done') &&
-			t.images.some((i) => i.state === 'failed')
-		);
+	/**
+	 * Which of this table's renders the tile shows. Advancing with the page
+	 * cursor means a table seen twice in a long reveal shows a different
+	 * room the second time, rather than the same picture on a loop.
+	 */
+	function tileImage(t: TableView, turn: number) {
+		const landed = t.images.filter((i) => i.url);
+		return landed[turn % landed.length];
 	}
+
+	const turn = $derived(pages.length ? Math.floor(cursor / pages.length) : 0);
 </script>
 
-<!-- Reveal beat (game-flow.md §4, tag C): one band per future, tiles inside it. -->
 <section class="reveal">
-	<header>Every table</header>
-	<div class="bands">
-		{#each bands as band (band.key)}
-			<section class="band" style:--accent={band.accent ?? 'var(--line)'}>
-				<h3>
-					<span class="lens-band" aria-hidden="true"></span>
-					<span class="count">{band.tables.length}</span>
-				</h3>
-				<div class="row">
-					{#each band.tables as t (t.table)}
-						{@const img = firstImage(t)}
-						{@const failed = hasFailed(t)}
-						<figure class="cell" class:empty-cell={!img} class:failed-cell={failed}>
-							{#if img}
-								<img src={img.url} alt="Table {t.table} zone render" loading="lazy" />
-							{:else if failed}
-								<div class="empty failed">didn't land</div>
-							{:else}
-								<div class="empty">no image yet</div>
-							{/if}
-							<figcaption>
-								<span class="table-no">{t.table}</span>
-							</figcaption>
-						</figure>
-					{/each}
-				</div>
-			</section>
-		{/each}
-	</div>
+	{#if current.length === 0}
+		<p class="waiting">nothing drawn yet</p>
+	{:else}
+		{#key pageIndex}
+			<div class="page" class:wide={panels > 1} in:fade={{ duration: fadeMs }} out:fade={{ duration: fadeMs }}>
+				{#each current as t (t.table)}
+					{@const img = tileImage(t, turn)}
+					<figure class="tile" style:--accent={accentFor(t)}>
+						<img src={img.url} alt="Table {t.table}" />
+						<figcaption><span class="table-no">{t.table}</span></figcaption>
+					</figure>
+				{/each}
+			</div>
+		{/key}
+		{#if pages.length > 1}
+			<div class="pager" aria-hidden="true">
+				{#each pages as _, i (i)}
+					<span class="dot" class:on={i === pageIndex}></span>
+				{/each}
+			</div>
+		{/if}
+	{/if}
 </section>
 
 <style>
-	/* box-sizing:border-box throughout — the previous `height:100%` +
-	   content-box padding combination pushed the border box past the
-	   viewport (overflow silently clipped by the projector root's
-	   `overflow:hidden`), which is why row 4 (tables 16-20) went missing at
-	   1920x1080. Flex column + `flex:1` + `min-height:0` on `.grid` (not
-	   `height:100%`) is what actually keeps 20 tiles inside one screen with
-	   no page scroll, ever. */
 	.reveal,
 	.reveal * {
 		box-sizing: border-box;
 	}
+	/* The pages stack: the outgoing one is still in the DOM while the
+	   incoming one fades up, so the wall never flashes the navy ground
+	   between pages. */
 	.reveal {
+		position: relative;
 		height: 100%;
-		display: flex;
-		flex-direction: column;
-		padding: 1.25rem 2rem 2rem;
-		gap: 0.75rem;
+		overflow: hidden;
 	}
-	header {
-		flex: 0 0 auto;
-		font-size: var(--type-caption);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--ink-muted);
+	.page {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 1.5vh;
+		padding: 2vh 2vh 6vh;
 	}
-	/* Bands share the height in proportion to how many tables each holds, so
-	   a six-table future is taller than a one-table one and every TILE ends up
-	   roughly the same size. `min-height: 0` on both axes is what keeps 20
-	   tiles inside one 1920x1080 screen with no page scroll — the same trap
-	   the note above records. */
-	.bands {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
+	/* One row across the wall: five tiles, each about a fifth of the frame. */
+	.page.wide {
+		grid-template-columns: repeat(5, 1fr);
+		grid-template-rows: 1fr;
 	}
-	.band {
-		flex: 1 1 0;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-		padding-left: 0.6rem;
-		border-left: 3px solid var(--accent);
-	}
-	.band h3 {
-		flex: 0 0 auto;
-		margin: 0;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: var(--type-caption);
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--accent);
-	}
-	.band .count {
-		color: var(--ink-muted);
-		font-weight: 400;
-		letter-spacing: 0.06em;
-	}
-	.row {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		gap: 0.6rem;
-	}
-	.row .cell {
-		flex: 0 1 auto;
-		aspect-ratio: 4 / 3;
-	}
-	.cell {
+	.tile {
 		position: relative;
 		margin: 0;
+		min-width: 0;
+		min-height: 0;
 		border-radius: 0.5rem;
 		overflow: hidden;
 		background: var(--card);
-		display: flex;
-		min-height: 0;
+		box-shadow: inset 0 0 0 2px var(--accent);
 	}
-	.cell img {
+	.tile img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
-	/* Quieter than a drawn tile, on purpose — the eye should land on what
-	   exists, not on the 20-tile placeholder grid around it. */
-	.cell.empty-cell {
-		background: transparent;
-		border: 1px dashed var(--line);
-		opacity: 0.55;
-	}
-	/* A failed render is a different fact from "not drawn yet" — dashed-and-
-	   faint reads as waiting, so failure gets its own border and colour. */
-	.cell.failed-cell {
-		border-style: solid;
-		border-color: #e0475c;
-		opacity: 0.8;
-	}
-	.empty.failed {
-		color: #e0475c;
-	}
-	.empty {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: var(--ink-muted);
-		font-size: var(--type-caption);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-	}
 	figcaption {
 		position: absolute;
 		inset: auto 0 0 0;
-		display: flex;
-		justify-content: space-between;
-		padding: 0.4rem 0.6rem;
-		background: linear-gradient(0deg, rgba(0, 0, 0, 0.65), transparent);
-		font-size: var(--type-caption);
+		padding: 1vh 2vh;
+		background: linear-gradient(0deg, rgba(0, 0, 0, 0.75), transparent);
 	}
-	.empty-cell figcaption {
-		background: none;
-	}
+	/* The one thing a delegate needs from across the room: which table. */
 	.table-no {
+		font-family: 'Playfair Display', Georgia, serif;
+		font-size: var(--type-table-no);
+		line-height: 1;
 		font-weight: 700;
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
 	}
-	.empty-cell .table-no {
-		font-weight: 500;
-		color: var(--ink-muted);
+	.pager {
+		position: absolute;
+		inset: auto 0 2vh 0;
+		display: flex;
+		justify-content: center;
+		gap: 1vh;
 	}
-	/* The band's identity is its colour, not its name — see Lobby's note. */
-	.lens-band {
-		width: 3rem;
-		height: 0.35rem;
+	.dot {
+		width: 1.2vh;
+		height: 1.2vh;
 		border-radius: 999px;
-		background: var(--accent);
+		background: var(--line);
+	}
+	.dot.on {
+		background: var(--gold);
+	}
+	.waiting {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
+		color: var(--ink-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-size: var(--type-body);
 	}
 </style>

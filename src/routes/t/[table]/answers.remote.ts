@@ -84,6 +84,16 @@ const eraSchema = v.picklist(ERA_SCALE);
 /** The pseudo-question id the future pick is stored under. `q1` stores the era. */
 const FUTURE_ID = "future";
 
+/**
+ * What a skipped future card stores (game-flow.md §1, screen 3's failure
+ * state: "stored as `skipped`"). It has to be a real key rather than an
+ * empty array, or the answer reads as unanswered for ever: the review
+ * button stays on "still missing 1 answer" and resume sends the table
+ * back to the future screen on every reload. `futureOf` returns null for
+ * it, so the mood layer still falls back to the house register.
+ */
+const SKIPPED = "skipped";
+
 /** fal model id — TODO(content): set once the model is chosen (also stubbed in ticker.ts). */
 const MODEL = FAL_MODEL;
 
@@ -524,6 +534,16 @@ export const regenerate = command(
         return {
           ok: false as const,
           reason: "The room is closed — the screen has moved on.",
+        };
+      }
+      // "Regenerate (throttled, per table)" (game-flow §1, screen 17).
+      // `withTableLock` only covers concurrent CALLS, which release in
+      // milliseconds; this covers a generation still in flight, so a
+      // double-tap cannot queue eight rows.
+      if ((await getPendingImagesForTable(env.DB, event, table)).length > 0) {
+        return {
+          ok: false as const,
+          reason: "Still drawing — wait for this one before asking for another.",
         };
       }
       const result = await queueGeneration(env, event, table, {

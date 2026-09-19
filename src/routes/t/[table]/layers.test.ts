@@ -123,6 +123,15 @@ describe('buildLayerInputs', () => {
 });
 
 describe('composeBase / composeZonePrompt', () => {
+	it('composes a full example for a Garden City table on its default era — base, then lens, nothing else answered', () => {
+		const GARDEN_CITY = FUTURES.find((f) => f.key === 'garden-city')!;
+		const gc = buildLayerInputs({ futureKey: 'garden-city', answers: [] });
+		const composed = composeBase(gc);
+		expect(composed).toBe(
+			`${houseBase('2035')}. seen through the lens of ${GARDEN_CITY.name}: ${GARDEN_CITY.moodLine.replace(/\.$/, '')}`
+		);
+	});
+
 	it('orders the base mood, materials, programme, feel, wildcard and adds no guards', () => {
 		const base = composeBase(built);
 		expect(base.indexOf(built.materialsAndLight)).toBeGreaterThan(base.indexOf(built.mood));

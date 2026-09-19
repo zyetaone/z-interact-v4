@@ -1,0 +1,57 @@
+/**
+ * THE ONLY FILE IN `server/` THAT IMPORTS `$app/server`.
+ *
+ * Every other server module takes its D1/R2 handles as plain arguments, so
+ * it can be unit-tested with in-memory fakes and no SvelteKit request
+ * context (`getRequestEvent()` throws outside a request — under vitest, in
+ * `/simulate`, and in any module loaded at build time). This file is the
+ * one seam that bridges "plain function" to "Cloudflare binding", and it
+ * fails soft (returns undefined) rather than throwing, so a caller can
+ * `if (!env) return` instead of wrapping every call in try/catch.
+ *
+ * Ported pattern from z-presence's env.ts, generalized to the typed `Env`
+ * shape this app's bindings need (D1 + R2 + fal secrets).
+ */
+import { getRequestEvent } from '$app/server';
+
+export interface Env {
+	DB: D1Database;
+	IMAGES: R2Bucket;
+	FAL_KEY?: string;
+	FAL_WEBHOOK_SECRET?: string;
+	SIMULATE_ENABLED?: string;
+	/** `<app>-<YYYY-MM>` per NEW-EVENT.md. No event name is hardcoded in source — this is how every row gets its `event_id`. */
+	EVENT_ID?: string;
+}
+
+/** Falls back to a dev-only placeholder so local `npm run dev` works before NEW-EVENT.md's checklist sets a real one. */
+export function eventId(env: Env | undefined): string {
+	return env?.EVENT_ID ?? 'dev-event';
+}
+
+/** The current request's platform env, or undefined outside a request. */
+export function requestEnv(): Env | undefined {
+	try {
+		return getRequestEvent().platform?.env as Env | undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Same as `requestEnv()` but for callers that already hold `platform`
+ * directly (route handlers like `+server.ts`, which receive it as an
+ * argument rather than pulling it from request-local storage).
+ */
+export function envOf(platform: App.Platform | undefined): Env | undefined {
+	return platform?.env;
+}
+
+/** Client IP — read-only diagnostic. Never used as a throttle/rate-limit key (ADR-036: one venue router is one IP). */
+export function clientIp(): string {
+	try {
+		return getRequestEvent().request.headers.get('CF-Connecting-IP')?.trim() || 'unknown';
+	} catch {
+		return 'unknown';
+	}
+}

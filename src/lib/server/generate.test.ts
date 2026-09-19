@@ -54,6 +54,29 @@ describe('tick', () => {
 		expect(deps.pollStatus).not.toHaveBeenCalled();
 	});
 
+	it('requested + ERROR -> failed: the row reaches a terminal state, not an endless wait', async () => {
+		// The bug this closes: every non-COMPLETED status used to return
+		// `handled: false`, so a real fal failure left the row `requested` with
+		// no ticker able to move it and the table stuck on the Drawing screen.
+		const deps = fakeDeps({
+			pollStatus: vi.fn(async () => ({ status: 'ERROR' as const, error: 'content policy' }))
+		});
+		const result = await tick(row({ state: 'requested', falRequestId: 'req-1' }), deps);
+		expect(result).toEqual({ handled: true, nextState: 'failed', reason: 'content policy' });
+		expect(deps.fetchResult).not.toHaveBeenCalled();
+		expect(deps.putR2).not.toHaveBeenCalled();
+	});
+
+	it('an ERROR with no reason still fails, with a sentence a table can read', async () => {
+		const deps = fakeDeps({ pollStatus: vi.fn(async () => ({ status: 'ERROR' as const })) });
+		const result = await tick(row({ state: 'requested', falRequestId: 'req-1' }), deps);
+		expect(result).toEqual({
+			handled: true,
+			nextState: 'failed',
+			reason: 'the image model reported an error'
+		});
+	});
+
 	it('ticking a stored row is a no-op — no dependency is called', async () => {
 		const deps = fakeDeps();
 		const result = await tick(row({ state: 'stored' }), deps);

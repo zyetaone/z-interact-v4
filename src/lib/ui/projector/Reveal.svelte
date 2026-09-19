@@ -11,6 +11,17 @@
 	function firstImage(t: TableView) {
 		return t.images.find((i) => i.url) ?? null;
 	}
+
+	/** No tile AND nothing still coming: the render failed, which the wall says
+	 *  plainly rather than showing the same "no image yet" a queued table shows. */
+	function hasFailed(t: TableView): boolean {
+		return (
+			!t.images.some((i) => i.url) &&
+			t.images.length > 0 &&
+			t.images.every((i) => i.state === 'failed' || i.state === 'stored' || i.state === 'done') &&
+			t.images.some((i) => i.state === 'failed')
+		);
+	}
 </script>
 
 <!-- Reveal beat (game-flow.md §4, tag C): plain 5x4 grid, one tile per table. -->
@@ -19,9 +30,12 @@
 	<div class="grid">
 		{#each tables as t (t.table)}
 			{@const img = firstImage(t)}
-			<figure class="cell" class:empty-cell={!img}>
+			{@const failed = hasFailed(t)}
+			<figure class="cell" class:empty-cell={!img} class:failed-cell={failed}>
 				{#if img}
 					<img src={img.url} alt="Table {t.table} zone render" loading="lazy" />
+				{:else if failed}
+					<div class="empty failed">didn't land</div>
 				{:else}
 					<div class="empty">no image yet</div>
 				{/if}
@@ -89,6 +103,16 @@
 		background: transparent;
 		border: 1px dashed var(--line);
 		opacity: 0.55;
+	}
+	/* A failed render is a different fact from "not drawn yet" — dashed-and-
+	   faint reads as waiting, so failure gets its own border and colour. */
+	.cell.failed-cell {
+		border-style: solid;
+		border-color: #e0475c;
+		opacity: 0.8;
+	}
+	.empty.failed {
+		color: #e0475c;
 	}
 	.empty {
 		flex: 1;

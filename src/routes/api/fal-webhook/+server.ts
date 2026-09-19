@@ -17,6 +17,7 @@ import * as v from 'valibot';
 import { envOf } from '$lib/server/env';
 import { getImageById } from '$lib/server/room';
 import { tickAndPersist } from '$lib/server/ticker';
+import { falErrorText } from '$lib/server/fal';
 import { imageKey, putImage } from '$lib/server/r2';
 import type { RequestHandler } from './$types';
 
@@ -74,10 +75,19 @@ export const POST: RequestHandler = async ({ request, url, platform }) => {
 					throw new Error('webhook ticker should never see a queued row');
 				},
 				async pollStatus() {
-					return { status: imageUrl ? ('COMPLETED' as const) : ('IN_PROGRESS' as const) };
+					// fal said the job is finished and it failed. Reporting that as
+					// IN_PROGRESS (the pre-change behaviour) left the row `requested`
+					// with nothing able to advance it; ERROR routes it to `failed`
+					// through the shared ticker like any other terminal answer.
+					if (body.status === 'ERROR') {
+						return { status: 'ERROR' as const, error: falErrorText(body.error, 'ERROR') };
+					}
+					if (imageUrl) return { status: 'COMPLETED' as const };
+					// status OK but no image in the payload — also terminal, not a wait.
+					return { status: 'ERROR' as const, error: 'the image model returned no image' };
 				},
 				async fetchResult() {
-					if (!imageUrl) throw new Error(body.error ?? 'fal reported ERROR with no image');
+					if (!imageUrl) throw new Error(falErrorText(body.error, 'ERROR'));
 					return { imageUrl };
 				},
 				async fetchBytes(url) {

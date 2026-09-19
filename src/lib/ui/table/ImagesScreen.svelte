@@ -27,6 +27,9 @@
 
 	const beat = poll(2000, () => refresh());
 	const arrived = $derived(images.filter((i) => i.url));
+	const failedZones = $derived(images.filter((i) => i.state === 'failed'));
+	/** Nothing landed AND nothing is still coming — the one case where *Draw again* is the only way forward. */
+	const allFailed = $derived(arrived.length === 0 && failedZones.length > 0);
 </script>
 
 <h1 class="stem">Your workspace.</h1>
@@ -39,16 +42,22 @@
 	<p class="banner">No answer from the room for {beat.staleSeconds}s — this may not be the latest.</p>
 {/if}
 
-{#if arrived.length === 0}
+{#if allFailed}
+	<p class="banner">The drawing failed — draw again.</p>
+{:else if images.length === 0}
 	<p class="banner">The drawing didn't land — the desk can redraw this table.</p>
-{:else}
+{/if}
+
+{#if images.length > 0}
 	<ul class="gallery">
 		{#each images as image (image.zoneKey)}
 			<li>
 				{#if image.url}
 					<img src={image.url} alt="Our {image.zoneKey}" />
 				{:else}
-					<div class="pending">{image.state === 'failed' ? 'did not land' : 'still drawing'}</div>
+					<div class="pending" class:failed={image.state === 'failed'}>
+						{image.state === 'failed' ? 'this one failed' : 'still drawing'}
+					</div>
 				{/if}
 				<span class="zone">{image.zoneKey}</span>
 			</li>
@@ -104,6 +113,10 @@
 		font-size: 13px;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
+	}
+
+	.pending.failed {
+		color: var(--warn);
 	}
 
 	.zone {

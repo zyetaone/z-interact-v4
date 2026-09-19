@@ -109,6 +109,10 @@ export async function tickAndPersist(
 		if (!result.handled) return;
 		if (result.nextState === 'requested') await markRequested(db, row.id, result.falRequestId);
 		else if (result.nextState === 'stored') await markStored(db, row.id, result.r2Key);
+		// A provider-reported failure reaches `failed` through the same write
+		// as a thrown dependency below — a visibly failed tile, not a row that
+		// sits in `requested` until the event ends.
+		else if (result.nextState === 'failed') await markFailed(db, row.id, result.reason);
 	} catch (e) {
 		await markFailed(db, row.id, String(e).slice(0, 500));
 	}

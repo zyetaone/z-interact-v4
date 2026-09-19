@@ -36,9 +36,15 @@ export interface GenerationRow {
 	requestKey: string;
 }
 
+/** The subset of `fal.ts`'s `FalStatus` this state machine reads. `ERROR` is a real, terminal answer — see `fal.ts`'s note on why it has to be modelled. */
+export interface PolledStatus {
+	status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'ERROR';
+	error?: string;
+}
+
 export interface GenerateDeps {
 	submit(prompt: string, requestKey: string): Promise<{ requestId: string }>;
-	pollStatus(requestId: string): Promise<{ status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' }>;
+	pollStatus(requestId: string): Promise<PolledStatus>;
 	fetchResult(requestId: string): Promise<{ imageUrl: string }>;
 	fetchBytes(imageUrl: string): Promise<ArrayBuffer>;
 	putR2(bytes: ArrayBuffer): Promise<{ r2Key: string }>;
@@ -47,6 +53,7 @@ export interface GenerateDeps {
 export type TickResult =
 	| { handled: true; nextState: 'requested'; falRequestId: string }
 	| { handled: true; nextState: 'stored'; r2Key: string }
+	| { handled: true; nextState: 'failed'; reason: string }
 	| { handled: false; reason: string };
 
 /**
@@ -66,6 +73,17 @@ export async function tick(row: GenerationRow, deps: GenerateDeps): Promise<Tick
 				return { handled: false, reason: 'requested with no fal_request_id — cannot resume' };
 			}
 			const status = await deps.pollStatus(row.falRequestId);
+			// A provider-side failure is an ANSWER, not a "not yet". Reporting it
+			// as `handled: false` (the pre-change behaviour for every non-COMPLETED
+			// status) left the row `requested` for ever with no ticker able to
+			// move it, which showed up as a table stuck on the Drawing screen.
+			if (status.status === 'ERROR') {
+				return {
+					handled: true,
+					nextState: 'failed',
+					reason: (status.error ?? 'the image model reported an error').slice(0, 200)
+				};
+			}
 			if (status.status !== 'COMPLETED') {
 				return { handled: false, reason: `fal status is ${status.status}, not ready yet` };
 			}

@@ -12,7 +12,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
-import { getGenerationById } from '$lib/server/generate';
+import { getImageById } from '$lib/server/room';
 import { getImage } from '$lib/server/r2';
 import type { RequestHandler } from './$types';
 
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const env = envOf(platform);
 	if (!env) error(503, 'no environment');
 
-	const row = await getGenerationById(env.DB, params.id);
+	const row = await getImageById(env.DB, params.id);
 	if (!row || row.table !== Number(params.table) || row.eventId !== eventId(env)) error(404, 'no such image');
 	if (!row.r2Key) error(404, 'not stored yet');
 

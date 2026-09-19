@@ -9,21 +9,18 @@
  * §6/§8): every poll walks this table's non-terminal `image` rows and
  * advances each one exactly one `generate.ts` step via the shared
  * `ticker.ts`, now submitting the row's REAL composed prompt (read by
- * `promptId`) rather than a placeholder. That is what makes a phone that
- * died mid-generation, or a webhook that never arrives, recover for free.
+ * `promptId`) rather than the placeholder string that stood in for it.
+ * That is what makes a phone that died mid-generation, or a webhook that
+ * never arrives, recover for free the next time anything polls.
  *
  * Three rules this file holds to:
  *
- *  - **One prompt row PER ZONE**, four per submit. `generate.ts`'s
- *    `tick()` submits `prompt.composed` verbatim for the row its
- *    `promptId` names, so `composed` has to BE the exact per-zone string
- *    (NO_TEXT guards + base + that zone's resolved suffix + NO_TEXT). All
- *    four rows carry the same layer columns, which is how the table-level
- *    BASE text — the thing screen 15's textarea edits — is recovered after
- *    submit: `composeBase` over those columns. When the table edits the
- *    prompt, the edited base is stored in `mood` with the other three
- *    layers blank and `edited_by_table = 1`, so the same recovery returns
- *    the edit unchanged.
+ *  - **One prompt row per table**, not per zone — `schema.draft.ts`'s
+ *    `PromptRow` has no zone column. `prompt.composed` is the table-level
+ *    text screen 15's textarea edits; the zone's own suffix and the
+ *    NO_TEXT guards are applied at submit time by `layers.ts`'s
+ *    `composeZonePrompt`, so an edited prompt and an unedited one go
+ *    through exactly one composer.
  *  - **The poll never calls `assertCanSubmit`** — that function CONSUMES a
  *    one-shot reopen grant on success, so polling it every two seconds
  *    would burn the desk's grant before the table pressed anything. The
@@ -56,18 +53,17 @@ import {
   getCurrentAnswers,
   finishTable as finishTableRow,
   insertPrompt,
+  insertQueuedImage,
   getCurrentImage,
+  getPendingImagesForTable,
 } from "$lib/server/room";
-import {
-  insertGeneration,
-  getLatestGeneration,
-  tick,
-  tickTable,
-  type GenerationRow,
-} from "$lib/server/generate";
 import { createThrottle } from "$lib/server/throttle";
-import { realFalClient, buildWebhookUrl } from "$lib/server/ticker";
-import { getLatestPrompt } from "./prompt-store";
+import {
+  tickAndPersist,
+  realGenerateDeps,
+  buildWebhookUrl,
+} from "$lib/server/ticker";
+import { getLatestPrompt, getPromptById } from "./prompt-store";
 import {
   buildLayerInputs,
   composeBase,
@@ -85,7 +81,7 @@ const tableNo = v.pipe(
 const eraSchema = v.picklist(ERA_SCALE);
 
 /** The pseudo-question id the future pick is stored under. `q1` stores the era. */
-export const FUTURE_ID = "future";
+const FUTURE_ID = "future";
 
 /** fal model id — TODO(content): set once the model is chosen (also stubbed in ticker.ts). */
 const MODEL = "TODO(content): fal model id";
@@ -94,6 +90,7 @@ const MODEL = "TODO(content): fal model id";
 const throttle = createThrottle();
 
 type Fail = { ok: false; reason: string };
+type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 /** Every command runs inside this: one in-flight write per table, always released. */
 async function withTableLock<T>(
@@ -113,19 +110,22 @@ async function withTableLock<T>(
   }
 }
 
-/**
- * The per-row fal client every ticker in this file uses. `tickTable` asks
- * for one per row so the webhook URL can name that row's own id — that is
- * the whole reason `falFor` is a function and not a value.
- */
-function falForRow(env: NonNullable<ReturnType<typeof requestEnv>>) {
-  const origin = requestOrigin();
-  return (row: GenerationRow) =>
-    realFalClient(
-      env,
-      MODEL,
-      buildWebhookUrl(origin, env.FAL_WEBHOOK_SECRET, row.id),
-    );
+/** One row's real fal + R2 deps, with this app's webhook URL naming that row. */
+function depsFor(
+  env: Env,
+  event: string,
+  table: number,
+  zoneKey: string,
+  imageId: string,
+) {
+  return realGenerateDeps(
+    env,
+    event,
+    table,
+    zoneKey,
+    imageId,
+    buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, imageId),
+  );
 }
 
 function answersOf(
@@ -186,21 +186,34 @@ export const tableStatus = query(
     const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
 
     // TICKER: advance every in-flight generation for this table by one
-    // step, through the same `tickTable` the admin poll and the webhook
-    // route use. Nothing bespoke lives here (game-flow.md §6/§8).
-    await tickTable(env.DB, env.IMAGES, falForRow(env), event, table);
+    // step, each submitting its OWN row's composed prompt.
+    for (const row of await getPendingImagesForTable(env.DB, event, table)) {
+      const zone = ZONES.find((z) => z.key === row.zoneKey);
+      const stored = await getPromptById(env.DB, row.promptId);
+      if (!zone || !stored) continue;
+      await tickAndPersist(
+        env.DB,
+        {
+          id: row.id,
+          state: row.state,
+          falRequestId: row.falRequestId,
+          table,
+          zoneKey: row.zoneKey,
+        },
+        composeZonePrompt(stored.composed, resolveZone(zone, answers)),
+        depsFor(env, event, table, row.zoneKey, row.id),
+      );
+    }
 
     const images = [];
     for (const zone of ZONES) {
-      const [current, generation] = await Promise.all([
-        getCurrentImage(env.DB, event, table, zone.key),
-        getLatestGeneration(env.DB, event, table, zone.key),
-      ]);
+      const row = await getCurrentImage(env.DB, event, table, zone.key);
+      const arrived = row?.state === "stored" || row?.state === "done";
       images.push({
         zoneKey: zone.key,
-        state: generation?.state ?? "none",
-        url: current ? `/t/${table}/img/${current.generationId}` : null,
-        error: generation?.error ?? null,
+        state: row?.state ?? "none",
+        url: arrived && row ? `/t/${table}/img/${row.id}` : null,
+        error: row?.error ?? null,
       });
     }
 
@@ -214,15 +227,6 @@ export const tableStatus = query(
         answers,
       }),
     );
-    const storedBase = stored
-      ? composeBase({
-          mood: stored.mood,
-          materialsAndLight: stored.material,
-          programme: stored.programme,
-          feel: stored.feel,
-          wildcard: stored.wildcard ?? undefined,
-        })
-      : null;
 
     const alreadyAnswered = !!state.submittedAt;
     const [locked, granted] = await Promise.all([
@@ -243,7 +247,7 @@ export const tableStatus = query(
       future: futureOf(answers),
       era: eraOf(answers),
       answers,
-      prompt: storedBase ?? preview,
+      prompt: stored?.composed ?? preview,
       promptEdited: stored?.editedByTable ?? false,
       images,
       submittedAt: state.submittedAt,
@@ -295,14 +299,14 @@ export const saveFuture = command(
         });
       }
       void tableStatus({ table }).refresh();
-      return { ok: true as const, era: future?.eraDefault ?? null };
+      return { ok: true as const };
     }),
 );
 
 /**
  * Screen 3b/3c. `pushReply` is Q1's "what are you protecting" field, which
- * the flow only shows when the era lands on 2026 — it is appended to the
- * mood layer verbatim.
+ * the flow only shows when the era lands on 2026 — appended to the mood
+ * layer verbatim.
  */
 export const saveEra = command(
   v.object({
@@ -374,14 +378,13 @@ export const saveWildcard = command(
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
+      const trimmed = text.trim();
       await saveAnswerRow(env.DB, {
         eventId: eventId(env),
         table,
         questionId: WILDCARD.id,
-        keys: text.trim() ? [WILDCARD.options[0].key] : [],
-        text: text.trim()
-          ? { [WILDCARD.options[0].key]: text.trim() }
-          : undefined,
+        keys: trimmed ? [WILDCARD.options[0].key] : [],
+        text: trimmed ? { [WILDCARD.options[0].key]: trimmed } : undefined,
         actor: "table",
         source: "tap",
       });
@@ -394,26 +397,21 @@ export const saveWildcard = command(
 /* Generation — one prompt row, one image row per zone, then the first tick   */
 /* -------------------------------------------------------------------------- */
 
-interface QueueResult {
-  composed: string;
-  queued: number;
-}
-
 /**
- * Inserts one prompt row per zone (append-only, actor 'table'), then one
- * `generations` row per zone in `ZONES`, then kicks the first tick for each
+ * Inserts ONE prompt row for the table (append-only, actor 'table'), then
+ * one `image` row per zone in `ZONES`, then kicks the first tick for each
  * through `waitUntil`.
  *
- * `supersedes` is set on a regenerate so the previous attempt stays in the
- * table rather than being overwritten — an image row appended later by
- * `tick()` is what moves "current" (`room.ts`'s `getCurrentImage`).
+ * `supersedesId` is set on a regenerate so the previous attempt stays in
+ * the table rather than being overwritten — `getCurrentImage` reads the
+ * newest row, so the new attempt becomes current the moment it is inserted.
  */
 async function queueGeneration(
-  env: NonNullable<ReturnType<typeof requestEnv>>,
+  env: Env,
   event: string,
   table: number,
   opts: { composedOverride?: string; regenerate: boolean },
-): Promise<QueueResult> {
+): Promise<{ promptId: string; composed: string; queued: number }> {
   const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
   const layers = buildLayerInputs({
     futureKey: futureOf(answers),
@@ -421,68 +419,62 @@ async function queueGeneration(
     answers,
   });
   const edited = !!opts.composedOverride?.trim();
-  const base = edited ? opts.composedOverride!.trim() : composeBase(layers);
+  const composed = edited ? opts.composedOverride!.trim() : composeBase(layers);
+  const previous = await getLatestPrompt(env.DB, event, table);
 
-  // An edit cannot be decomposed back into four layers, so it rides in
-  // `mood` alone and the other three go blank — `composeBase` over the
-  // stored columns then returns the edit unchanged. See the module note.
-  const stored = edited
-    ? {
-        mood: base,
-        material: "",
-        programme: "",
-        feel: "",
-        wildcard: undefined as string | undefined,
-      }
-    : {
-        mood: layers.mood,
-        material: layers.materialsAndLight,
-        programme: layers.programme,
-        feel: layers.feel,
-        wildcard: layers.wildcard,
-      };
+  const promptId = await insertPrompt(env.DB, {
+    eventId: event,
+    table,
+    mood: layers.mood,
+    material: layers.materialsAndLight,
+    programme: layers.programme,
+    feel: layers.feel,
+    wildcard: layers.wildcard,
+    composed,
+    negative: layers.negative,
+    editedByTable: edited,
+    actor: "table",
+    supersedesId: previous?.id ?? null,
+  });
 
-  const fal = falForRow(env);
-  const fresh: GenerationRow[] = [];
-
+  let queued = 0;
   for (const zone of ZONES) {
-    const existing = await getLatestGeneration(env.DB, event, table, zone.key);
+    const existing = await getCurrentImage(env.DB, event, table, zone.key);
     // "A generation already in flight is returned, not duplicated"
     // (game-flow §8) — but a regenerate deliberately supersedes it.
     if (!opts.regenerate && existing && existing.state !== "failed") continue;
 
-    // `composed` IS what tick() submits, so the zone suffix and the
-    // NO_TEXT guards have to be baked in here, not applied later.
-    const promptId = await insertPrompt(env.DB, {
+    const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers));
+    const image = await insertQueuedImage(env.DB, {
       eventId: event,
       table,
-      mood: stored.mood,
-      material: stored.material,
-      programme: stored.programme,
-      feel: stored.feel,
-      wildcard: stored.wildcard,
-      composed: composeZonePrompt(base, resolveZone(zone, answers)),
-      negative: layers.negative,
-      editedByTable: edited,
+      zoneKey: zone.key,
+      promptId,
+      prompt: zonePrompt,
+      model: MODEL,
       actor: "table",
+      supersedesId: existing?.id ?? null,
     });
+    queued += 1;
 
-    fresh.push(
-      await insertGeneration(env.DB, {
-        eventId: event,
-        table,
-        zone: zone.key,
-        promptId,
-      }),
+    // waitUntil kicks the first tick; the phone/admin polls and the
+    // webhook are the safety net if it is cut short (game-flow §6).
+    requestWaitUntil(
+      tickAndPersist(
+        env.DB,
+        {
+          id: image.id,
+          state: image.state,
+          falRequestId: image.falRequestId,
+          table,
+          zoneKey: zone.key,
+        },
+        zonePrompt,
+        depsFor(env, event, table, zone.key, image.id),
+      ),
     );
   }
-
-  // waitUntil kicks the first tick; the phone/admin polls and the webhook
-  // are the safety net if it is cut short (game-flow §6).
-  for (const row of fresh) {
-    void requestWaitUntil(tick(env.DB, env.IMAGES, fal(row), row));
-  }
-  return { composed: base, queued: fresh.length };
+  return { promptId, composed, queued };
 }
 
 /** Screen 15's *Draw our workspace*. `composed` is the edited textarea, when the table changed it. */
@@ -517,8 +509,8 @@ export const finishTable = command(
  * Screen 17's *draw again*. Deliberately NOT behind `assertCanSubmit`: that
  * gate blocks a table that has already submitted unless the desk granted a
  * reopen, which would make regenerate unusable exactly where game-flow §1
- * puts it (on the images screen, after submit). Room lock and the per-table
- * throttle are the two limits that do apply.
+ * puts it — on the images screen, after submit. The room lock and the
+ * per-table throttle are the two limits that do apply.
  */
 export const regenerate = command(
   v.object({ table: tableNo, composed: v.optional(v.string()) }),

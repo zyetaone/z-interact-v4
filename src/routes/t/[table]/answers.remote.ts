@@ -112,6 +112,22 @@ const MODEL = FAL_MODEL;
 const throttle = createThrottle();
 
 type Fail = { ok: false; reason: string };
+
+/**
+ * `refresh()` pushes a fresh snapshot to the CLIENT that made the call. It
+ * is a courtesy — the 2 s poll would pick the change up anyway — and it has
+ * no meaning when the caller is not a browser (the simulator route drives
+ * these same commands server-side). A failure there must never fail the
+ * save that already landed.
+ */
+function refreshQuietly(table: number): void {
+  try {
+    void Promise.resolve(tableStatus({ table }).refresh()).catch(() => {});
+  } catch {
+    /* not a client call — nothing to refresh */
+  }
+}
+
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 /** Every command runs inside this: one in-flight write per table, always released. */
@@ -373,7 +389,7 @@ export const saveFuture = command(
           source: "tap",
         });
       }
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -415,7 +431,7 @@ export const saveEra = command(
         actor: "table",
         source: "tap",
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -445,7 +461,7 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
       actor: "table",
       source: "tap",
     });
-    void tableStatus({ table: input.table }).refresh();
+    refreshQuietly(input.table);
     return { ok: true as const };
   }),
 );
@@ -469,7 +485,7 @@ export const saveWildcard = command(
         actor: "table",
         source: "tap",
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const };
     }),
 );
@@ -620,7 +636,7 @@ export const finishTable = command(
         regenerate: false,
         since,
       });
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const, queued: result.queued };
     }),
 );
@@ -685,7 +701,7 @@ export const regenerate = command(
           reason: "Still drawing — wait for this one before asking for another.",
         };
       }
-      void tableStatus({ table }).refresh();
+      refreshQuietly(table);
       return { ok: true as const, queued: result.queued };
     }),
 );

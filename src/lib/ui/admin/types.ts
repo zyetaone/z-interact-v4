@@ -7,8 +7,8 @@
  * enum + a per-table row shape + a room-level envelope.
  */
 
-/** The four projector beats (game-flow.md §4/§5). `focus` always carries a `focusTable`. */
-export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus';
+/** The projector beats (game-flow.md §4/§5). `focus` always carries a `focusTable`; `finale` cycles every table in turn. The column is TEXT, so adding a beat needs no DDL — `d1.ts` has no migration runner. */
+export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus' | 'finale';
 
 export type ZoneImageState = 'queued' | 'requested' | 'stored' | 'done' | 'failed' | 'none';
 

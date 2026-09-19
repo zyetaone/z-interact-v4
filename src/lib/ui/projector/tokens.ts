@@ -38,5 +38,5 @@ export const BEAT_LABEL: Record<string, string> = {
 	answering: 'answering',
 	reviewing: 'reviewing',
 	drawing: 'drawing',
-	done: 'done'
+	done: 'in'
 };

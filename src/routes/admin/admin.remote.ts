@@ -47,7 +47,7 @@ import type { AdminRoom } from '$lib/ui/admin/types';
 
 const tableNo = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT));
 const tokenField = v.string();
-const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus']) satisfies v.GenericSchema<string, Beat>;
+const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus', 'finale']) satisfies v.GenericSchema<string, Beat>;
 
 // The stored `model` column. The submit itself reads `fal.ts`'s own
 // constant; these disagreeing is how a row ends up recording a model it was

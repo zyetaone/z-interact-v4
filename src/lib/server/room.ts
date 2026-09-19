@@ -831,7 +831,7 @@ export async function getPromptRowById(d: D1Database, id: string): Promise<Promp
 /* event, `id` always 1, same upsert shape `gate.ts`'s lock already uses.    */
 /* -------------------------------------------------------------------------- */
 
-export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus';
+export type Beat = 'lobby' | 'progress' | 'reveal' | 'focus' | 'finale';
 
 export const ROOM_BEAT_SCHEMA = `CREATE TABLE IF NOT EXISTS room_beat (
 	event_id TEXT NOT NULL,
@@ -974,6 +974,8 @@ export interface AdminImageState {
 	zoneKey: string;
 	state: GenerationState;
 	createdAt: number;
+	/** The stored object's key, or null before it lands. Carried so the projector's own read can build image URLs from this ONE batched query instead of a point read per table per zone. */
+	r2Key: string | null;
 }
 
 export interface AdminRoomRow {
@@ -1014,9 +1016,11 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 			: Promise.resolve({ results: [] as never[] }),
 		imageDb
 			? imageDb
-					.prepare(`SELECT table_no, zone_key, state, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`)
+					.prepare(
+						`SELECT table_no, zone_key, state, r2_key, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`
+					)
 					.bind(eventId)
-					.all<{ table_no: number; zone_key: string; state: string; created_at: number }>()
+					.all<{ table_no: number; zone_key: string; state: string; r2_key: string | null; created_at: number }>()
 			: Promise.resolve({ results: [] as never[] }),
 		resetDb
 			? resetDb
@@ -1043,7 +1047,7 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
 		let arr = imagesByTable.get(r.table_no);
 		if (!arr) imagesByTable.set(r.table_no, (arr = []));
-		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at });
+		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at, r2Key: r.r2_key });
 	}
 
 	const rows: AdminRoomRow[] = [];

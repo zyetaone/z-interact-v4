@@ -19,7 +19,8 @@
 		onpick,
 		onera,
 		onprotect,
-		onskip
+		onskip,
+		onnext
 	}: {
 		futureKey: string | null;
 		era: Era | null;
@@ -28,6 +29,7 @@
 		onera: (era: Era) => void;
 		onprotect: (text: string) => void;
 		onskip: () => void;
+		onnext: () => void;
 	} = $props();
 
 	const ERA_LABEL: Record<Era, string> = {
@@ -124,11 +126,13 @@
 
 <div class="grow"></div>
 
-{#if !chosen}
-	<div class="actions">
+<div class="actions">
+	{#if chosen}
+		<button class="btn" onclick={onnext}>Next</button>
+	{:else}
 		<button class="btn ghost" onclick={onskip}>No future fits us — skip</button>
-	</div>
-{/if}
+	{/if}
+</div>
 
 <style>
 	.futures {

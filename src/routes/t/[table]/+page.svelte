@@ -118,6 +118,7 @@
 				if (flow.status.era) void run(() => saveEra({ table, era: flow.status.era!, pushReply: text }), false);
 			}}
 			onskip={() => run(() => saveFuture({ table, futureKey: null }))}
+			onnext={() => flow.next()}
 		/>
 	{:else if current.kind === 'question' && question}
 		<QuestionScreen

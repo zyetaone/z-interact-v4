@@ -47,7 +47,7 @@ export interface TableStatus {
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
 export const FUTURE_ID = "future";
 
-/** Q2..Q11 (plus q12/q13 when `ENABLE_PROPOSED_QUESTIONS` is on) — Q1 is folded
+/** Q2..Q11 (plus q12 when `ENABLE_PROPOSED_QUESTIONS` is on) — Q1 is folded
  *  into the future card as the era chip (game-flow.md §0/§1). */
 export const FLOW_QUESTIONS = ACTIVE_QUESTIONS.filter((q) => q.id !== "q1");
 

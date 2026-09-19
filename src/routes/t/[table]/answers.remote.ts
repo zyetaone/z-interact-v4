@@ -285,7 +285,7 @@ export const saveFuture = command(
         eventId: event,
         table,
         questionId: FUTURE_ID,
-        keys: future ? [future.key] : [],
+        keys: [future ? future.key : SKIPPED],
         actor: "table",
         source: "tap",
       });

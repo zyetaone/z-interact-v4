@@ -171,7 +171,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	const disagreements = body.answersOnly
 		? []
 		: reports
-		.filter((r) => r.submitted !== !!readBack.find((s) => s.table === r.table)?.submittedAt)
+		.filter((r) => r.submitted && !readBack.find((s) => s.table === r.table)?.submittedAt)
 		.map((r) => r.table);
 
 	return json({
@@ -186,7 +186,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		submitted: reports.filter((r) => r.submitted).length,
 		rendersQueued: reports.reduce((n, r) => n + r.queued, 0),
 		refusals: reports.flatMap((r) => r.refused),
-		/** Tables whose reported submit disagrees with what the room reads back — should always be empty. */
+		/** Tables that reported a submit the room does not read back — should always be empty.
+	 *  (A table already submitted on an earlier run refuses the re-submit; that is not a disagreement.) */
 		disagreements,
 		reports,
 		readBack

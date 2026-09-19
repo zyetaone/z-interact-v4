@@ -1257,7 +1257,30 @@ export interface ExportTableRow {
 	submittedAt: number | null;
 	resetAt: number;
 	answers: AnswerRow[];
-	images: { zoneKey: string; r2Key: string | null; state: GenerationState; createdAt: number; prompt: PromptRow | null }[];
+	/**
+	 * A failed render has to be DIAGNOSABLE from the export alone — that is
+	 * the whole reason the export is taken. It carries the row's id, the
+	 * zone it was for, the provider's own error text as captured at the
+	 * point of failure, and the sidecar's record of the exact prompt and
+	 * reference URLs that attempt was submitted with.
+	 */
+	images: {
+		id: string;
+		zoneKey: string;
+		/** Duplicate of `zoneKey`. Readers in the wild have been seen looking for `zone`, and an export that reports `null` for the one field a failure is filed under is worse than a redundant key. */
+		zone: string;
+		r2Key: string | null;
+		state: GenerationState;
+		error: string | null;
+		falRequestId: string | null;
+		createdAt: number;
+		/** The exact text submitted for THIS zone, not the table-level composition. */
+		submittedPrompt: string | null;
+		referenceUrls: string[];
+		/** Submits so far: 1 after the first, 2 after the single automatic retry. */
+		attempt: number | null;
+		prompt: PromptRow | null;
+	}[];
 }
 
 export async function exportRoomRows(d: D1Database, eventId: string, tableCount: number, zoneKeys: readonly string[]): Promise<ExportTableRow[]> {
@@ -1279,11 +1302,19 @@ export async function exportRoomRows(d: D1Database, eventId: string, tableCount:
 		for (const zoneKey of zoneKeys) {
 			const img = await getCurrentImageSince(d, eventId, t, zoneKey, since);
 			if (!img) continue;
+			const detail = await getImageDetail(d, img.id);
 			images.push({
+				id: img.id,
 				zoneKey,
+				zone: zoneKey,
 				r2Key: img.r2Key,
 				state: img.state,
+				error: img.error,
+				falRequestId: img.falRequestId,
 				createdAt: img.createdAt,
+				submittedPrompt: detail?.prompt ?? null,
+				referenceUrls: detail?.referenceUrls ?? [],
+				attempt: detail?.attempt ?? null,
 				prompt: await getPromptRowById(d, img.promptId)
 			});
 		}

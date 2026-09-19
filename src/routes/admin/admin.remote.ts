@@ -288,10 +288,18 @@ export const resetTable = command(v.object({ token: tokenField, table: tableNo }
  * This used to insert one per zone, which left `getLatestPrompt` choosing
  * between four near-identical rows written in the same breath.
  */
-export const regenerateTable = command(v.object({ token: tokenField, table: tableNo }), async ({ token, table }) => {
+export const regenerateTable = command(
+	v.object({ token: tokenField, table: tableNo, zone: v.optional(v.string()) }),
+	async ({ token, table, zone }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
 	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	// ONE ZONE, OPTIONALLY. The 20-table run lost a single zone on four
+	// tables; redrawing all four to recover one spends four of that table's
+	// twelve. With `zone` the desk repairs exactly the tile that failed,
+	// and the cap counts one render rather than four.
+	const zones = zone ? ZONES.filter((z) => z.key === zone) : ZONES;
+	if (zones.length === 0) return { ok: false as const, reason: `unknown zone ${zone}` };
 	if (!throttle.acquire(table)) return { ok: false as const, reason: 'This table is already drawing — hang tight.' };
 	try {
 		const event = eventId(env);
@@ -303,7 +311,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		const budget = await getRenderBudget(env.DB, event, table, since);
 		const cap = checkRenderCap({
 			used: budget.used,
-			about: ZONES.length,
+			about: zones.length,
 			max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
 		});
 		if (!cap.ok) return { ok: false as const, reason: cap.reason };
@@ -311,9 +319,9 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		// Which zones have something to regenerate, and the prompt they were
 		// drawn from. A zone that never drew is skipped, not failed.
 		const existingByZone = new Map<string, NonNullable<Awaited<ReturnType<typeof getCurrentImage>>>>();
-		for (const zone of ZONES) {
-			const existing = await getCurrentImage(env.DB, event, table, zone.key);
-			if (existing) existingByZone.set(zone.key, existing);
+		for (const z of zones) {
+			const existing = await getCurrentImage(env.DB, event, table, z.key);
+			if (existing) existingByZone.set(z.key, existing);
 		}
 		if (existingByZone.size === 0) {
 			return { ok: false as const, reason: `table ${table} has no prior renders to regenerate` };
@@ -353,10 +361,10 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		}));
 
 		let queued = 0;
-		for (const zone of ZONES) {
-			const existing = existingByZone.get(zone.key);
+		for (const z of zones) {
+			const existing = existingByZone.get(z.key);
 			if (!existing) continue;
-			const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers), negative);
+			const zonePrompt = composeZonePrompt(composed, resolveZone(z, answers), negative);
 			// Same single-statement guard the phone uses: a zone with a live
 			// attempt is skipped rather than given a second one.
 			const image = await insertQueuedImageIfIdle(
@@ -364,7 +372,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 				{
 					eventId: event,
 					table,
-					zoneKey: zone.key,
+					zoneKey: z.key,
 					promptId,
 					prompt: zonePrompt,
 					model: MODEL,
@@ -390,7 +398,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 						falRequestId: image.falRequestId,
 						createdAt: image.createdAt,
 						table,
-						zoneKey: zone.key
+						zoneKey: z.key
 					},
 					zonePrompt
 				)
@@ -402,7 +410,8 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 	} finally {
 		throttle.release(table);
 	}
-});
+	}
+);
 
 /* -------------------------------------------------------------------------- */
 /* Whole-room verbs                                                          */

@@ -62,6 +62,8 @@ import {
   getPendingImagesForTable,
   insertQueuedImageIfIdle,
   getRenderBudget,
+  getImageDetail,
+  getTableFutures,
 } from "$lib/server/room";
 import {
   checkCooldown,
@@ -705,5 +707,146 @@ export const regenerate = command(
       }
       refreshQuietly(table);
       return { ok: true as const, queued: result.queued };
+    }),
+);
+
+/**
+ * ONE ZONE, AGAIN.
+ *
+ * The 20-table run stored 76 of 80 zone images; four tables lost a single
+ * zone each. Until now the only way back was *Draw again*, which redraws
+ * all four and spends four of that table's twelve renders to recover one.
+ * A table that has already been regenerated once can hit the cap trying to
+ * fix one tile.
+ *
+ * So a failed tile can ask for itself. One render, the SAME prompt — read
+ * back verbatim from the `image_detail` sidecar rather than recomposed, so
+ * a retry cannot quietly become a different picture — and the same cap
+ * accounting, counting one rather than four.
+ *
+ * Only a FAILED zone qualifies. A stored zone asking again is *Draw
+ * again*'s job, and a queued or requested one already has an attempt in
+ * flight; `insertQueuedImageIfIdle` would refuse it anyway, but refusing
+ * here gives the phone something to say.
+ *
+ * The cooldown deliberately does NOT apply. It exists to stop a phone
+ * being tapped repeatedly for a new picture; this is a repair of something
+ * the room can see is broken, and making someone wait a minute to start it
+ * is the wrong behaviour in front of a live table. The per-table cap still
+ * binds, because that one is about spend.
+ */
+export const retryZone = command(
+  v.object({ table: tableNo, zone: v.string() }),
+  async ({ table, zone }) =>
+    withTableLock(table, async () => {
+      const env = requestEnv();
+      if (!env) return { ok: false as const, reason: "no environment" };
+      const event = eventId(env);
+      if (await lockedAt(env.DB, event)) {
+        return {
+          ok: false as const,
+          reason: "The room is closed — the screen has moved on.",
+        };
+      }
+      const zoneDef = ZONES.find((z) => z.key === zone);
+      if (!zoneDef) return { ok: false as const, reason: "unknown zone" };
+
+      const since = await getResetAt(env.DB, event, table);
+      const existing = await getCurrentImageSince(
+        env.DB,
+        event,
+        table,
+        zone,
+        since,
+      );
+      if (!existing) {
+        return { ok: false as const, reason: "Nothing to try again yet." };
+      }
+      if (existing.state !== "failed") {
+        return {
+          ok: false as const,
+          reason:
+            existing.state === "stored" || existing.state === "done"
+              ? "That one landed — use Draw again for a new set."
+              : "Still drawing — give it a moment.",
+        };
+      }
+
+      // One render, not four.
+      const budget = await getRenderBudget(env.DB, event, table, since);
+      const cap = checkRenderCap({
+        used: budget.used,
+        about: 1,
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+      });
+      if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
+      // The exact text that was submitted, not a recomposition of it. If
+      // the sidecar is missing (a row from before it existed), fall back to
+      // composing from the same prompt row the failed attempt used.
+      const detail = await getImageDetail(env.DB, existing.id);
+      let zonePrompt = detail?.prompt ?? "";
+      if (!zonePrompt) {
+        const promptRow = await getPromptById(env.DB, existing.promptId);
+        if (!promptRow) {
+          return { ok: false as const, reason: "Nothing to try again yet." };
+        }
+        const answers = answersOf(
+          await getCurrentAnswersSince(env.DB, event, table, since),
+        );
+        zonePrompt = composeZonePrompt(
+          promptRow.composed,
+          resolveZone(zoneDef, answers),
+          promptRow.negative,
+        );
+      }
+
+      // Same single-statement guard every other queue path uses: two
+      // isolates both reaching here produce one row, not two.
+      const image = await insertQueuedImageIfIdle(
+        env.DB,
+        {
+          eventId: event,
+          table,
+          zoneKey: zone,
+          promptId: existing.promptId,
+          prompt: zonePrompt,
+          model: MODEL,
+          actor: "table",
+          supersedesId: existing.id,
+        },
+        since,
+      );
+      if (!image) {
+        return {
+          ok: false as const,
+          reason: "Already trying that one — hang tight.",
+        };
+      }
+
+      const futures = await getTableFutures(env.DB, event);
+      requestWaitUntil(
+        tickImageRow(
+          {
+            db: env.DB,
+            env,
+            event,
+            origin: requestOrigin(),
+            futureKey: futures.get(table) ?? null,
+            since,
+          },
+          {
+            id: image.id,
+            state: image.state,
+            falRequestId: image.falRequestId,
+            createdAt: image.createdAt,
+            table,
+            zoneKey: zone,
+          },
+          zonePrompt,
+        ),
+      );
+      refreshQuietly(table);
+      return { ok: true as const, queued: 1 };
     }),
 );

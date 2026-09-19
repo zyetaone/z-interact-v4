@@ -52,6 +52,9 @@ import {
   saveAnswer as saveAnswerRow,
   getTableState,
   getCurrentAnswers,
+  getCurrentAnswersSince,
+  getCurrentImageSince,
+  getResetAt,
   finishTable as finishTableRow,
   insertPrompt,
   insertQueuedImage,
@@ -194,11 +197,20 @@ export const tableStatus = query(
     }
     const event = eventId(env);
     const state = await getTableState(env.DB, event, table);
-    const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
+    // An admin reset (room.ts's `table_reset` watermark) must be visible
+    // here: `getCurrentAnswers`/`getCurrentImage` alone would still surface
+    // pre-reset rows as "current" (they're append-only, never deleted), so
+    // this phone read is filtered to what's current SINCE the table's most
+    // recent reset — same rule admin's own reads already apply.
+    const since = await getResetAt(env.DB, event, table);
+    const answers = answersOf(
+      await getCurrentAnswersSince(env.DB, event, table, since),
+    );
 
     // TICKER: advance every in-flight generation for this table by one
     // step, each submitting its OWN row's composed prompt.
     for (const row of await getPendingImagesForTable(env.DB, event, table)) {
+      if (row.createdAt <= since) continue; // pre-reset attempt — not resumed
       const zone = ZONES.find((z) => z.key === row.zoneKey);
       const stored = await getPromptById(env.DB, row.promptId);
       if (!zone || !stored) continue;
@@ -218,7 +230,7 @@ export const tableStatus = query(
 
     const images = [];
     for (const zone of ZONES) {
-      const row = await getCurrentImage(env.DB, event, table, zone.key);
+      const row = await getCurrentImageSince(env.DB, event, table, zone.key, since);
       const arrived = row?.state === "stored" || row?.state === "done";
       images.push({
         zoneKey: zone.key,

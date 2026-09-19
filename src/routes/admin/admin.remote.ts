@@ -5,15 +5,16 @@
  * ponytail: `ADMIN_TOKEN` is a shared-secret query param carried on the
  * hidden admin URL (`?token=...`), checked on every command AND on the
  * poll query itself — not real auth, just a gate against a stranger who
- * doesn't have the URL. `env.ts` (out of this workstream's ownership) does
- * not declare `ADMIN_TOKEN` on its `Env` type yet, so `checkToken` reads it
- * via a loose cast rather than adding the field there; flagged as a
- * follow-up for whoever owns `env.ts`. Fails OPEN (any token, including
- * empty, passes) when the var is unset, so `npm run dev` keeps working
- * without a `.dev.vars` entry — tighten to fail closed before a real event.
+ * doesn't have the URL. `env.ts` now declares `ADMIN_TOKEN` on its `Env`
+ * type, so `checkToken` reads it directly. It fails OPEN (any token,
+ * including empty, passes) only in `dev` — so `npm run dev` keeps working
+ * without a `.dev.vars` entry — and fails CLOSED (every token rejected) in
+ * production when the var is unset, so a real event can't ship with the
+ * admin screen wide open by omission.
  */
 import * as v from 'valibot';
 import { command, query } from '$app/server';
+import { dev } from '$app/environment';
 import { requestEnv, eventId, requestOrigin, requestWaitUntil } from '$lib/server/env';
 import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gate';
 import {
@@ -53,8 +54,8 @@ const throttle = createThrottle();
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 function checkToken(env: Env, token: string): boolean {
-	const expected = (env as unknown as Record<string, string | undefined>).ADMIN_TOKEN;
-	if (!expected) return true;
+	const expected = env.ADMIN_TOKEN;
+	if (!expected) return dev; // unset: open in dev, closed in production
 	return token === expected;
 }
 

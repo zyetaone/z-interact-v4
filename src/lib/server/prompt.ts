@@ -16,6 +16,18 @@
 
 export const NO_TEXT = 'no text, no labels, no UI chrome, no watermark';
 
+/**
+ * THE HOUSE BASE — the fixed opening frame every table's prompt starts
+ * from, before any future's lens is applied: still a workplace interior,
+ * still photoreal, still an establishing view, regardless of which future
+ * a table argued from. `year` is the only variable, supplied by the
+ * caller (layers.ts reads it off the table's era chip / Q1 answer) — this
+ * module stays content-free and does not know what an "era" is.
+ */
+export function houseBase(year: string): string {
+    return `a workplace interior in ${year}, photoreal architectural visualisation, wide establishing view, no people in focus, no text`;
+}
+
 export interface LayerInputs {
 	/** e.g. the chosen future's mood/era line. TODO(content): sourced from game/futures.ts. */
 	mood: string;

@@ -43,7 +43,12 @@ async function capture(page: import('@playwright/test').Page, url: string, file:
 		const imgs = [...document.querySelectorAll('img')];
 		return imgs.every((i) => i.complete && i.naturalWidth > 0);
 	});
-	await page.screenshot({ path: `docs/screens/${file}.png`, fullPage: false });
+	// JPEG, not PNG. These are photographs of photographs: the same twelve
+	// captures as PNG came to 54 MB, which is not a thing to put in a git
+	// repository for the sake of a review still. Quality 88 is visually
+	// identical at the sizes anyone will read them and about a tenth the
+	// bytes. Change `type` here if a lossless capture is ever needed.
+	await page.screenshot({ path: `docs/screens/${file}.jpg`, type: 'jpeg', quality: 88, fullPage: false });
 }
 
 test.describe('projector wall captures', () => {

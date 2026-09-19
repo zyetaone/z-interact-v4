@@ -23,3 +23,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Playwright run artefacts (the named captures in docs/screens are committed)
+/test-results
+/playwright-report

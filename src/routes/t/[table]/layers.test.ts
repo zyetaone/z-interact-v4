@@ -10,12 +10,14 @@
 import { describe, it, expect } from 'vitest';
 import { FUTURES } from '$lib/game/futures';
 import { ZONE_SETS } from '$lib/game/zones';
-import { NO_TEXT } from '$lib/server/prompt';
+import { NO_TEXT, houseBase } from '$lib/server/prompt';
 import { buildLayerInputs, composeBase, composeZonePrompt, resolveZone, type AnswerLike } from './layers';
 
 const SOLARPUNK = FUTURES.find((f) => f.key === 'solarpunk')!;
+const PRAGMATIST = FUTURES.find((f) => f.key === 'pragmatist-retrofit')!;
 const ERA_2040 =
 	'set in a hyper-futuristic 2040, technology fully integrated and visible throughout the architecture';
+const LENS_SOLARPUNK = `seen through the lens of ${SOLARPUNK.name}: ${SOLARPUNK.moodLine.replace(/\.$/, '')}`;
 
 const ANSWERS: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
@@ -39,17 +41,22 @@ const ANSWERS: AnswerLike[] = [
 const built = buildLayerInputs({ futureKey: 'solarpunk', era: 'hyperfuturistic-2040', answers: ANSWERS });
 
 describe('buildLayerInputs', () => {
-	it('puts the future first in mood and appends the era only because the chip was nudged', () => {
-		expect(built.mood).toBe(`${SOLARPUNK.moodLine.replace(/\.$/, '')}. ${ERA_2040}`);
+	it('opens mood with the house base, then the lens line, then appends the era only because the chip was nudged', () => {
+		expect(built.mood).toBe(`${houseBase('2040')}. ${LENS_SOLARPUNK}. ${ERA_2040}`);
 	});
 
-	it('leaves the era out of mood when the chip sits on the future default', () => {
+	it('orders the house base ahead of the lens line even with no era nudge', () => {
 		const onDefault = buildLayerInputs({
 			futureKey: 'solarpunk',
 			era: 'recognisably-2035',
 			answers: [{ questionId: 'q1', keys: ['recognisably-2035'] }]
 		});
-		expect(onDefault.mood).toBe(SOLARPUNK.moodLine.replace(/\.$/, ''));
+		expect(onDefault.mood).toBe(`${houseBase('2035')}. ${LENS_SOLARPUNK}`);
+	});
+
+	it('reads the house base year off the era chip, not a hardcoded 2035', () => {
+		expect(built.mood.startsWith(houseBase('2040'))).toBe(true);
+		expect(built.mood).not.toContain(houseBase('2035'));
 	});
 
 	it('falls back to the house register when the table skipped the future card', () => {
@@ -57,13 +64,15 @@ describe('buildLayerInputs', () => {
 		expect(skipped.mood).toContain('moody rather than stark');
 	});
 
-	it('appends Q1s push reply verbatim when the era landed on 2026', () => {
+	it('appends Q1s push reply verbatim when the era landed on 2026, after the house base and lens', () => {
 		const protecting = buildLayerInputs({
 			futureKey: 'pragmatist-retrofit',
 			era: 'same-as-2026',
 			answers: [{ questionId: 'q1', keys: ['same-as-2026'], pushReply: 'the window seat everyone fights over' }]
 		});
-		expect(protecting.mood.endsWith('the window seat everyone fights over')).toBe(true);
+		expect(protecting.mood).toBe(
+			`${houseBase('2026')}. seen through the lens of ${PRAGMATIST.name}: ${PRAGMATIST.moodLine.replace(/\.$/, '')}. the window seat everyone fights over`
+		);
 	});
 
 	it('builds materialsAndLight from q2, q5 and q8 plus q5s push reply', () => {

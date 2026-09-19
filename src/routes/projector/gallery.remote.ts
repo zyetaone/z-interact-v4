@@ -4,16 +4,10 @@
  * already exports (per this workstream's brief) — no server file was
  * edited to add this read.
  *
- * Two known gaps in what's readable today, both flagged rather than worked
- * around by editing `room.ts` (the admin agent is adding both as additive
- * getters; this file keeps neutral fallbacks until they land):
+ * One known gap remains, flagged rather than worked around by editing
+ * `room.ts`:
  *
- * 1. **No future-per-table getter exists.** `event_table.future_key` is a
- *    real column (room.ts's `EVENT_TABLE_SCHEMA`), but neither `getRoom`
- *    nor `getTableState` returns it. So `futureKey` is always `null` for
- *    live data — the Progress beat's future-colour dot only appears under
- *    `?fixtures=1`.
- * 2. **`getRoom`'s `currentStep` is hardcoded to 0** for every table —
+ * 1. **`getRoom`'s `currentStep` is hardcoded to 0** for every table —
  *    only the single-table `getTableState` computes a real value, and it
  *    does so via `ensureTableRow`, an upsert, not a plain read. Calling
  *    that 20× on every 3s poll would mean 20 write-shaped calls just to
@@ -29,7 +23,7 @@
  */
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
-import { getRoom, getCurrentImage, type ImageRow } from '$lib/server/room';
+import { getRoom, getCurrentImageSince, getResetAt, getTableFutures, type ImageRow } from '$lib/server/room';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
 import { ZONES } from '$lib/game/zones';
 import type { ProjectorRoom, TableBeatState, TableView, ZoneImageState } from '$lib/ui/projector/types';
@@ -51,8 +45,8 @@ function inFlight(s: ZoneImageState): boolean {
 
 /**
  * Live data can't distinguish `not-started`/`choosing`/`answering` from each
- * other (module note #2 — no step-count read that isn't an upsert), so every
- * pre-submit table buckets to `answering` with `step: null`; components
+ * other (the module note above — no step-count read that isn't an upsert), so
+ * every pre-submit table buckets to `answering` with `step: null`; components
  * render that as a plain "in progress" rather than a fabricated `n of 11`.
  * `?fixtures=1` is the only place the finer three states are demonstrated.
  */
@@ -69,23 +63,34 @@ export const getProjectorRoom = query(async (): Promise<ProjectorRoom> => {
 	const env = requestEnv();
 	if (!env) return { tables: [] };
 	const event = eventId(env);
-	const snapshot = await getRoom(env.DB, event, TABLE_COUNT);
+	const [snapshot, futures] = await Promise.all([
+		getRoom(env.DB, event, TABLE_COUNT),
+		getTableFutures(env.DB, event)
+	]);
 
 	const tables: TableView[] = await Promise.all(
 		snapshot.tables.map(async ({ table, submittedAt }) => {
+			// An admin reset (room.ts's `table_reset` watermark) must be visible
+			// here too: a pre-reset image row is still "current" to a plain
+			// `getCurrentImage` read (append-only, never deleted), so this beat
+			// reads SINCE the table's most recent reset — same rule the phone's
+			// own `tableStatus` read applies.
+			const since = await getResetAt(env.DB, event, table);
 			const images = submittedAt
 				? await Promise.all(
-						ZONES.map(async (z) => toZoneView(z.key, await getCurrentImage(env.DB, event, table, z.key)))
+						ZONES.map(async (z) =>
+							toZoneView(z.key, await getCurrentImageSince(env.DB, event, table, z.key, since))
+						)
 					)
 				: [];
 			return {
 				table,
 				beatState: beatStateFor(submittedAt, images),
-				// See module note #2 — real step counts for in-progress tables
-				// need a non-upsert read that doesn't exist yet.
+				// See the module note above — real step counts for in-progress
+				// tables need a non-upsert read that doesn't exist yet.
 				step: submittedAt ? TOTAL_STEPS : null,
 				totalSteps: TOTAL_STEPS,
-				futureKey: null, // See module note #1.
+				futureKey: futures.get(table) ?? null,
 				images
 			};
 		})

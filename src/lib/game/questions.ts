@@ -23,6 +23,8 @@
  * `id`s, `TABLE_COUNT`, `WILDCARD`, `TableAnswers` are unchanged.
  */
 
+import { ENABLE_PROPOSED_QUESTIONS } from './config';
+
 export const TABLE_COUNT = 20;
 
 /** How a question is answered — mirrors the brief's own wording, not an invented scale. */
@@ -53,6 +55,10 @@ export interface Question {
 	/** True only for the three diamond questions (Q2, Q5, Q9) — the push line doubles
 	 *  as a typed capture field there; the other eight stay spoken-only. */
 	pushCapturesReply?: boolean;
+	/** True only for `PROPOSED_QUESTIONS` (q12, q13) — the question owner has not
+	 *  blessed these; they never appear in the flow unless `config.ts`'s
+	 *  `ENABLE_PROPOSED_QUESTIONS` is on. Absent (falsy) on every one of the 11. */
+	proposed?: boolean;
 }
 
 export const QUESTIONS: Question[] = [
@@ -446,6 +452,96 @@ export const QUESTIONS: Question[] = [
 	}
 ];
 
+/**
+ * PROPOSED QUESTIONS — game-flow.md §7's two proposals for the question
+ * owner ("workstation ↔ urban alignment", "how teams form"). Proposals
+ * only: never in `QUESTIONS` itself (which stays fixed at 11 and keeps its
+ * own q1..q11 shape guards below), and never in the active flow unless
+ * `config.ts`'s `ENABLE_PROPOSED_QUESTIONS` is on. `layers.ts` maps q12
+ * into the programme layer's urban-edge/ground-plane clause and q13 into a
+ * short "teams" clause, both gated the same way.
+ */
+export const PROPOSED_QUESTIONS: Question[] = [
+	{
+		id: 'q12',
+		prompt: 'How does your workstation sit inside the city around it?',
+		layer: 'programme',
+		select: { kind: 'one' },
+		diamond: false,
+		proposed: true,
+		push: "name the one journey your future removes from someone's day, and the one it keeps on purpose.",
+		options: [
+			{
+				key: 'building-is-the-city',
+				label: 'The building is the city in miniature: everything you need is inside it',
+				promptFragment: 'a self-contained building holding the whole city in miniature — shops, clinic, gym, transit stop, all inside one floorplate'
+			},
+			{
+				key: 'front-door-onto-street',
+				label: 'A front door onto the street, and the city does the rest',
+				promptFragment: 'a plain front door opening straight onto a working street, the surrounding city visibly doing the rest'
+			},
+			{
+				key: 'campus-crossed-on-foot',
+				label: 'A campus you cross on foot, work happening between the buildings',
+				promptFragment: 'a low campus of separate pavilions linked by open-air paths, work visibly spilling into the gaps between buildings'
+			},
+			{
+				key: 'workstation-follows-you',
+				label: 'The workstation follows the person: a seat in the office, a seat in a café, a seat at home, all equal',
+				promptFragment: 'an identical portable workstation setup echoed across an office desk, a café table and a home nook, none more official than the other'
+			},
+			{
+				key: 'city-comes-to-building',
+				label: 'The city comes to the building — services, retail, transit arriving at the floorplate',
+				promptFragment: 'a ground floor where transit, retail and services arrive directly at the floorplate, the city delivered to the building rather than the reverse'
+			}
+		]
+	},
+	{
+		id: 'q13',
+		prompt: 'How does a team come together to do the work?',
+		layer: 'programme',
+		select: { kind: 'one' },
+		diamond: false,
+		proposed: true,
+		push: 'name the decision your table would never let the AI half of a centaur make.',
+		options: [
+			{
+				key: 'standing-team-for-years',
+				label: 'A standing team that stays together for years',
+				promptFragment: 'a long-standing team with assigned desks clustered together, the same faces year over year'
+			},
+			{
+				key: 'agile-squads-dissolve',
+				label: 'Agile squads that form for a sprint and dissolve',
+				promptFragment: 'a temporary squad clustered around a shared table and whiteboard, furniture built to be reconfigured once the sprint ends'
+			},
+			{
+				key: 'centaur-pairing',
+				label: 'One person plus their AI, a centaur pairing, as the default unit',
+				promptFragment: 'a single-person workstation paired with one dedicated screen for an AI collaborator, the two visibly a working pair'
+			},
+			{
+				key: 'human-core-ai-specialists',
+				label: 'A human core with AI specialists pulled in per task',
+				promptFragment: 'a small human core desk cluster with satellite screens for AI specialists pulled in only when a task needs them'
+			},
+			{
+				key: 'team-assembles-itself',
+				label: 'The team assembles itself: the work names who it needs and they arrive',
+				promptFragment: 'a flexible assembly area where seats and screens configure themselves as newly summoned people arrive for one task'
+			}
+		]
+	}
+];
+
+/** `QUESTIONS`, plus `PROPOSED_QUESTIONS` when `config.ts`'s flag is on. What the
+ *  flow, `layers.ts` and the answer-id lists actually iterate over. */
+export const ACTIVE_QUESTIONS: Question[] = ENABLE_PROPOSED_QUESTIONS
+	? [...QUESTIONS, ...PROPOSED_QUESTIONS]
+	: QUESTIONS;
+
 export interface WildcardQuestion {
 	id: 'wildcard';
 	prompt: string;
@@ -499,4 +595,14 @@ if (DIAMOND_IDS.join(',') !== PUSH_CAPTURE_IDS.join(',')) {
 }
 if (DIAMOND_IDS.length !== 3) {
 	throw new Error(`expected exactly 3 diamond (◆) questions, got ${DIAMOND_IDS.length}`);
+}
+
+if (PROPOSED_QUESTIONS.length !== 2) {
+	throw new Error(`expected exactly 2 proposed questions, got ${PROPOSED_QUESTIONS.length}`);
+}
+if (!PROPOSED_QUESTIONS.every((q, i) => q.id === `q${12 + i}` && q.proposed === true)) {
+	throw new Error('proposed questions must be q12, q13, each marked proposed: true');
+}
+if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 13 : 11)) {
+	throw new Error(`ACTIVE_QUESTIONS length does not match ENABLE_PROPOSED_QUESTIONS (got ${ACTIVE_QUESTIONS.length})`);
 }

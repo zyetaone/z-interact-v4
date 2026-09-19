@@ -9,12 +9,21 @@
  * Mapping (ADR §3 / game-flow.md §0, `schema.draft.ts`'s
  * `LAYER_OF_QUESTION`):
  *
- *   mood             <- the chosen future's `moodLine`, plus Q1's era
- *                       fragment when the table nudged the chip off the
- *                       future's default, plus Q1's push reply verbatim
- *                       ("what are you protecting", screen 3c)
+ *   mood             <- the fixed house base (a workplace interior in
+ *                       <year>, photoreal, wide establishing view — see
+ *                       `prompt.ts`'s `houseBase`), THEN the chosen future
+ *                       as "seen through the lens of <future>: <moodLine>",
+ *                       plus Q1's era fragment when the table nudged the
+ *                       chip off the future's default, plus Q1's push
+ *                       reply verbatim ("what are you protecting",
+ *                       screen 3c). `<year>` comes from the era chip
+ *                       (the q1 answer), not a hardcoded 2035, so a nudge
+ *                       shows up in the house base too.
  *   materialsAndLight<- q2, q5, q8 option fragments + q5's push reply
- *   programme        <- q3, q4, q6, q7, q9, q10 fragments + q9's push reply
+ *   programme        <- q3, q4, q6, q7, q9, q10 fragments + q9's push reply,
+ *                       plus q12 (urban edge / ground plane) and a short
+ *                       "teams" clause from q13, both ONLY when
+ *                       `ENABLE_PROPOSED_QUESTIONS` (game/config.ts) is on
  *   feel             <- q11's three picks
  *   wildcard         <- verbatim, never rewritten
  *   negative         <- the house terms + the future's own `negativeFragment`
@@ -30,8 +39,19 @@
 import { QUESTIONS, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
+import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import type { Zone } from '$lib/game/zones';
-import { composeLayers, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+import { composeLayers, houseBase, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+
+/** The house base's year label per era chip value — the frame line reads the
+ *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
+ *  up in the opening line too, not just in the mood clause after it. */
+const ERA_YEAR: Record<Era, string> = {
+    'retro-1930s': 'the 1930s, reborn',
+    'same-as-2026': '2026',
+    'recognisably-2035': '2035',
+    'hyperfuturistic-2040': '2040'
+};
 
 /** The subset of `room.ts`'s `AnswerRow` this builder reads. */
 export interface AnswerLike {
@@ -119,7 +139,8 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const future = futureByKey(input.futureKey);
 	const q1 = QUESTION_BY_ID.get('q1');
 
-	// --- mood: the future's line, the era only when it was nudged, then 3c.
+	// --- mood: the fixed house base, THEN the future seen through its
+	// lens, the era only when it was nudged, then 3c.
 	const eraAnswer = by.get('q1');
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
 	const eraNudged = !!era && !!future && era !== future.eraDefault;
@@ -127,7 +148,11 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 		era && (eraNudged || !future)
 			? q1?.options.find((o) => o.key === era)?.promptFragment
 			: undefined;
-	const mood = joinClauses([future?.moodLine ?? HOUSE_REGISTER, eraFragment, eraAnswer?.pushReply]);
+	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
+	const lens = future
+		? `seen through the lens of ${future.name}: ${future.moodLine.replace(/\.$/, '')}`
+		: HOUSE_REGISTER;
+	const mood = joinClauses([base, lens, eraFragment, eraAnswer?.pushReply]);
 
 	// --- materials & light: q2, q5, q8 + q5's push reply.
 	const materialsAndLight = joinClauses([
@@ -135,11 +160,18 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 		by.get('q5')?.pushReply
 	]);
 
-	// --- programme: q3, q4, q6, q7, q9, q10 + q9's push reply.
-	const programme = joinClauses([
-		...PROGRAMME_IDS.flatMap((id) => fragmentsFor(by.get(id))),
+	// --- programme: q3, q4, q6, q7, q9, q10 + q9's push reply, plus the two
+	// proposed questions (q12 urban edge, q13 teams) when enabled.
+	const programmeIds = ENABLE_PROPOSED_QUESTIONS ? [...PROGRAMME_IDS, 'q12'] : PROGRAMME_IDS;
+	const programmeParts: (string | undefined)[] = [
+		...programmeIds.flatMap((id) => fragmentsFor(by.get(id))),
 		by.get('q9')?.pushReply
-	]);
+	];
+	if (ENABLE_PROPOSED_QUESTIONS) {
+		const teamsClause = fragmentsFor(by.get('q13'))[0];
+		if (teamsClause) programmeParts.push(teamsClause);
+	}
+	const programme = joinClauses(programmeParts);
 
 	// --- feel: q11's three picks, a comma list rather than sentences.
 	const feel = fragmentsFor(by.get('q11')).join(', ');

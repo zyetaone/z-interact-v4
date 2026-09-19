@@ -15,7 +15,7 @@
 	 */
 	import '../../../app.css';
 	import { tableStatus, saveAnswer, saveFuture, saveEra, saveWildcard, finishTable, regenerate } from './answers.remote';
-	import { createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
+	import { allRendersSettled, createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
 	import type { Era } from '$lib/game/era';
 	import Topbar from '$lib/ui/table/Topbar.svelte';
 	import LandingScreen from '$lib/ui/table/LandingScreen.svelte';
@@ -42,11 +42,22 @@
 	 * arguments, so `await tableStatus({ table })` hands back the value
 	 * already on the client and the 2s poll would never reach the server,
 	 * never run the ticker, and never see an image arrive.
+	 *
+	 * `await q`, NOT `q.current`. In the fidelity run a table sat on "Being
+	 * drawn" for a full minute after all four renders had landed, and a
+	 * fresh navigation showed them immediately. The cause is in kit's own
+	 * query instance: `current` is a `$derived` over the raw value, while
+	 * `refresh()` resolves as soon as the fetch lands — it does not await a
+	 * Svelte `tick()`. Reading `current` in the same microtask therefore
+	 * hands back the PREVIOUS value, so every poll wrote a snapshot one
+	 * round behind. The query's own `then` does `.then(tick).then(() =>
+	 * current)`, which is exactly the wait that was missing, so awaiting the
+	 * query is both simpler and correct.
 	 */
 	async function refresh() {
 		const q = tableStatus({ table });
 		await q.refresh();
-		flow.status = (q.current ?? (await q)) as TableStatus;
+		flow.status = (await q) as TableStatus;
 	}
 
 	let saving = $state(false);
@@ -181,7 +192,11 @@
 			images={flow.status.images}
 			refresh={async () => {
 				await refresh();
-				if (flow.status.images.some((i) => i.url)) flow.go('images');
+				// Advance when the renders have ANSWERED, not only when one
+				// succeeded. A table whose whole set failed has nothing left to
+				// wait for, and *Draw again* only exists on the next screen —
+				// which is how a failed table sat on "Being drawn" for ever.
+				if (flow.status.images.some((i) => i.url) || allRendersSettled(flow.status)) flow.go('images');
 			}}
 		/>
 	{:else if current.kind === 'images'}

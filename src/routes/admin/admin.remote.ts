@@ -53,6 +53,12 @@ const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus', 'finale']
 // constant; these disagreeing is how a row ends up recording a model it was
 // never generated with, so this imports the same value.
 const MODEL = FAL_MODEL;
+
+/** Rows this poll will advance. The desk's screen must return in well under its own 3 s interval. */
+const ADMIN_TICK_BUDGET = 8;
+
+/** How settled a row must be before the DESK's ticker touches it — the phone's own 2 s poll gets first refusal on a row its table is watching. */
+const ADMIN_TICK_COOLDOWN_MS = 3000;
 const TOTAL_STEPS = QUESTIONS.length;
 
 // One per isolate, separate from the phone's own throttle instance in
@@ -96,7 +102,24 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 	//     its life.
 	//  3. Answers are read once per TABLE, not once per row — this loop runs
 	//     on a 3 s poll across the whole event.
-	const pending = await getPendingImagesForEvent(env.DB, event);
+	// BOUNDED. This used to walk EVERY non-terminal row in the event on every
+	// 3 s poll — with twenty tables drawing four zones each that is eighty
+	// rows, each costing a prompt read and a fal round trip, inside one
+	// request. The fidelity run had it hanging for minutes, which also
+	// starves the desk's own screen because the poll returns nothing until
+	// the whole walk finishes.
+	//
+	// Two limits. OLDEST FIRST, so nothing starves: a row skipped this poll
+	// is older next poll and rises to the front. And a cooling-off window, so
+	// this ticker stops racing the phone's own 2 s poll for a row that was
+	// just touched — the compare-and-swap makes that safe, but a lost race is
+	// still a wasted fal round trip.
+	const now = Date.now();
+	const pending = (await getPendingImagesForEvent(env.DB, event))
+		.filter((r) => now - r.createdAt > ADMIN_TICK_COOLDOWN_MS)
+		.sort((a, b) => a.createdAt - b.createdAt)
+		.slice(0, ADMIN_TICK_BUDGET);
+
 	const answersByTable = new Map<number, AnswerLike[]>();
 	for (const row of pending) {
 		if (!answersByTable.has(row.table)) {

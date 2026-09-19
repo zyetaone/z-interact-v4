@@ -18,7 +18,7 @@
 import type { Env } from './env';
 import { tick, isTerminal, type GenerateDeps, type GenerationState } from './generate';
 import { markRequested, markStored, markFailed } from './room';
-import { submitZoneImage, pollStatus as pollFalStatus, fetchResult as fetchFalResult } from './fal';
+import { FAL_MODEL, submitZoneImage, pollStatus as pollFalStatus, fetchResult as fetchFalResult } from './fal';
 import { imageKey, putImage } from './r2';
 
 /** Builds this app's own webhook URL for one image row — `image_id` is how the webhook route finds the D1 row (fal's own `request_id` isn't known until after submit). Returns undefined if the caller has no origin (outside a request, or the secret isn't set) so callers fall back to poll-only. */
@@ -48,7 +48,7 @@ export function realGenerateDeps(
 	webhookUrl?: string
 ): GenerateDeps {
 	const falKey = env.FAL_KEY ?? '';
-	const model = 'TODO(content): fal model id';
+	const model = FAL_MODEL;
 	return {
 		async submit(prompt, requestKey) {
 			const { requestId } = await submitZoneImage({

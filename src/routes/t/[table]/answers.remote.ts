@@ -29,6 +29,7 @@
  *  - **Every command is throttled by table number**, never by client IP
  *    (one venue router is one IP).
  */
+import { FAL_MODEL } from '$lib/server/fal';
 import * as v from "valibot";
 import { command, query } from "$app/server";
 import {
@@ -84,7 +85,7 @@ const eraSchema = v.picklist(ERA_SCALE);
 const FUTURE_ID = "future";
 
 /** fal model id — TODO(content): set once the model is chosen (also stubbed in ticker.ts). */
-const MODEL = "TODO(content): fal model id";
+const MODEL = FAL_MODEL;
 
 // One per isolate — best-effort, see throttle.ts's module note.
 const throttle = createThrottle();

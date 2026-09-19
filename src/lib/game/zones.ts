@@ -31,6 +31,15 @@
  */
 import type { ZoneRef } from '$lib/server/prompt';
 
+/**
+ * The one on-screen name for a zone: sentence case from its key (`library`
+ * -> `Library`). Every caption — phone gallery, alt text — reads this, so
+ * no screen title-cases one tile and lower-cases the next.
+ */
+export function zoneLabel(key: string): string {
+	return key ? key.charAt(0).toUpperCase() + key.slice(1).toLowerCase() : key;
+}
+
 export interface Zone extends ZoneRef {
 	/** Question ids (from game/questions.ts) whose answers fill this zone's `{...}` placeholders. */
 	questionIds: string[];

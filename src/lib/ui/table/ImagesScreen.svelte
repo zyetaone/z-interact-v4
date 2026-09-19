@@ -5,6 +5,7 @@
 	 * shown with the line game-flow.md §1 specifies.
 	 */
 	import { poll } from '$lib/poll.svelte';
+	import { zoneLabel } from '$lib/game/zones';
 
 	let {
 		prompt,
@@ -55,14 +56,19 @@
 	<ul class="gallery">
 		{#each images as image (image.zoneKey)}
 			<li>
-				{#if image.url}
-					<img src={image.url} alt="Our {image.zoneKey}" />
-				{:else}
-					<div class="pending" class:failed={image.state === 'failed'}>
-						{image.state === 'failed' ? 'this one failed' : 'still drawing'}
-					</div>
-				{/if}
-				<span class="zone">{image.zoneKey}</span>
+				<!-- Every tile sits in the same 3:2 navy frame whether its image has
+				     arrived, is still decoding, or never came — a tile mid-load reads
+				     as a placeholder, never as a hole in the gallery. -->
+				<div class="frame">
+					{#if image.url}
+						<img src={image.url} alt="Our {zoneLabel(image.zoneKey).toLowerCase()}" loading="lazy" />
+					{:else}
+						<div class="pending" class:failed={image.state === 'failed'}>
+							{image.state === 'failed' ? 'this one failed' : 'still drawing'}
+						</div>
+					{/if}
+				</div>
+				<span class="zone">{zoneLabel(image.zoneKey)}</span>
 			</li>
 		{/each}
 	</ul>
@@ -99,10 +105,16 @@
 		border: 1px solid var(--line);
 	}
 
+	.frame {
+		width: 100%;
+		aspect-ratio: 3 / 2;
+		background: var(--card-solid);
+	}
+
 	.gallery img {
 		display: block;
 		width: 100%;
-		aspect-ratio: 3 / 2;
+		height: 100%;
 		object-fit: cover;
 	}
 
@@ -110,7 +122,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		aspect-ratio: 3 / 2;
+		height: 100%;
 		background: var(--card);
 		color: var(--ink-faint);
 		font-size: 13px;
@@ -136,7 +148,6 @@
 		bottom: 10px;
 		font-family: var(--display);
 		font-size: 17px;
-		text-transform: capitalize;
 		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 	}
 

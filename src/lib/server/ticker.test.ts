@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { fakeD1 } from './fake-d1';
-import { insertQueuedImage, getImageById } from './room';
+import { insertQueuedImage, getImageById, getImageDetail, insertQueuedImageIfIdle } from './room';
 import { tickAndPersist, type TickableImageRow } from './ticker';
 import { STALE_CLAIM_MS } from './generate';
 import type { GenerateDeps } from './generate';
@@ -139,5 +139,76 @@ describe('tickAndPersist — compare-and-swap', () => {
 		const after = await getImageById(db, row.id);
 		expect(after?.state).toBe('requested');
 		expect(d.submit).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * The retry the fidelity run asked for. Four of twelve requests failed with
+ * an opaque `fal result failed: 422` — one table's whole set, moments after
+ * another succeeded 4/4 — which reads as a provider wobble rather than a bad
+ * prompt.
+ */
+describe('tickAndPersist — one automatic retry', () => {
+	async function claimedRow() {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, {
+			eventId: EVENT,
+			table: 3,
+			zoneKey: 'library',
+			promptId: 'p-1',
+			prompt: 'the exact per-zone text',
+			model: 'test-model'
+		});
+		return { db, row: row! };
+	}
+
+	const http422 = () => {
+		throw new Error('fal result failed: 422 prompt rejected');
+	};
+
+	it('a 4xx goes back to queued with its request id cleared, not straight to failed', async () => {
+		const { db, row } = await claimedRow();
+		await tickAndPersist(db, tickable(row), 'p', deps({ submit: vi.fn(async () => http422()) }));
+
+		const after = await getImageById(db, row.id);
+		expect(after?.state).toBe('queued');
+		expect(after?.falRequestId).toBeNull();
+		expect((await getImageDetail(db, row.id))?.attempt).toBe(2);
+	});
+
+	it('the SECOND failure is terminal — a retry loop would bill for ever', async () => {
+		const { db, row } = await claimedRow();
+		await tickAndPersist(db, tickable(row), 'p', deps({ submit: vi.fn(async () => http422()) }));
+		const retried = await getImageById(db, row.id);
+		await tickAndPersist(
+			db,
+			{ ...tickable(row), state: retried!.state },
+			'p',
+			deps({ submit: vi.fn(async () => http422()) })
+		);
+
+		const after = await getImageById(db, row.id);
+		expect(after?.state).toBe('failed');
+		expect(after?.error).toContain('prompt rejected');
+	});
+
+	it('a non-HTTP failure is terminal immediately — a blocked host will not clear on a retry', async () => {
+		const { db, row } = await claimedRow();
+		await tickAndPersist(
+			db,
+			tickable(row),
+			'p',
+			deps({
+				submit: vi.fn(async () => {
+					throw new Error('image url host is not on the allow-list');
+				})
+			})
+		);
+		expect((await getImageById(db, row.id))?.state).toBe('failed');
+	});
+
+	it('persists the exact per-zone prompt for audit', async () => {
+		const { db, row } = await claimedRow();
+		expect((await getImageDetail(db, row.id))?.prompt).toBe('the exact per-zone text');
 	});
 });

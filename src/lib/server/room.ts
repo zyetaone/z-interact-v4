@@ -437,7 +437,10 @@ export interface ImageInsertInput {
 	table: number;
 	zoneKey: string;
 	promptId: string;
+	/** The exact per-zone text submitted to fal. Stored in `image_detail` for audit. */
 	prompt: string;
+	/** Absolute reference image URLs this attempt is paired with, if any. Stored alongside the prompt. */
+	referenceUrls?: string[];
 	model: string;
 	referenceImageId?: string | null;
 	actor?: 'table' | 'admin' | 'system';
@@ -557,6 +560,17 @@ export async function insertQueuedImageIfIdle(
 		)
 		.run()) as unknown as { meta?: { changes?: number } };
 	if ((res?.meta?.changes ?? 0) === 0) return null;
+	// The audit trail (`image_detail`): the EXACT prompt and references this
+	// attempt carries. `insertQueuedImage` accepted a `prompt` argument and
+	// dropped it, so an event could not be audited after the fact.
+	await saveImageDetail(d, {
+		imageId: id,
+		eventId: input.eventId,
+		table: input.table,
+		zoneKey: input.zoneKey,
+		prompt: input.prompt,
+		referenceUrls: input.referenceUrls
+	});
 	return {
 		id,
 		eventId: input.eventId,
@@ -691,6 +705,112 @@ export async function getImageById(d: D1Database, id: string): Promise<ImageRow 
 		.bind(id)
 		.first<ImageRawRow>();
 	return row ? toImageRow(row) : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* IMAGE DETAIL — the audit trail and the retry counter.                      */
+/*                                                                            */
+/* A SIDECAR TABLE, not new columns on `image`. `d1.ts` is explicit: there is */
+/* no migration runner, adding a column to an existing table is a silent      */
+/* no-op locally and throws on the first insert in production, and a new      */
+/* TABLE is the only safe schema change this layer supports.                  */
+/*                                                                            */
+/* It holds what the fidelity run showed missing: the EXACT prompt each zone  */
+/* was submitted with (`insertQueuedImage` accepted a `prompt` argument and   */
+/* then dropped it on the floor, so an event could not be audited after the   */
+/* fact), the reference image URLs that prompt was paired with, and how many  */
+/* times this row has been submitted — which is what bounds the retry below.  */
+/* -------------------------------------------------------------------------- */
+
+export const IMAGE_DETAIL_SCHEMA = `CREATE TABLE IF NOT EXISTS image_detail (
+	image_id TEXT PRIMARY KEY,
+	event_id TEXT NOT NULL,
+	table_no INTEGER NOT NULL,
+	zone_key TEXT NOT NULL,
+	prompt TEXT NOT NULL,
+	reference_urls TEXT,
+	attempt INTEGER NOT NULL DEFAULT 1,
+	created_at INTEGER NOT NULL
+)`;
+
+export interface ImageDetail {
+	prompt: string;
+	referenceUrls: string[];
+	/** Submits so far. 1 after the first, 2 after the single automatic retry. */
+	attempt: number;
+}
+
+/** Records the exact prompt and references one attempt was submitted with. Never overwritten — a retry bumps `attempt`, it does not rewrite history. */
+export async function saveImageDetail(
+	d: D1Database,
+	input: { imageId: string; eventId: string; table: number; zoneKey: string; prompt: string; referenceUrls?: string[] }
+): Promise<void> {
+	const db = await dbWith(d, 'image_detail', IMAGE_DETAIL_SCHEMA);
+	if (!db) return;
+	try {
+		await db
+			.prepare(
+				`INSERT INTO image_detail (image_id, event_id, table_no, zone_key, prompt, reference_urls, attempt, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+                 ON CONFLICT(image_id) DO NOTHING`
+			)
+			.bind(
+				input.imageId,
+				input.eventId,
+				input.table,
+				input.zoneKey,
+				input.prompt,
+				input.referenceUrls?.length ? JSON.stringify(input.referenceUrls) : null,
+				monotonicNow()
+			)
+			.run();
+	} catch (e) {
+		if (isTransientD1Error(e)) return;
+		throw e;
+	}
+}
+
+export async function getImageDetail(d: D1Database, imageId: string): Promise<ImageDetail | null> {
+	const db = await dbWith(d, 'image_detail', IMAGE_DETAIL_SCHEMA);
+	if (!db) return null;
+	const row = await db
+		.prepare(`SELECT prompt, reference_urls, attempt FROM image_detail WHERE image_id = ?`)
+		.bind(imageId)
+		.first<{ prompt: string; reference_urls: string | null; attempt: number }>();
+	if (!row) return null;
+	let referenceUrls: string[] = [];
+	try {
+		const parsed = row.reference_urls ? (JSON.parse(row.reference_urls) as unknown) : [];
+		if (Array.isArray(parsed)) referenceUrls = parsed.filter((u): u is string => typeof u === 'string');
+	} catch {
+		/* a malformed column reads as "no references", not as a thrown tick */
+	}
+	return { prompt: row.prompt, referenceUrls, attempt: row.attempt };
+}
+
+/**
+ * ONE automatic retry, then give up. Four of twelve requests in the fidelity
+ * run failed with an opaque 422 — table 3's whole set, moments after table 2
+ * succeeded 4/4 — which reads as a provider wobble rather than a bad prompt.
+ *
+ * The retry is a state-machine move, not a second code path: the row goes
+ * back to `queued` with its fal request id cleared, and the next ticker
+ * claims it and submits fresh. Guarded on `attempt`, so a row that keeps
+ * failing fails visibly instead of billing forever.
+ */
+export async function retryImage(d: D1Database, id: string, maxAttempts = 2): Promise<boolean> {
+	const db = await dbWith(d, 'image_detail', IMAGE_DETAIL_SCHEMA);
+	if (!db) return false;
+	const bumped = (await db
+		.prepare(`UPDATE image_detail SET attempt = attempt + 1 WHERE image_id = ? AND attempt < ?`)
+		.bind(id, maxAttempts)
+		.run()) as unknown as { meta?: { changes?: number } };
+	if ((bumped?.meta?.changes ?? 0) === 0) return false;
+	// Only a row still mid-flight goes back in the queue — a row some other
+	// ticker has since carried to `stored` must not be re-submitted.
+	return swap(d, `UPDATE image SET state = 'queued', fal_request_id = NULL WHERE id = ? AND state IN ('queued', 'requested')`, [
+		id
+	]);
 }
 
 /* -------------------------------------------------------------------------- */

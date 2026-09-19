@@ -17,8 +17,15 @@
  */
 import type { Env } from './env';
 import { tick, isTerminal, type GenerateDeps, type GenerationState } from './generate';
-import { claimQueued, markRequested, markStored, markFailed } from './room';
-import { FAL_MODEL, submitZoneImage, pollStatus as pollFalStatus, fetchResult as fetchFalResult } from './fal';
+import { claimQueued, markRequested, markStored, markFailed, retryImage } from './room';
+import {
+	FAL_MODEL,
+	submitZoneImage,
+	isRetryableFailure,
+	resolutionFrom,
+	pollStatus as pollFalStatus,
+	fetchResult as fetchFalResult
+} from './fal';
 import { imageKey, putImage } from './r2';
 import { extForContentType, fetchImageBytes } from './fetch-image';
 
@@ -48,12 +55,14 @@ export interface TickableImageRow {
 
 /** The real fal + R2 backed deps — used by the phone/admin pollers. `webhookUrl`, when the caller can build one (see `env.ts`'s `requestOrigin`), registers this app's `/api/fal-webhook` as fal's push notification for this submit — the poll-based deps above still resume the row if that push never arrives. */
 export function realGenerateDeps(
-	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET'>,
+	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION'>,
 	event: string,
 	table: number,
 	zone: string,
 	imageId: string,
-	webhookUrl?: string
+	webhookUrl?: string,
+	/** Absolute URLs. When present, `submitZoneImage` uses the edit endpoint so the render is anchored to the lens picture. */
+	referenceUrls?: string[]
 ): GenerateDeps {
 	const falKey = env.FAL_KEY ?? '';
 	const model = FAL_MODEL;
@@ -63,6 +72,8 @@ export function realGenerateDeps(
 				falKey,
 				model,
 				prompt,
+				referenceUrls,
+				resolution: resolutionFrom(env.FAL_RESOLUTION),
 				requestKey,
 				retentionSeconds: 60 * 60 * 24,
 				webhookUrl
@@ -134,6 +145,13 @@ export async function tickAndPersist(
 		// sits in `requested` until the event ends.
 		else if (result.nextState === 'failed') await markFailed(db, row.id, result.reason);
 	} catch (e) {
-		await markFailed(db, row.id, String(e).slice(0, 500));
+		const reason = String(e).slice(0, 500);
+		// ONE fresh submit on a provider-side HTTP failure. The fidelity run
+		// lost four of twelve requests to an opaque 422 — one table's whole
+		// set, moments after another table succeeded 4/4 — which reads as a
+		// wobble, not a bad prompt. `retryImage` is bounded by `attempt`, so a
+		// row that keeps failing still fails visibly.
+		if (isRetryableFailure(reason) && (await retryImage(db, row.id))) return;
+		await markFailed(db, row.id, reason);
 	}
 }

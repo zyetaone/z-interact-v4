@@ -50,30 +50,80 @@ leaves the key unset in production, which then looks exactly like a dead key.
 
 ```
 src/lib/server/
-  env.ts       # ONLY file importing $app/server. Env type, requestEnv()/envOf(), eventId()
+  env.ts       # ONLY file importing $app/server. requestEnv()/envOf()/eventId()/requestOrigin()/requestWaitUntil()
   d1.ts        # ensureTable/isTransientD1Error — takes D1Database as an argument, no $app/server
   gate.ts      # decideSubmit (pure) + D1-backed room lock / table-reopen wrappers
-  room.ts      # events/tables/answers/revisions/prompts/images DDL + CRUD
-  r2.ts        # image key scheme + put/get (see r2.ts's ponytail note re: tiles)
+  room.ts      # event_table/answer/prompt/image DDL + CRUD (append-only where noted, see below)
+  generate.ts  # tick() — the resumable generation state machine, pure, deps-injected
+  ticker.ts    # tickAndPersist()/realGenerateDeps()/buildWebhookUrl() — the one ticker impl, shared by all three callers
+  r2.ts        # image key scheme (keyed by image row id) + put/get (see its ponytail note re: tiles)
   fal.ts       # queue.fal.run submit/status/result over raw fetch
   prompt.ts    # composeLayers — pure, content-free layer ordering
   throttle.ts  # createThrottle() — keyed by table number, never by IP
-  webhook.ts   # handleFalWebhook — pure, deps injected, tested with fakes
 src/lib/game/
-  questions.ts # TODO(content): the 11 questions + wildcard
-  futures.ts   # TODO(content): the named future/mood palette
-  zones.ts     # TODO(content): the functional zones (one image per zone)
+  questions.ts # the 11 questions + wildcard (content landed — futures-palette/game-flow workstreams)
+  futures.ts   # the seven named futures + era fields
+  zones.ts     # both candidate zone sets behind ZONE_SETS, defaulting to `book`
+  era.ts       # the era scale + allowedEras/nudge rules
 src/lib/
   poll.svelte.ts       # ported from z-presence: 3-missed-reads staleness rule
   state/table.svelte.ts
 src/routes/
   t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, stub +page.svelte
   projector/           # gallery.remote.ts, stub +page.svelte
-  admin/                # admin.remote.ts (no auth yet — see its ponytail note), stub +page.svelte
-  api/fal-webhook/      # +server.ts: validates body + token, calls webhook.ts inside waitUntil
+  admin/                # admin.remote.ts (no auth yet — see its ponytail note), stub +page.svelte, polls roomLock
+  api/fal-webhook/      # +server.ts: validates body + token + image_id, calls the shared ticker inside waitUntil
 ```
 
-## Rules carried from the architecture doc
+## Generation is a resumable state machine, not fire-and-forget
+
+Per the game-flow design (`game-flow.md` §6/§8): `image.state` moves
+`queued -> requested(fal_request_id) -> stored`, plus `failed`. (`done` — a
+tile also exists — is defined but unreachable until the tile-resize upgrade
+lands; see `r2.ts`'s ponytail note. `stored` is the de facto terminal
+success state today.)
+
+**Three tickers call the same `tickAndPersist()` (`ticker.ts`), never their
+own bespoke logic:**
+1. The phone's `tableStatus` poll (`routes/t/[table]/answers.remote.ts`) —
+   ticks that table's pending rows.
+2. The admin screen's `roomLock` poll (`routes/admin/admin.remote.ts`) —
+   ticks every pending row in the event.
+3. The fal webhook (`routes/api/fal-webhook/+server.ts`) — ticks the one row
+   its `image_id` query param names, with deps that resolve immediately from
+   the payload instead of re-polling fal.
+
+`requestWaitUntil` (`env.ts`) kicks the FIRST tick right after `finishTable`
+queues a row — an optimisation, not the mechanism. If it's cut short (dead
+phone, isolate recycle), any of the three tickers above resumes the same
+row from whatever state it's in. `generate.ts`'s `tick()` no-ops on a
+row that's already `stored`/`done`/`failed` — that single guard is what
+makes dead-phone recovery, admin/phone polls racing each other, and a
+duplicate webhook delivery all safe without three separate idempotency
+mechanisms. `generate.test.ts` asserts the no-op directly ("ticking a
+stored row is a no-op") and the requested/queued transitions.
+
+## Nothing is updated in place
+
+`answer` and `prompt` are append-only (`room.ts`): an edit is a new row
+with `actor`/`source` and a `supersedes_id` pointing at the row it sits
+above; `currentAnswers()` resolves "current" as the newest row per natural
+key. `image` is append-only ACROSS regenerations (a regenerate inserts a
+new row with `supersedes_id` set) but its `state`/`r2_key`/`fal_request_id`
+columns are mutated in place WITHIN one generation attempt as `tick()`
+advances it — that's the same attempt progressing, not a content edit, so
+it doesn't need its own row per state.
+
+Table/column names for `event_table`, `answer`, `prompt` and `image` are
+taken from the game-flow design's `schema.draft.ts` where it already
+defines them. Not adopted (out of scope for plumbing): `event`, `clip`,
+`transcript`, `extraction`, `minutes`, `sequence`, `vote`, `admin_log` —
+those belong to listen mode, the vote phase and admin logging, none built
+yet. `gate.ts`'s two tables (`room_state`, `table_reopen`) are unchanged —
+game-flow.md §5 explicitly says presence's gate semantics "carry over
+unchanged", which is what the original scaffold already did.
+
+## Rules carried from the architecture / game-flow docs
 
 - **Throttle is per table, never per client IP.** One venue router is one IP.
 - **`error()`/`redirect()` only work inside `query`, not `command`.**
@@ -82,50 +132,50 @@ src/routes/
 - **The URL is the credential, not an auth token.** `/t/[table]` has no
   cookie or signed token; every command re-validates `table` server-side
   against `1..TABLE_COUNT` with valibot.
-- **Idempotency on `images`**: `UNIQUE(request_id)` — a retried `finishTable`
-  or a duplicate webhook delivery never causes a second fal charge or a
-  second R2 write.
+- **"A generation already in flight is returned, not duplicated."**
+  `finishTable` checks for a current non-failed `image` row per zone before
+  inserting a new one.
 - **Retention is an explicit parameter** on every fal submit call, never a
   library default.
-- **`event_id` is a column on every table** from day one — see `room.ts`'s
-  DDL — so the archive step is a plain `wrangler d1 export`.
+- **`event_id` is a column on every table** from day one, so the archive
+  step is a plain `wrangler d1 export`.
 
-## Known deviations from the architecture doc (recorded, not silent)
+## Known deviations (recorded, not silent)
 
 1. **No Cloudflare Image Resizing for the tile** — team override. `r2.ts`
    stores the full image only; `// ponytail:` names `@jsquash/resize` (or the
-   Images binding) as the upgrade for the second stored size.
-2. **Gate is two D1 tables (`room_state`, `table_reopen`), not one `gate`
-   table** — ported from z-presence's proven shape; the brief's schema list
-   named a single `gate` table. Functionally equivalent; a content agent
-   adding columns should treat these two as the gate concern.
-3. **Binding/resource names follow the team brief, not the architecture
+   Images binding) as the upgrade. This is also why `done` (tile exists) is
+   unreachable — see the state-machine section above.
+2. **Binding/resource names follow the team brief, not the architecture
    doc**: `DB`/`IMAGES` bindings, `z-interact-v4-db`/`z-interact-v4-images`
-   default names in `wrangler.jsonc` — the doc used `symposium_db`/
-   `symposium-2026-09-*`, which would have put an event name in source.
-   `event_id` is read from the `EVENT_ID` env var at runtime instead of a
-   hardcoded string.
-4. **fal webhook auth is a shared-secret query token**, not a verified fal
+   default names in `wrangler.jsonc` — the architecture doc used
+   `symposium_db`/`symposium-2026-09-*`, which would have put an event name
+   in source. `event_id` is read from the `EVENT_ID` env var at runtime.
+3. **fal webhook auth is a shared-secret query token**, not a verified fal
    signature — `// ponytail:` in `routes/api/fal-webhook/+server.ts` names
-   ed25519 signature verification as the upgrade once confirmed against
-   fal's current docs.
-5. **A fifth test file, `webhook.test.ts`**, was added beyond the brief's
-   four named rules to cover fal-webhook idempotency directly (the brief's
-   own text asked for this rule under "webhook idempotency" — it just isn't
-   one of `prompt`/`gate`/`throttle`/`room`). `room.test.ts` covers the
-   answer round-trip via `rowToAnswers`, matching the brief's fourth rule.
+   ed25519 signature verification as the upgrade.
+4. **Only four of `schema.draft.ts`'s 13 tables were adopted** (`event_table`,
+   `answer`, `prompt`, `image`) — see "Nothing is updated in place" above for
+   which ones and why.
+5. **`event_table` has no `current_step` column.** Step is derived as
+   `getCurrentAnswers(...).length` in `room.ts`'s `getTableState` — a
+   TODO(content) once the real question set's resume semantics (skipped
+   questions, listen-mode extractions) are wired.
 
-## What the content workstreams drop in
+## What's still open for the content/plumbing workstreams
 
-- `src/lib/game/questions.ts` — replace `QUESTIONS`/`WILDCARD`, keep `id`s
-  stable once tables start answering.
-- `src/lib/game/futures.ts` — replace `FUTURES`.
-- `src/lib/game/zones.ts` — replace `ZONES`.
-- `src/lib/server/prompt.ts` — wire the real `LayerInputs` mapping from
-  answers (currently stubbed in `answers.remote.ts`'s `finishTable`).
-- `src/routes/t/[table]/+page.svelte` — replace the stub with the 13-screen
-  flow (tone, Q1-11, wildcard).
+- `answers.remote.ts`'s `finishTable` composes `LayerInputs` from placeholder
+  strings, not the real future/answer mapping (`LAYER_OF_QUESTION` now
+  exists in the game-flow design and should replace the stub).
+- `tableStatus`/`roomLock`'s tickers pass a placeholder prompt string rather
+  than reading `prompt.composed` by the image row's `promptId` — wiring that
+  read is the last piece connecting `room.ts`'s `insertPrompt` output to the
+  ticker.
+- `src/routes/t/[table]/+page.svelte` — replace the stub with the 18-screen
+  tap flow (game-flow.md §1).
 - `src/routes/projector/+page.svelte` and `gallery.remote.ts`'s `roomImages`
   — gallery grouped by future, per-table zone sequence.
 - `src/routes/admin/+page.svelte` and `admin.remote.ts`'s `seedRoom`/
   `deleteTable`/`resetRoom`/`exportRoom` — currently `not implemented` stubs.
+- fal model id is `'TODO(content): fal model id'` in `ticker.ts` — set once
+  chosen.

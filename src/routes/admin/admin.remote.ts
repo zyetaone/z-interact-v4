@@ -9,14 +9,39 @@ import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
 import { lockedAt, setLocked, grantReopen } from '$lib/server/gate';
+import { getPendingImagesForEvent } from '$lib/server/room';
+import { tickAndPersist, realGenerateDeps } from '$lib/server/ticker';
 import { TABLE_COUNT } from '$lib/game/questions';
 
 const tableNo = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT));
 
+/**
+ * TICKER (game-flow.md §6/§8): the admin screen's poll walks EVERY
+ * non-terminal image in the event, not just one table's — the second of
+ * the three tickers alongside `answers.remote.ts`'s `tableStatus` and the
+ * fal webhook. Room lock state is read in the same call the phone-side
+ * equivalent does it in, for the same reason presence's did: two separate
+ * polls racing is how a screen shows state the server has already moved
+ * past.
+ */
 export const roomLock = query(async () => {
 	const env = requestEnv();
 	if (!env) return { closed: false };
-	return { closed: !!(await lockedAt(env.DB, eventId(env))) };
+	const event = eventId(env);
+
+	for (const row of await getPendingImagesForEvent(env.DB, event)) {
+		await tickAndPersist(
+			env.DB,
+			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
+			// TODO(content/plumbing): same placeholder as tableStatus — reading
+			// the real composed prompt by `row.promptId` is the wiring left for
+			// the content pass.
+			'TODO(content): prompt',
+			realGenerateDeps(env, event, row.table, row.zoneKey, row.id)
+		);
+	}
+
+	return { closed: !!(await lockedAt(env.DB, event)) };
 });
 
 export const setRoomLock = command(v.object({ locked: v.boolean() }), async ({ locked }) => {

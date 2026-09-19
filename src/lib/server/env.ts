@@ -47,6 +47,33 @@ export function envOf(platform: App.Platform | undefined): Env | undefined {
 	return platform?.env;
 }
 
+/**
+ * `platform.context.waitUntil` from inside a `query`/`command` remote
+ * function — those don't receive `platform` as an argument the way
+ * `+server.ts` does, so this is the seam. `waitUntil` KICKS the first
+ * generation tick; it is an optimisation, not the mechanism (game-flow.md
+ * §6) — every ticker (phone poll, admin poll, webhook) can resume the same
+ * row, so a missing/failed `waitUntil` only costs latency, never correctness.
+ */
+export function requestWaitUntil(promise: Promise<unknown>): void {
+	try {
+		const ctx = getRequestEvent().platform?.context;
+		if (ctx) ctx.waitUntil(promise);
+		else promise.catch(() => {});
+	} catch {
+		promise.catch(() => {});
+	}
+}
+
+/** The current request's origin (`https://host`), or undefined outside a request — used to build the fal webhook URL at submit time. */
+export function requestOrigin(): string | undefined {
+	try {
+		return getRequestEvent().url.origin;
+	} catch {
+		return undefined;
+	}
+}
+
 /** Client IP — read-only diagnostic. Never used as a throttle/rate-limit key (ADR-036: one venue router is one IP). */
 export function clientIp(): string {
 	try {

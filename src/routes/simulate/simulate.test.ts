@@ -10,6 +10,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as v from 'valibot';
 import { fakeD1 } from '$lib/server/fake-d1';
+import { ANCHOR_ZONE } from '$lib/server/reference';
 
 const ENV_ID = 'sim-test-event';
 const ADMIN_TOKEN = 'rehearsal-token';
@@ -135,22 +136,31 @@ describe('POST /simulate', () => {
 			expect(row.currentStep).toBeGreaterThan(0);
 		}
 
-		// Let the `waitUntil` kicks finish. ONE tick is `queued -> requested`
-		// (claim, then submit) — `stored` is the next tick's job, which is the
-		// resumable state machine working as designed, not a stall.
+		// Let the `waitUntil` kicks finish. Only the ANCHOR zone is submitted on
+		// the first kick: zones 2-4 are anchored to the first zone's own render
+		// (`server/reference.ts`) and are not claimed until it lands. All four
+		// rows exist and are queued; the dependency is enforced at tick time,
+		// which is what keeps the resumable state machine as the only scheduler.
 		await Promise.all(waited);
 		const afterKick = await db
-			.prepare(`SELECT state FROM image WHERE event_id = ?`)
+			.prepare(`SELECT zone_key, state FROM image WHERE event_id = ?`)
 			.bind(ENV_ID)
-			.all<{ state: string }>();
+			.all<{ zone_key: string; state: string }>();
 		expect(afterKick.results).toHaveLength(16);
-		expect(afterKick.results.every((r) => r.state === 'requested')).toBe(true);
+		const submittedFirst = afterKick.results.filter((r) => r.state === 'requested');
+		expect(submittedFirst).toHaveLength(4); // one anchor per table
+		expect(submittedFirst.every((r) => r.zone_key === ANCHOR_ZONE)).toBe(true);
+		expect(afterKick.results.filter((r) => r.state === 'queued')).toHaveLength(12);
 
 		// Now drive the PHONE'S OWN POLL, which is the second of the three
-		// tickers, and let it carry every row the rest of the way: fal's fake
-		// result -> `fetchImageBytes` on the data URL -> R2 -> `stored`.
+		// tickers, and let it carry every row the rest of the way: the anchor
+		// stores, which unblocks its three siblings, which submit and store.
+		// Each poll advances a row by one step, so the set needs a few rounds —
+		// exactly how it behaves on the night.
 		const { tableStatus } = await import('../t/[table]/answers.remote');
-		for (const row of out.readBack) await tableStatus({ table: row.table });
+		for (let round = 0; round < 6; round++) {
+			for (const row of out.readBack) await tableStatus({ table: row.table });
+		}
 
 		const { results } = await db
 			.prepare(`SELECT state, r2_key FROM image WHERE event_id = ?`)

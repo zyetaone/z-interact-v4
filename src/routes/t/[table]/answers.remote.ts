@@ -69,11 +69,7 @@ import {
   maxRendersPerTable,
 } from "$lib/server/limits";
 import { createThrottle } from "$lib/server/throttle";
-import {
-  tickAndPersist,
-  realGenerateDeps,
-  buildWebhookUrl,
-} from "$lib/server/ticker";
+import { tickImageRow, type TickContext } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
 import { sanitizeComposed } from "$lib/server/prompt";
 import {
@@ -148,22 +144,19 @@ async function withTableLock<T>(
   }
 }
 
-/** One row's real fal + R2 deps, with this app's webhook URL naming that row. */
-function depsFor(
+/**
+ * Everything `tickImageRow` needs that is the same for every row of one
+ * table: the bindings, the origin (references must be absolute — fal
+ * fetches them), the chosen future's lens picture, and the reset watermark
+ * so a pre-reset render is never used as a style anchor.
+ */
+function tickContext(
   env: Env,
   event: string,
-  table: number,
-  zoneKey: string,
-  imageId: string,
-) {
-  return realGenerateDeps(
-    env,
-    event,
-    table,
-    zoneKey,
-    imageId,
-    buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, imageId),
-  );
+  futureKey: string | null,
+  since: number,
+): TickContext {
+  return { db: env.DB, env, event, origin: requestOrigin(), futureKey, since };
 }
 
 /**
@@ -275,8 +268,8 @@ export const tableStatus = query(
       const zone = ZONES.find((z) => z.key === row.zoneKey);
       const stored = await getPromptById(env.DB, row.promptId);
       if (!zone || !stored) continue;
-      await tickAndPersist(
-        env.DB,
+      await tickImageRow(
+        tickContext(env, event, futureOf(answers), since),
         {
           id: row.id,
           state: row.state,
@@ -290,7 +283,6 @@ export const tableStatus = query(
           resolveZone(zone, answers),
           stored.negative,
         ),
-        depsFor(env, event, table, row.zoneKey, row.id),
       );
     }
 
@@ -582,8 +574,8 @@ async function queueGeneration(
     // waitUntil kicks the first tick; the phone/admin polls and the
     // webhook are the safety net if it is cut short (game-flow §6).
     requestWaitUntil(
-      tickAndPersist(
-        env.DB,
+      tickImageRow(
+        tickContext(env, event, futureOf(answers), opts.since),
         {
           id: image.id,
           state: image.state,
@@ -593,7 +585,6 @@ async function queueGeneration(
           zoneKey: zone.key,
         },
         zonePrompt,
-        depsFor(env, event, table, zone.key, image.id),
       ),
     );
   }

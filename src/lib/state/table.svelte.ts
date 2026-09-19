@@ -47,6 +47,19 @@ export interface TableStatus {
 /** `generate.ts`'s terminal states — a row in one of these will never change again. */
 export const TERMINAL_IMAGE_STATES: ReadonlySet<string> = new Set(["stored", "done", "failed"]);
 
+/**
+ * Every render has ANSWERED, even if the answer was "it failed". The one
+ * rule, shared by `resumeIndex` (which screen a fresh phone lands on) and
+ * the Drawing screen's own advance check, so the two cannot disagree — they
+ * did, and a table whose whole set failed waited on "Being drawn" for ever.
+ */
+export function allRendersSettled(status: Pick<TableStatus, "images">): boolean {
+  return (
+    status.images.length > 0 &&
+    status.images.every((i) => TERMINAL_IMAGE_STATES.has(i.state))
+  );
+}
+
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
 export const FUTURE_ID = "future";
 
@@ -109,9 +122,7 @@ export function resumeIndex(status: TableStatus): number {
     // this, a table whose four renders all failed waits on the Drawing screen
     // for ever — there is nothing left to arrive, and *Draw again* only
     // exists on the Images screen.
-    const settled =
-      status.images.length > 0 && status.images.every((i) => TERMINAL_IMAGE_STATES.has(i.state));
-    return indexOfStep(anyImage || settled ? "images" : "drawing");
+    return indexOfStep(anyImage || allRendersSettled(status) ? "images" : "drawing");
   }
   if (status.answers.length === 0) return indexOfStep("landing");
   for (const id of ANSWER_IDS) {

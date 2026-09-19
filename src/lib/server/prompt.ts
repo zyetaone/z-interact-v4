@@ -17,6 +17,25 @@
 export const NO_TEXT = 'no text, no labels, no UI chrome, no watermark';
 
 /**
+ * THE ANTI-BOARD TERMS. Evidenced, not guessed: the first real-credit
+ * fidelity run came back with presentation BOARDS — a hero view plus a grid
+ * of ten small panels — rather than one room. Fidelity to the answers was
+ * high; the layout was unusable on a projector, and four zones each
+ * containing ten panels is a mosaic of mosaics.
+ *
+ * The cause is that a prompt enumerating ten distinct programme items reads
+ * to the model as a brief for a board. Two things push back: this negative,
+ * and the per-zone programme cap in `layers.ts` that stops the enumeration
+ * happening at all. Neither alone was enough.
+ *
+ * Lives here rather than in `futures.ts`'s `HOUSE_NEGATIVE` because it is a
+ * rendering guard, the same family as `NO_TEXT` above, not content — and
+ * `futures.ts` belongs to another workstream.
+ */
+export const NO_COLLAGE =
+	'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels';
+
+/**
  * The ceiling on the table-editable prompt. Screen 15's textarea is free
  * text that becomes the ENTIRE prompt sent to a paid third-party API and
  * then shown on a public screen, so it had to stop being unbounded. Long
@@ -66,7 +85,7 @@ export function negativeClause(negative: string | undefined): string {
  * module stays content-free and does not know what an "era" is.
  */
 export function houseBase(year: string): string {
-    return `a workplace interior in ${year}, photoreal architectural visualisation, wide establishing view, no people in focus, no text`;
+    return `one single continuous scene, one viewpoint: a workplace interior in ${year}, photoreal architectural visualisation, a single wide establishing view of one room, no people in focus, no text`;
 }
 
 export interface LayerInputs {

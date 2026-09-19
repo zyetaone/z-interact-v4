@@ -36,7 +36,7 @@ import {
 	exportRoomRows,
 	type Beat
 } from '$lib/server/room';
-import { tickAndPersist, realGenerateDeps, buildWebhookUrl } from '$lib/server/ticker';
+import { tickImageRow } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
@@ -53,6 +53,12 @@ const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus', 'finale']
 // constant; these disagreeing is how a row ends up recording a model it was
 // never generated with, so this imports the same value.
 const MODEL = FAL_MODEL;
+
+/** Rows this poll will advance. The desk's screen must return in well under its own 3 s interval. */
+const ADMIN_TICK_BUDGET = 8;
+
+/** How settled a row must be before the DESK's ticker touches it — the phone's own 2 s poll gets first refusal on a row its table is watching. */
+const ADMIN_TICK_COOLDOWN_MS = 3000;
 const TOTAL_STEPS = QUESTIONS.length;
 
 // One per isolate, separate from the phone's own throttle instance in
@@ -96,11 +102,33 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 	//     its life.
 	//  3. Answers are read once per TABLE, not once per row — this loop runs
 	//     on a 3 s poll across the whole event.
-	const pending = await getPendingImagesForEvent(env.DB, event);
+	// BOUNDED. This used to walk EVERY non-terminal row in the event on every
+	// 3 s poll — with twenty tables drawing four zones each that is eighty
+	// rows, each costing a prompt read and a fal round trip, inside one
+	// request. The fidelity run had it hanging for minutes, which also
+	// starves the desk's own screen because the poll returns nothing until
+	// the whole walk finishes.
+	//
+	// Two limits. OLDEST FIRST, so nothing starves: a row skipped this poll
+	// is older next poll and rises to the front. And a cooling-off window, so
+	// this ticker stops racing the phone's own 2 s poll for a row that was
+	// just touched — the compare-and-swap makes that safe, but a lost race is
+	// still a wasted fal round trip.
+	const now = Date.now();
+	const pending = (await getPendingImagesForEvent(env.DB, event))
+		.filter((r) => now - r.createdAt > ADMIN_TICK_COOLDOWN_MS)
+		.sort((a, b) => a.createdAt - b.createdAt)
+		.slice(0, ADMIN_TICK_BUDGET);
+
+	// Read once per TABLE, not once per row: the lens picture and the reset
+	// watermark are table-wide, and this loop runs on a 3 s poll.
+	const futuresForTick = pending.length ? await getTableFutures(env.DB, event) : new Map<number, string | null>();
 	const answersByTable = new Map<number, AnswerLike[]>();
+	const resetByTable = new Map<number, number>();
 	for (const row of pending) {
 		if (!answersByTable.has(row.table)) {
 			const since = await getResetAt(env.DB, event, row.table);
+			resetByTable.set(row.table, since);
 			const rows = await getCurrentAnswersSince(env.DB, event, row.table, since);
 			answersByTable.set(
 				row.table,
@@ -110,8 +138,15 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 		const zone = ZONES.find((z) => z.key === row.zoneKey);
 		const prompt = await getPromptRowById(env.DB, row.promptId);
 		if (!zone || !prompt) continue;
-		await tickAndPersist(
-			env.DB,
+		await tickImageRow(
+			{
+				db: env.DB,
+				env,
+				event,
+				origin: requestOrigin(),
+				futureKey: futuresForTick.get(row.table) ?? null,
+				since: resetByTable.get(row.table) ?? 0
+			},
 			{
 				id: row.id,
 				state: row.state,
@@ -120,15 +155,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				table: row.table,
 				zoneKey: row.zoneKey
 			},
-			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative),
-			realGenerateDeps(
-				env,
-				event,
-				row.table,
-				row.zoneKey,
-				row.id,
-				buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, row.id)
-			)
+			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative)
 		);
 	}
 
@@ -291,6 +318,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		});
 
 		// The zone suffix and the house negative, same composer the phone uses.
+		const regenFutures = await getTableFutures(env.DB, event);
 		const answerRows = await getCurrentAnswersSince(env.DB, event, table, since);
 		const answers: AnswerLike[] = answerRows.map((r) => ({
 			questionId: r.questionId,
@@ -322,8 +350,15 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 			);
 			if (!image) continue;
 			await requestWaitUntil(
-				tickAndPersist(
-					env.DB,
+				tickImageRow(
+					{
+						db: env.DB,
+						env,
+						event,
+						origin: requestOrigin(),
+						futureKey: regenFutures.get(table) ?? null,
+						since
+					},
 					{
 						id: image.id,
 						state: image.state,
@@ -332,8 +367,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 						table,
 						zoneKey: zone.key
 					},
-					zonePrompt,
-					realGenerateDeps(env, event, table, zone.key, image.id, buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, image.id))
+					zonePrompt
 				)
 			);
 			queued++;

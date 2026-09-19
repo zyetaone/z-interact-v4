@@ -28,6 +28,8 @@
 	const beat = poll(2000, () => refresh());
 	const arrived = $derived(images.filter((i) => i.url));
 	const failedZones = $derived(images.filter((i) => i.state === 'failed'));
+	/** The provider's own words for the first failure, trimmed — a table that knows WHY can tell the desk. */
+	const failureReason = $derived(failedZones.find((i) => i.error)?.error?.slice(0, 160) ?? '');
 	/** Nothing landed AND nothing is still coming — the one case where *Draw again* is the only way forward. */
 	const allFailed = $derived(arrived.length === 0 && failedZones.length > 0);
 </script>
@@ -44,6 +46,7 @@
 
 {#if allFailed}
 	<p class="banner">The drawing failed — draw again.</p>
+	{#if failureReason}<p class="reason">{failureReason}</p>{/if}
 {:else if images.length === 0}
 	<p class="banner">The drawing didn't land — the desk can redraw this table.</p>
 {/if}
@@ -117,6 +120,14 @@
 
 	.pending.failed {
 		color: var(--warn);
+	}
+
+	/* Quiet: the table needs the sentence above, and the desk needs this one. */
+	.reason {
+		margin: -10px 0 18px;
+		font-size: 12px;
+		line-height: 1.5;
+		color: var(--ink-faint);
 	}
 
 	.zone {

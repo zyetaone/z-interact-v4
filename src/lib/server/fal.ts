@@ -33,10 +33,30 @@ function falFake(): boolean {
 	return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.FAL_FAKE === '1';
 }
 
+/** fal's own enums, from the model's documented input schema (checked 2026-09-19, not recalled). */
+export type FalAspectRatio = '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'auto';
+export type FalResolution = '0.5K' | '1K' | '2K' | '4K';
+
+/**
+ * The model has NO `negative_prompt` field — verified against
+ * fal.ai/models/fal-ai/nano-banana-2/api on 2026-09-19. Its documented
+ * inputs are prompt, num_images, seed, aspect_ratio, output_format,
+ * safety_tolerance, sync_mode, system_prompt, resolution, limit_generations,
+ * enable_web_search, thinking_level. That is why the house negative rides
+ * inside the prompt as an `Avoid: ...` clause (`prompt.ts`'s
+ * `negativeClause`): an unrecognised field would be accepted and silently
+ * dropped, which is the failure mode where the negative looks applied and
+ * is not.
+ */
 export interface SubmitZoneImageInput {
 	falKey: string;
 	model: string;
+	/** Already carries the zone suffix and the `Avoid: ...` negative clause — see `layers.ts`'s `composeZonePrompt`. */
 	prompt: string;
+	/** Reference images for the edit endpoint. When present this submits to `<model>/edit` with `image_urls`. Must be ABSOLUTE — fal fetches them. */
+	referenceUrls?: string[];
+	aspectRatio?: FalAspectRatio;
+	resolution?: FalResolution;
 	/** Absolute webhook URL, already carrying the shared-secret token query param. */
 	webhookUrl?: string;
 	/** fal's own result retention. Explicit — see module note. */
@@ -54,13 +74,46 @@ export interface SubmitZoneImageResult {
 /** The production model, the same slug the sibling apps use. */
 export const FAL_MODEL = 'fal-ai/nano-banana-2';
 
+/** A wall, not a phone. Every zone render is shown full-bleed on a 16:9 panel or larger. */
+export const DEFAULT_ASPECT_RATIO: FalAspectRatio = '16:9';
+
+/**
+ * fal's own default. Raised per event via `FAL_RESOLUTION` rather than
+ * here, because it is the single biggest cost lever in the app and doubling
+ * spend is the desk's call, not a default. `2K` is the one to reach for if
+ * the LED wall shows a tile larger than about 1,500px wide.
+ */
+export const DEFAULT_RESOLUTION: FalResolution = '1K';
+
+/** Parses `FAL_RESOLUTION`, falling back to the default on anything unrecognised rather than passing a value fal would reject. */
+export function resolutionFrom(raw: string | undefined): FalResolution {
+	const allowed: FalResolution[] = ['0.5K', '1K', '2K', '4K'];
+	return allowed.find((r) => r === raw) ?? DEFAULT_RESOLUTION;
+}
+
 export async function submitZoneImage(input: SubmitZoneImageInput): Promise<SubmitZoneImageResult> {
 	if (falFake()) {
 		const requestId = `${FAKE_PREFIX}${crypto.randomUUID()}`;
 		return { requestId, statusUrl: '', responseUrl: '' };
 	}
-	const url = new URL(`https://queue.fal.run/${input.model}`);
+	// With references this is image-to-image: a DIFFERENT endpoint
+	// (`<model>/edit`) taking `image_urls`. The queue, status, result and
+	// webhook shapes are identical, so nothing downstream changes.
+	const references = input.referenceUrls?.filter((u) => !!u) ?? [];
+	const endpoint = references.length ? `${input.model}/edit` : input.model;
+
+	const url = new URL(`https://queue.fal.run/${endpoint}`);
 	if (input.webhookUrl) url.searchParams.set('fal_webhook', input.webhookUrl);
+
+	const requestBody: Record<string, unknown> = {
+		prompt: input.prompt,
+		aspect_ratio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
+		resolution: input.resolution ?? DEFAULT_RESOLUTION,
+		output_format: 'png',
+		...(references.length ? { image_urls: references } : {}),
+		...(input.retentionSeconds ? { sync_mode: false, retention: input.retentionSeconds } : {}),
+		metadata: { requestKey: input.requestKey }
+	};
 
 	const res = await fetch(url.toString(), {
 		method: 'POST',
@@ -68,14 +121,10 @@ export async function submitZoneImage(input: SubmitZoneImageInput): Promise<Subm
 			Authorization: `Key ${input.falKey}`,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({
-			prompt: input.prompt,
-			...(input.retentionSeconds ? { sync_mode: false, retention: input.retentionSeconds } : {}),
-			metadata: { requestKey: input.requestKey }
-		})
+		body: JSON.stringify(requestBody)
 	});
 	if (!res.ok) {
-		throw new Error(`fal submit failed: ${res.status} ${await res.text().catch(() => '')}`);
+		throw new Error(await httpFailure('fal submit', res));
 	}
 	const body = (await res.json()) as { request_id: string; status_url: string; response_url: string };
 	return { requestId: body.request_id, statusUrl: body.status_url, responseUrl: body.response_url };
@@ -137,9 +186,28 @@ export async function pollStatus(falKey: string, model: string, requestId: strin
 	const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}/status`, {
 		headers: { Authorization: `Key ${falKey}` }
 	});
-	if (!res.ok) throw new Error(`fal status failed: ${res.status}`);
+	if (!res.ok) throw new Error(await httpFailure('fal status', res));
 	const body = (await res.json()) as { status?: unknown; queue_position?: number; error?: unknown; detail?: unknown };
 	return normaliseStatus(body);
+}
+
+/**
+ * An opaque `fal result failed: 422` is what four of twelve requests left
+ * behind in the fidelity run — a status code with no reason, stored in the
+ * error column and shown to the table. fal puts the reason in the body, so
+ * read it.
+ */
+export async function httpFailure(what: string, res: Response): Promise<string> {
+	const text = await res.text().catch(() => '');
+	return `${what} failed: ${res.status}${text ? ` ${text.slice(0, 300)}` : ''}`;
+}
+
+/** True for a fal failure worth ONE fresh submit — the 422s in the fidelity run cleared on a retry for other tables in the same run. */
+export function isRetryableFailure(message: string): boolean {
+	const m = /failed: (\d{3})/.exec(message);
+	if (!m) return false;
+	const status = Number(m[1]);
+	return status >= 400 && status < 600;
 }
 
 /** The result payload once `status` reports COMPLETED. Shape is model-specific; `images[0].url` is the nano-banana-class convention this app targets. */
@@ -148,7 +216,7 @@ export async function fetchResult(falKey: string, model: string, requestId: stri
 	const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}`, {
 		headers: { Authorization: `Key ${falKey}` }
 	});
-	if (!res.ok) throw new Error(`fal result failed: ${res.status}`);
+	if (!res.ok) throw new Error(await httpFailure('fal result', res));
 	const body = (await res.json()) as { images?: { url: string }[] };
 	const imageUrl = body.images?.[0]?.url;
 	if (!imageUrl) throw new Error('fal result had no image');

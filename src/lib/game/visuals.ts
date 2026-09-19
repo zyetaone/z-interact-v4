@@ -12,6 +12,8 @@
 import { FUTURES, type Future } from './futures';
 import { QUESTIONS } from './questions';
 
+export type FutureKey = Future['key'];
+
 function optionImageKey(questionId: string, optionId: string): string {
 	return `${questionId}:${optionId}`;
 }
@@ -30,4 +32,17 @@ export const OPTION_IMAGE: Record<string, string> = Object.fromEntries(
  *  options and the wildcard question, which were never in scope to render). */
 export function hasOptionImage(questionId: string, optionId: string): boolean {
 	return optionImageKey(questionId, optionId) in OPTION_IMAGE;
+}
+
+/**
+ * The lens picture for a future, or null when that future has none. Used by
+ * `server/reference.ts` as the style anchor for a table's renders: a future
+ * with no picture falls back to text-to-image, which is how every render
+ * worked before the reference path existed. Paths are root-relative and are
+ * made absolute at submit time, because fal fetches them from the open
+ * internet.
+ */
+export function lensImagePath(futureKey: string | null | undefined): string | null {
+	if (!futureKey) return null;
+	return (LENS_IMAGE as Partial<Record<string, string>>)[futureKey] ?? null;
 }

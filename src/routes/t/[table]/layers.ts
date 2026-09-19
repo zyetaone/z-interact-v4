@@ -13,7 +13,9 @@
  *                       fragment when the table nudged the chip off the
  *                       future's default, plus Q1's push reply verbatim
  *                       ("what are you protecting", screen 3c)
- *   materialsAndLight<- q2, q5, q8 option fragments + q5's push reply
+ *   materialsAndLight<- q2, q5, q8 option fragments, then q2's and q5's
+ *                       push replies verbatim (both ◆ questions ask for
+ *                       material and place by name, so both belong here)
  *   programme        <- q3, q4, q6, q7, q9, q10 fragments + q9's push reply
  *   feel             <- q11's three picks
  *   wildcard         <- verbatim, never rewritten
@@ -129,9 +131,10 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 			: undefined;
 	const mood = joinClauses([future?.moodLine ?? HOUSE_REGISTER, eraFragment, eraAnswer?.pushReply]);
 
-	// --- materials & light: q2, q5, q8 + q5's push reply.
+	// --- materials & light: q2, q5, q8 fragments, then q2's and q5's replies.
 	const materialsAndLight = joinClauses([
 		...MATERIAL_IDS.flatMap((id) => fragmentsFor(by.get(id))),
+		by.get('q2')?.pushReply,
 		by.get('q5')?.pushReply
 	]);
 

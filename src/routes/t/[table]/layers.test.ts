@@ -66,12 +66,23 @@ describe('buildLayerInputs', () => {
 		expect(protecting.mood.endsWith('the window seat everyone fights over')).toBe(true);
 	});
 
-	it('builds materialsAndLight from q2, q5 and q8 plus q5s push reply', () => {
+	it('builds materialsAndLight from q2, q5 and q8 plus both diamond push replies', () => {
 		expect(built.materialsAndLight).toBe(
 			'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture. ' +
 				'a null zone with no signal at all — deliberately unconnected, unmarked, a room the network does not reach. ' +
 				'deliberate, curated pockets of greenery placed at specific pause points, not everywhere. ' +
+				'raw concrete and brushed steel. ' +
 				'a null zone for thinking, the garden for after'
+		);
+	});
+
+	it('keeps q2s push reply out of the layer when the table typed nothing', () => {
+		const quiet = buildLayerInputs({
+			futureKey: 'solarpunk',
+			answers: [{ questionId: 'q2', keys: ['raw-elemental'] }]
+		});
+		expect(quiet.materialsAndLight).toBe(
+			'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture'
 		);
 	});
 

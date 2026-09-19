@@ -11,9 +11,10 @@
  *  see gallery.remote.ts's module note on why. */
 export type TableBeatState = 'not-started' | 'choosing' | 'answering' | 'reviewing' | 'drawing' | 'done';
 
-/** Matches `generate.ts`'s `GenerationState` (`queued | submitted | rendering | stored | failed`),
- *  plus `none` for a zone with no generation row yet. */
-export type ZoneImageState = 'queued' | 'submitted' | 'rendering' | 'stored' | 'failed' | 'none';
+/** Matches `room.ts`'s `ImageRow.state` (`generate.ts`'s `GenerationState`:
+ *  `queued | requested | stored | done | failed`), plus `none` for a zone
+ *  with no image row yet. */
+export type ZoneImageState = 'queued' | 'requested' | 'stored' | 'done' | 'failed' | 'none';
 
 export interface ZoneImageView {
 	zone: string;

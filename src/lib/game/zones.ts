@@ -54,30 +54,46 @@ export interface Zone extends ZoneRef {
  * agility); garden <- q8+q5 (nature, restoration — q5 shared with library, single-select so
  * only the table's one pick renders in each).
  */
+/**
+ * WHY EACH SUFFIX NAMES A ROOM AND A VIEWPOINT.
+ *
+ * With `REFERENCE_MODE` at its default `none` (`server/reference.ts`) a
+ * table's four zones are four independent text-to-image renders. Nothing but
+ * the words stops the model handing back the same room four times: the
+ * table-level base — mood line, palette, materials, era — is identical
+ * across the four prompts, and only this suffix differs.
+ *
+ * So each one states its own ROOM TYPE and its own CAMERA, and each says
+ * "the same building" to carry the continuity the reference image used to
+ * carry. The mood still matches the chosen lens picture, because the lens
+ * mood line and the table's palette sit in every zone's base; what is no
+ * longer shared is the FRAMING, which is precisely what made the anchored
+ * run read as one picture edited four times.
+ */
 const BOOK_ZONES: Zone[] = [
 	{
 		key: 'library',
 		questionIds: ['q4', 'q5'],
 		renderSuffix:
-			'wide establishing shot of the library: a space engineered for the hardest thinking ({q4}), and what protects and restores attention afterward ({q5})'
+			'a quiet reading room in the same building, one wide view looking along the shelves: engineered for the hardest thinking ({q4}), with what protects and restores attention afterward ({q5})'
 	},
 	{
 		key: 'studio',
 		questionIds: ['q6', 'q7', 'q9'],
 		renderSuffix:
-			'wide establishing shot of the studio: a space engineered for creativity, furniture and gathering ({q6}), technology that is {q7}, and the centaur room where humans and AI work together ({q9})'
+			'a making and workshop floor in the same building, one wide view across the benches: engineered for creativity, furniture and gathering ({q6}), technology that is {q7}, and the bench where humans and AI work together ({q9})'
 	},
 	{
 		key: 'plaza',
 		questionIds: ['q3', 'q10'],
 		renderSuffix:
-			'wide establishing shot of the plaza: a space engineered for collaboration, arrival ({q3}), and the agility of the workplace itself ({q10})'
+			'the arrival hall and social floor of the same building, one wide view from the entrance looking in: engineered for collaboration, arrival ({q3}), and the agility of the workplace itself ({q10})'
 	},
 	{
 		key: 'garden',
 		questionIds: ['q8', 'q5'],
 		renderSuffix:
-			'wide establishing shot of the garden: a space engineered for restoration, nature ({q8}), a place for recovering and protecting attention ({q5})'
+			'an outdoor garden court or glasshouse attached to the same building, one wide view from the path: engineered for restoration, nature ({q8}), a place for recovering and protecting attention ({q5})'
 	}
 ];
 

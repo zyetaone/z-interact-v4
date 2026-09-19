@@ -36,7 +36,7 @@ import {
 } from './fal';
 import { imageKey, putImage } from './r2';
 import { extForContentType, fetchImageBytes } from './fetch-image';
-import { ANCHOR_ZONE, absoluteUrl, decideReferences } from './reference';
+import { ANCHOR_ZONE, absoluteUrl, decideReferences, referenceModeFrom } from './reference';
 import { lensImagePath } from '$lib/game/visuals';
 
 /** Builds this app's own webhook URL for one image row — `image_id` is how the webhook route finds the D1 row (fal's own `request_id` isn't known until after submit). Returns undefined if the caller has no origin (outside a request, or the secret isn't set) so callers fall back to poll-only. */
@@ -65,7 +65,7 @@ export interface TickableImageRow {
 
 /** The real fal + R2 backed deps — used by the phone/admin pollers. `webhookUrl`, when the caller can build one (see `env.ts`'s `requestOrigin`), registers this app's `/api/fal-webhook` as fal's push notification for this submit — the poll-based deps above still resume the row if that push never arrives. */
 export function realGenerateDeps(
-	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION'>,
+	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION' | 'REFERENCE_MODE'>,
 	event: string,
 	table: number,
 	zone: string,
@@ -179,7 +179,7 @@ export async function tickAndPersist(
 
 export interface TickContext {
 	db: D1Database;
-	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION'>;
+	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION' | 'REFERENCE_MODE'>;
 	event: string;
 	/** The request's own origin. References must be absolute — fal fetches them itself. */
 	origin: string | undefined;
@@ -205,13 +205,16 @@ export async function tickImageRow(ctx: TickContext, row: TickableImageRow, prom
 		return { ticked: true, reason: 'advancing an in-flight row' };
 	}
 
+	const mode = referenceModeFrom(ctx.env.REFERENCE_MODE);
 	const lensUrl = absoluteUrl(ctx.origin, lensImagePath(ctx.futureKey));
 
 	// The anchor zone's own row, read fresh — another ticker may have stored
-	// it since this caller took its snapshot.
+	// it since this caller took its snapshot. Only `chain` needs it, so the
+	// other two modes skip this read entirely and never serialise a table
+	// behind its first zone.
 	let anchorUrl: string | null = null;
 	let anchorSettled = false;
-	if (row.zoneKey !== ANCHOR_ZONE) {
+	if (mode === 'chain' && row.zoneKey !== ANCHOR_ZONE) {
 		const anchor = await getCurrentImage(ctx.db, ctx.event, row.table, ANCHOR_ZONE);
 		const fresh = anchor && anchor.createdAt > (ctx.since ?? 0);
 		if (fresh && anchor.r2Key && (anchor.state === 'stored' || anchor.state === 'done')) {
@@ -229,7 +232,7 @@ export async function tickImageRow(ctx: TickContext, row: TickableImageRow, prom
 		queuedAt: row.createdAt ?? now,
 		now,
 		lensUrl
-	});
+	}, mode);
 	if (!decision.ready) return { ticked: false, reason: decision.reason };
 
 	if (decision.referenceUrls.length) await setImageReferences(ctx.db, row.id, decision.referenceUrls);

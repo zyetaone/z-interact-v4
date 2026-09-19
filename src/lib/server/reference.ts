@@ -22,6 +22,41 @@
 import { ZONES } from '$lib/game/zones';
 
 /**
+ * HOW MUCH THE LENS PICTURE IS ALLOWED TO DECIDE.
+ *
+ * Measured on table 2 (Solarpunk) with `chain`: all four zones rendered in
+ * 20 s and the mood matched the lens picture exactly — but library, studio
+ * and plaza came back as the SAME COMPOSITION as the lens picture with small
+ * edits, and garden was a light re-dress of it. That is what the edit
+ * endpoint does: it reproduces the reference's framing, it does not
+ * recompose into a different room. Zone 1 became the lens, and zones 2-4
+ * became zone 1.
+ *
+ * The earlier text-only run gave one-place coherence with genuinely
+ * different rooms, which is the result the event wants, so that is the
+ * default again. The reference path is kept, because "the mood must match
+ * the lens" is a real requirement and `lens` is the middle setting that
+ * buys it for one zone without flattening the other three.
+ *
+ *   none  — text-to-image everywhere. Four fresh rooms; coherence comes from
+ *           the shared base prompt and the per-zone viewpoints. DEFAULT.
+ *   lens  — zone 1 only is anchored to the lens picture; zones 2-4 are
+ *           text-only and do NOT wait for it. One zone locked to the lens
+ *           register, three free.
+ *   chain — zone 1 anchored to the lens, zones 2-4 anchored to zone 1.
+ *           Strongest continuity, and the composition lock described above.
+ */
+export type ReferenceMode = 'none' | 'lens' | 'chain';
+
+export const DEFAULT_REFERENCE_MODE: ReferenceMode = 'none';
+
+/** Reads `REFERENCE_MODE`, falling back to `none` on anything unrecognised — a typo must not silently turn the composition lock back on. */
+export function referenceModeFrom(raw: string | undefined): ReferenceMode {
+	const modes: ReferenceMode[] = ['none', 'lens', 'chain'];
+	return modes.find((m) => m === raw) ?? DEFAULT_REFERENCE_MODE;
+}
+
+/**
  * The zone every other zone is anchored to — the first in `ZONES`, so
  * changing the zone set moves the anchor with it rather than leaving a
  * hardcoded key pointing at a zone that no longer exists.
@@ -59,8 +94,28 @@ export type ReferenceDecision =
  * waits for), a landed anchor is always used, and the timeout is the last
  * resort rather than the first.
  */
-export function decideReferences(zoneKey: string, state: AnchorState): ReferenceDecision {
+export function decideReferences(zoneKey: string, state: AnchorState, mode: ReferenceMode): ReferenceDecision {
 	const lens = state.lensUrl ? [state.lensUrl] : [];
+
+	// Text-to-image everywhere. Nothing waits for anything, which is also why
+	// this is the fastest mode: the four zones of a table render in parallel
+	// rather than one-then-three.
+	if (mode === 'none') {
+		return { ready: true, referenceUrls: [], reason: 'reference mode none — text to image' };
+	}
+
+	// The lens anchors the FIRST zone only. Zones 2-4 are text-only and do
+	// not wait: there is nothing for them to wait for, since they are not
+	// going to reference zone 1.
+	if (mode === 'lens') {
+		return zoneKey === ANCHOR_ZONE
+			? {
+					ready: true,
+					referenceUrls: lens,
+					reason: lens.length ? 'anchor zone, anchored to the lens picture' : 'anchor zone, no lens picture'
+				}
+			: { ready: true, referenceUrls: [], reason: 'reference mode lens — this zone is text to image' };
+	}
 
 	if (zoneKey === ANCHOR_ZONE) {
 		return {

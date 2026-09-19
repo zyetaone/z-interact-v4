@@ -136,21 +136,20 @@ describe('POST /simulate', () => {
 			expect(row.currentStep).toBeGreaterThan(0);
 		}
 
-		// Let the `waitUntil` kicks finish. Only the ANCHOR zone is submitted on
-		// the first kick: zones 2-4 are anchored to the first zone's own render
-		// (`server/reference.ts`) and are not claimed until it lands. All four
-		// rows exist and are queued; the dependency is enforced at tick time,
-		// which is what keeps the resumable state machine as the only scheduler.
+		// Let the `waitUntil` kicks finish. With `REFERENCE_MODE` at its default
+		// `none` nothing references anything, so no zone waits for another and
+		// all sixteen go out on the first kick — four tables in parallel, which
+		// is the shape the night needs. Under `chain` only the four anchor
+		// zones would be requested here and the other twelve would still be
+		// queued; that ordering is covered in `server/ticker.test.ts`.
 		await Promise.all(waited);
 		const afterKick = await db
 			.prepare(`SELECT zone_key, state FROM image WHERE event_id = ?`)
 			.bind(ENV_ID)
 			.all<{ zone_key: string; state: string }>();
 		expect(afterKick.results).toHaveLength(16);
-		const submittedFirst = afterKick.results.filter((r) => r.state === 'requested');
-		expect(submittedFirst).toHaveLength(4); // one anchor per table
-		expect(submittedFirst.every((r) => r.zone_key === ANCHOR_ZONE)).toBe(true);
-		expect(afterKick.results.filter((r) => r.state === 'queued')).toHaveLength(12);
+		expect(afterKick.results.filter((r) => r.state === 'requested')).toHaveLength(16);
+		expect(afterKick.results.filter((r) => r.zone_key === ANCHOR_ZONE)).toHaveLength(4);
 
 		// Now drive the PHONE'S OWN POLL, which is the second of the three
 		// tickers, and let it carry every row the rest of the way: the anchor

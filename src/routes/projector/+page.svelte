@@ -87,7 +87,7 @@
 {:else if beat === 'reveal'}
 	<Reveal tables={room.tables} />
 {:else}
-	<Lobby eventTitle={data.eventTitle} />
+	<Lobby eventTitle={data.eventTitle} tables={room.tables} />
 {/if}
 
 <style>

@@ -42,7 +42,10 @@
 	function labelsFor(id: string): string {
 		const answer = answers.get(id);
 		if (!answer || answer.keys.length === 0) return '';
-		if (id === FUTURE_ID) return FUTURES.find((f) => f.key === answer.keys[0])?.name ?? '';
+		if (id === FUTURE_ID) {
+			if (answer.keys[0] === 'skipped') return 'Skipped — the house register';
+			return FUTURES.find((f) => f.key === answer.keys[0])?.name ?? '';
+		}
 		if (id === WILDCARD.id) return answer.text?.[WILDCARD.options[0].key] ?? '';
 		const question = FLOW_QUESTIONS.find((q) => q.id === id);
 		if (!question) return answer.keys.join(', ');

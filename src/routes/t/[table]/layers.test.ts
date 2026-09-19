@@ -108,15 +108,39 @@ describe('buildLayerInputs', () => {
 		expect(built.materialsAndLight).not.toContain('greenery');
 	});
 
-	it('builds programme from q3 and q6, then a dedicated centaur clause, then a dedicated agile clause, then q10s push reply', () => {
-		expect(built.programme).toBe(
-			'an arrival that blends a human welcome and an AI one, ordered as the table specifies: human first, then the AI. ' +
-				'rooms with movable walls that visibly change size to fit the group inside them. ' +
-				'a workplace with one conspicuous absence, specified by the table: the assigned desk, deliberately missing. ' +
-				"the centaur room where humans and AI work as one unit: a shared table where the human and the AI are visibly deciding something together, one decision the table refused to hand to the AI, specified by the table: who gets fired, kept deliberately human. " +
-				"this workplace's agility: an agile workplace that recedes when it is not needed — technology and structure stepping back to leave room for people. " +
-				'the acoustic core'
-		);
+	/**
+	 * THE PER-ZONE CAP. The base is prepended to all four zone prompts, so a
+	 * fragment here is said four times per table on top of the zone suffix
+	 * that already owns it. The fidelity run's presentation boards came from
+	 * exactly that enumeration. With the `book` zone set every programme
+	 * question (q3, q6, q9, q10) belongs to a zone, so what survives at the
+	 * table level is the table's own sentence — q10's push reply — and
+	 * nothing else.
+	 */
+	it('caps the base programme to what no zone owns — here just q10s push reply', () => {
+		expect(built.programme).toBe('the acoustic core');
+	});
+
+	it('does not repeat a zone-owned fragment at the table level', () => {
+		for (const fragment of [
+			'an arrival that blends a human welcome',
+			'rooms with movable walls',
+			'the centaur room where humans and AI work as one unit',
+			"this workplace's agility"
+		]) {
+			expect(built.programme).not.toContain(fragment);
+		}
+	});
+
+	it('the zone suffix still carries that zones own questions, exactly once', () => {
+		const plaza = ZONE_SETS.book.find((z) => z.key === 'plaza')!;
+		const prompt = composeZonePrompt('BASE', resolveZone(plaza, ANSWERS), built.negative);
+		// plaza owns q3 (arrival) and q10 (agility)
+		expect(prompt).toContain('an arrival that blends a human welcome');
+		expect(prompt).toContain('an agile workplace that recedes when it is not needed');
+		expect(prompt.split('an arrival that blends a human welcome')).toHaveLength(2);
+		// and not another zone's questions
+		expect(prompt).not.toContain('rooms with movable walls');
 	});
 
 	it('builds feel from q11s three picks, in option order', () => {
@@ -131,16 +155,34 @@ describe('buildLayerInputs', () => {
 		expect(buildLayerInputs({ futureKey: 'solarpunk', answers: [] }).wildcard).toBeUndefined();
 	});
 
-	it('puts the house negative terms ahead of the futures own, without duplicates', () => {
+	it('puts the layout guard first, then the house terms, then the futures own, without duplicates', () => {
 		expect(built.negative).toBe(
-			'no personas, stark white, posed faces, text, watermark, neon signage, dead plants, sterile, grey, concrete, glare'
+			'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels, ' +
+				'no personas, stark white, posed faces, watermark, neon signage, dead plants, sterile, grey, concrete, glare'
 		);
+	});
+
+	/**
+	 * The fidelity run produced presentation BOARDS — a hero view plus a grid
+	 * of small panels — rather than one room. This term is the direct answer
+	 * to that, so it is asserted by name rather than only through the string
+	 * above, which someone could reorder without noticing the loss.
+	 */
+	it('names collage in the negative', () => {
+		expect(built.negative).toContain('collage');
+		expect(built.negative).toContain('split screen');
 	});
 
 	it('drops an open options {text} slot rather than rendering the placeholder', () => {
 		const untyped = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q3', keys: ['human-or-ai-order'] }] });
 		expect(untyped.programme).not.toContain('{text}');
-		expect(untyped.programme).toBe('an arrival that blends a human welcome and an AI one, ordered as the table specifies');
+		// q3 belongs to the plaza zone, so the table-level programme is empty;
+		// the fragment itself is asserted through the zone suffix instead.
+		expect(untyped.programme).toBe('');
+		const plaza = ZONE_SETS.book.find((z) => z.key === 'plaza')!;
+		expect(resolveZone(plaza, [{ questionId: 'q3', keys: ['human-or-ai-order'] }]).renderSuffix).toContain(
+			'an arrival that blends a human welcome and an AI one, ordered as the table specifies'
+		);
 	});
 });
 

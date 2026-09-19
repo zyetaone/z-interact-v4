@@ -51,8 +51,8 @@ import { QUESTIONS, WILDCARD, type Question, type QuestionOption } from '$lib/ga
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
-import type { Zone } from '$lib/game/zones';
-import { composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+import { ZONES, type Zone } from '$lib/game/zones';
+import { NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
 
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
@@ -132,11 +132,24 @@ function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
 	return new Map(answers.map((a) => [a.questionId, a]));
 }
 
-/** The house terms first, then the future's own ten; duplicates dropped, order preserved. */
+/**
+ * Every question id that some zone's own `renderSuffix` already resolves.
+ * The table-level base must NOT also enumerate these: the base is prepended
+ * to every zone's prompt, so a fragment in both places is said twice per
+ * zone and four times per table — and an enumeration of ten programme items
+ * is exactly what produced a presentation board in the fidelity run.
+ *
+ * Push replies are deliberately NOT capped. They are the table's own
+ * sentences, one line each, and a sentence does not read as an item in a
+ * list the way a stack of option fragments does.
+ */
+const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => z.questionIds));
+
+/** The layout guard first, then the house terms, then the future's own; duplicates dropped, order preserved. */
 export function composeNegative(futureNegative: string | undefined): string {
 	const seen = new Set<string>();
 	const out: string[] = [];
-	for (const term of `${HOUSE_NEGATIVE}, ${futureNegative ?? ''}`.split(',')) {
+	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${futureNegative ?? ''}`.split(',')) {
 		const t = term.trim();
 		if (!t || seen.has(t.toLowerCase())) continue;
 		seen.add(t.toLowerCase());
@@ -184,11 +197,19 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const agileFragments = fragmentsFor(by.get('q10'));
 	const agileClause = agileFragments.length ? `this workplace's agility: ${agileFragments.join(', ')}` : undefined;
 
-	const programmeIds = ENABLE_PROPOSED_QUESTIONS ? [...PROGRAMME_IDS, 'q12'] : PROGRAMME_IDS;
+	// PER-ZONE CAP: anything a zone's own suffix resolves is dropped here, so
+	// each zone's prompt carries its own programme once instead of the whole
+	// room's, four times over. With the `book` zone set that leaves the base
+	// programme nearly empty, which is correct — the centaur room belongs in
+	// the studio and arrival belongs in the plaza; saying both in all four is
+	// what invited a board.
+	const programmeIds = (ENABLE_PROPOSED_QUESTIONS ? [...PROGRAMME_IDS, 'q12'] : [...PROGRAMME_IDS]).filter(
+		(id) => !ZONE_OWNED_IDS.has(id)
+	);
 	const programmeParts: (string | undefined)[] = [
 		...programmeIds.flatMap((id) => fragmentsFor(by.get(id))),
-		centaurClause,
-		agileClause,
+		ZONE_OWNED_IDS.has('q9') ? undefined : centaurClause,
+		ZONE_OWNED_IDS.has('q10') ? undefined : agileClause,
 		by.get('q10')?.pushReply
 	];
 	const programme = joinClauses(programmeParts);

@@ -4,7 +4,7 @@
 	import { accentForFuture, BEAT_LABEL } from './tokens';
 	import type { TableView } from './types';
 
-	let { tables }: { tables: TableView[] } = $props();
+	let { tables, wide = false }: { tables: TableView[]; wide?: boolean } = $props();
 
 	const futureIndex = new Map(FUTURES.map((f, i) => [f.key, i]));
 
@@ -34,7 +34,7 @@
 </script>
 
 <!-- Progress beat (game-flow.md §4, tag C): 20 tiles, one per table, state + future colour once chosen. -->
-<section class="progress">
+<section class="progress" class:wide>
 	<h2>In the room</h2>
 	<div class="grid">
 		{#each tables as t (t.table)}
@@ -72,7 +72,8 @@
 	}
 	h2 {
 		font-family: 'Playfair Display', Georgia, serif;
-		font-size: 2.25rem;
+		font-size: var(--type-heading);
+		line-height: 1;
 		margin: 0;
 		font-weight: 600;
 	}
@@ -83,6 +84,12 @@
 		grid-template-columns: repeat(5, 1fr);
 		grid-template-rows: repeat(4, 1fr);
 		gap: 1rem;
+	}
+	/* Twenty tiles across a 5.3:1 wall: two rows of ten, so a tile stays
+	   close to 16:9 instead of becoming a tall sliver. */
+	.progress.wide .grid {
+		grid-template-columns: repeat(10, 1fr);
+		grid-template-rows: repeat(2, 1fr);
 	}
 	.cell {
 		border: 1px solid var(--accent);
@@ -103,10 +110,11 @@
 	}
 	.table-no {
 		font-family: 'Playfair Display', Georgia, serif;
-		font-size: 2rem;
+		font-size: var(--type-table-no);
+		line-height: 1;
 	}
 	.state {
-		font-size: 0.85rem;
+		font-size: var(--type-caption);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--ink-muted);
@@ -115,7 +123,7 @@
 		margin: 0;
 		text-align: center;
 		color: var(--ink-muted);
-		font-size: 1rem;
+		font-size: var(--type-caption);
 		letter-spacing: 0.03em;
 	}
 </style>

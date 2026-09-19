@@ -30,6 +30,20 @@
 		--teal: #4fe0c4;
 		--line: rgba(255, 255, 255, 0.28);
 
+		/* TYPE AT 20 METRES.
+		   Every surface in this room is 1080 rows tall — the LED wall
+		   (5760x1080) and the two wall TVs (1920x1080) — so type sized in
+		   `vh` lands on the same pixel height on all of them, and scales
+		   with any other frame it is given. The floor is the caption:
+		   4.5vh is 48.6px at 1080, which is the smallest thing the back of
+		   the room can read. Nothing on the wall may be smaller. */
+		--type-caption: 4.5vh;
+		--type-body: 5.5vh;
+		--type-heading: 7vh;
+		/* The table number is the loudest element: it is the only thing a
+		   delegate needs to find their own table's picture from 20 m. */
+		--type-table-no: 11vh;
+
 		position: fixed;
 		inset: 0;
 		background: var(--ground);

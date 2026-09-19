@@ -3,7 +3,11 @@
 	import { LENS_IMAGE } from '$lib/game/visuals';
 	import type { TableView } from './types';
 
-	let { eventTitle, tables = [] }: { eventTitle: string; tables?: TableView[] } = $props();
+	let {
+		eventTitle,
+		tables = [],
+		wide = false
+	}: { eventTitle: string; tables?: TableView[]; wide?: boolean } = $props();
 
 	/** One backdrop panel per lens some table has already picked, in palette
 	 *  order, deduped — the room sees its own choices as pictures, never as a
@@ -17,7 +21,7 @@
 <!-- Lobby beat (game-flow.md §4, tag C): title, thesis, no QR — tent cards carry the QR.
      The seven futures are a lens each table picks on its own phone, not a headline the
      room reads here — kept off the lobby by design. -->
-<section class="lobby">
+<section class="lobby" class:wide>
 	{#if picked.length}
 		<div class="backdrop" aria-hidden="true">
 			{#each picked as p (p.key)}
@@ -71,21 +75,30 @@
 	}
 	h1 {
 		font-family: 'Playfair Display', Georgia, serif;
-		font-size: 4.5rem;
+		font-size: var(--type-heading);
+		line-height: 1.05;
 		font-weight: 600;
 		margin: 0;
 		letter-spacing: 0.01em;
 	}
 	.thesis {
-		font-size: 1.5rem;
+		font-size: var(--type-body);
 		color: var(--ink-muted);
 		margin: 0;
 		max-width: 40ch;
 	}
 	.cue {
 		margin-top: 2.5rem;
-		font-size: 1.25rem;
+		font-size: var(--type-body);
 		color: var(--gold);
 		letter-spacing: 0.04em;
+	}
+	/* On the wall the words hold the CENTRE panel and the lens pictures run
+	   the full width behind them; a 40ch line centred across 5760px would
+	   otherwise sit in a lake of navy. */
+	.lobby.wide h1,
+	.lobby.wide .thesis,
+	.lobby.wide .cue {
+		max-width: 33vw;
 	}
 </style>

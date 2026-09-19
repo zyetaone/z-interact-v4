@@ -9,12 +9,21 @@
 	 * screen for its whole turn is the one thing a finale must not do.
 	 */
 	import TableSequence from './TableSequence.svelte';
+	import { byLensThenTable } from './grouping';
 	import { ZONE_STEP_SECONDS } from './tokens';
 	import type { TableView } from './types';
 
-	let { tables, secondsPerTable }: { tables: TableView[]; secondsPerTable?: number } = $props();
+	let {
+		tables,
+		secondsPerTable,
+		panels = 1
+	}: { tables: TableView[]; secondsPerTable?: number; panels?: number } = $props();
 
-	const shown = $derived(tables.filter((t) => t.images.some((i) => i.url)));
+	// Sequenced in lens order. With the future's name gone from the wall,
+	// the ORDER is what is left of the grouping: tables that argued from the
+	// same future play in a run, and the room feels the block without being
+	// told what it is called.
+	const shown = $derived(byLensThenTable(tables.filter((t) => t.images.some((i) => i.url))));
 
 	// An $effect assigning state is usually a smell, and the Svelte autofixer
 	// flags this one. It is the exception the rule leaves room for: the cursor
@@ -47,7 +56,7 @@
 <section class="finale">
 	{#if current}
 		{#key current.table}
-			<TableSequence table={current} />
+			<TableSequence table={current} {panels} />
 		{/key}
 		<footer>
 			<span>{(cursor % shown.length) + 1} of {shown.length}</span>

@@ -21,7 +21,23 @@ const TOTAL_STEPS = QUESTIONS.length;
 /** Round-robins the 20 tables across the 7 futures, cycling the 6 beat states so every state has multiple examples. */
 const STATE_CYCLE: TableBeatState[] = ['not-started', 'choosing', 'answering', 'answering', 'reviewing', 'drawing', 'drawing', 'done'];
 
-function imagesFor(beatState: TableBeatState, lensUrl: string): TableView['images'] {
+/**
+ * A DIFFERENT PICTURE PER ZONE.
+ *
+ * Every zone of a real table is a different render of one building. If the
+ * fixture hands all four zones the same JPEG, the triptych and the
+ * crossfade both look broken in a capture when they are not — the first
+ * 5760x1080 focus capture showed the same photograph three times. So a
+ * fixture zone borrows a NEIGHBOURING future's lens still: obviously fake
+ * on inspection, honest about the layout, and still only the seven images
+ * already in `static/visuals/lens/`.
+ */
+function zoneLens(futureIndex: number, zoneIndex: number): string {
+	const f = FUTURES[(futureIndex + zoneIndex) % FUTURES.length];
+	return LENS_IMAGE[f.key];
+}
+
+function imagesFor(beatState: TableBeatState, futureIndex: number): TableView['images'] {
 	if (beatState === 'not-started' || beatState === 'choosing' || beatState === 'answering' || beatState === 'reviewing') {
 		return ZONES.map((z) => ({ zone: z.key, state: 'none' as ZoneImageState, url: null }));
 	}
@@ -30,13 +46,14 @@ function imagesFor(beatState: TableBeatState, lensUrl: string): TableView['image
 		return {
 			zone: z.key,
 			state: (drawn ? 'stored' : 'queued') as ZoneImageState,
-			url: drawn ? lensUrl : null
+			url: drawn ? zoneLens(futureIndex, i) : null
 		};
 	});
 }
 
 function buildTable(table: number): TableView {
-	const future = FUTURES[(table - 1) % FUTURES.length];
+	const futureIndex = (table - 1) % FUTURES.length;
+	const future = FUTURES[futureIndex];
 	const beatState = STATE_CYCLE[(table - 1) % STATE_CYCLE.length];
 	const step =
 		beatState === 'not-started' ? 0 : beatState === 'choosing' ? 1 : beatState === 'answering' ? 3 + (table % 6) : TOTAL_STEPS;
@@ -46,7 +63,7 @@ function buildTable(table: number): TableView {
 		step,
 		totalSteps: TOTAL_STEPS,
 		futureKey: beatState === 'not-started' ? null : future.key,
-		images: imagesFor(beatState, LENS_IMAGE[future.key])
+		images: imagesFor(beatState, futureIndex)
 	};
 }
 

@@ -15,6 +15,24 @@
  * module never reads `env` itself, and never logs the key.
  */
 
+/* -------------------------------------------------------------------------- */
+/* DEV-ONLY FAKE — `FAL_FAKE=1 npm run dev`                                   */
+/* -------------------------------------------------------------------------- */
+/**
+ * Additive: with `FAL_FAKE=1` the three calls below short-circuit so the
+ * whole queued -> requested -> stored path runs, and screenshots have a
+ * picture in them, without a fal key and without a network call. Never
+ * reached in production, where the flag is unset.
+ */
+const FAKE_IMAGE =
+	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAmUlEQVR42mMQkNQSldGSUtCWV9ZRUdfV0tbT19M3MTKwNDW0tzRysTX2dDDxczENcTeL9DaP87dgIEl1cpAlA0mqM8OsGEhSnRdpzUCS6uJYGwaSVFck2jKQpLouxY6BJNXNGfYMJKnuyHZgIEl1b74jA0mqJxc7MZCkekaZEwNJqudWOTOQpHpRrQsDSapXNLoykKR6basbAPW65K5ichrFAAAAAElFTkSuQmCC';
+
+const FAKE_PREFIX = 'fake-';
+
+function falFake(): boolean {
+	return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.FAL_FAKE === '1';
+}
+
 export interface SubmitZoneImageInput {
 	falKey: string;
 	model: string;
@@ -34,6 +52,10 @@ export interface SubmitZoneImageResult {
 }
 
 export async function submitZoneImage(input: SubmitZoneImageInput): Promise<SubmitZoneImageResult> {
+	if (falFake()) {
+		const requestId = `${FAKE_PREFIX}${crypto.randomUUID()}`;
+		return { requestId, statusUrl: '', responseUrl: '' };
+	}
 	const url = new URL(`https://queue.fal.run/${input.model}`);
 	if (input.webhookUrl) url.searchParams.set('fal_webhook', input.webhookUrl);
 
@@ -62,6 +84,7 @@ export interface FalStatus {
 }
 
 export async function pollStatus(falKey: string, model: string, requestId: string): Promise<FalStatus> {
+	if (requestId.startsWith(FAKE_PREFIX)) return { status: 'COMPLETED' };
 	const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}/status`, {
 		headers: { Authorization: `Key ${falKey}` }
 	});
@@ -72,6 +95,7 @@ export async function pollStatus(falKey: string, model: string, requestId: strin
 
 /** The result payload once `status` reports COMPLETED. Shape is model-specific; `images[0].url` is the nano-banana-class convention this app targets. */
 export async function fetchResult(falKey: string, model: string, requestId: string): Promise<{ imageUrl: string }> {
+	if (requestId.startsWith(FAKE_PREFIX)) return { imageUrl: FAKE_IMAGE };
 	const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}`, {
 		headers: { Authorization: `Key ${falKey}` }
 	});

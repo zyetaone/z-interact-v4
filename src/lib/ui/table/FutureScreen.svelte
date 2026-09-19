@@ -10,6 +10,7 @@
 	 * written here.
 	 */
 	import { FUTURES } from '$lib/game/futures';
+	import { LENS_IMAGE } from '$lib/game/visuals';
 	import { eraVerdict, nudge, type Era } from '$lib/game/era';
 
 	let {
@@ -60,16 +61,20 @@
 <ul class="futures">
 	{#each FUTURES as future (future.key)}
 		<li>
+			<!-- An image card, not an `.opt` row: the lens IS the picture, the name and
+			     blurb sit over a bottom gradient. `aria-pressed` keeps the selected
+			     state addressable exactly as the text row was; `onpick` is unchanged. -->
 			<button
 				type="button"
-				class="opt future"
+				class="lens"
 				aria-pressed={future.key === futureKey}
 				onclick={() => onpick(future.key)}
 			>
-				<span class="mark"></span>
-				<span class="body">
+				<img class="lens-img" src={LENS_IMAGE[future.key]} alt={future.name} loading="lazy" />
+				<span class="lens-shade"></span>
+				<span class="lens-check" aria-hidden="true">&#10003;</span>
+				<span class="lens-body">
 					<span class="name">{future.name}</span>
-					<span class="prov">{future.provenance}</span>
 					<span class="blurb">{future.blurb}</span>
 				</span>
 			</button>
@@ -136,36 +141,105 @@
 
 <style>
 	.futures {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 10px;
 		margin: 0 0 22px;
 		padding: 0;
 		list-style: none;
 	}
 
-	.future .body {
+	/* 4:3 on a 390-wide phone gives ~180x135 per card — well clear of the
+	   44pt tap minimum. The card is the whole button. */
+	.lens {
+		position: relative;
+		display: block;
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		padding: 0;
+		overflow: hidden;
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: var(--card-solid);
+		color: var(--ink);
+		text-align: left;
+		cursor: pointer;
+		transition: box-shadow 0.12s ease, border-color 0.12s ease;
+	}
+
+	.lens-img {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
+	.lens-shade {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(180deg, rgba(10, 16, 32, 0) 35%, rgba(10, 16, 32, 0.92) 100%);
+	}
+
+	.lens-body {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 3px;
+		gap: 2px;
+		padding: 10px 10px 9px;
 	}
 
 	.name {
 		font-family: var(--display);
-		font-size: 19px;
-	}
-
-	.prov {
-		font-size: 11px;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--gold);
+		font-size: 16px;
+		line-height: 1.15;
 	}
 
 	.blurb {
-		font-size: 14px;
-		line-height: 1.4;
+		font-size: 11px;
+		line-height: 1.3;
 		color: var(--ink-dim);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.lens-check {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--gold);
+		color: #10192a;
+		font-size: 14px;
+		font-weight: 700;
+		line-height: 24px;
+		text-align: center;
+		opacity: 0;
+		transform: scale(0.6);
+		transition: opacity 0.12s ease, transform 0.12s ease;
+	}
+
+	.lens[aria-pressed='true'] {
+		border-color: var(--gold);
+		box-shadow: 0 0 0 2px var(--gold);
+	}
+
+	.lens[aria-pressed='true'] .lens-check {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	.lens:active {
+		border-color: var(--line-strong);
 	}
 
 	.chip-row {

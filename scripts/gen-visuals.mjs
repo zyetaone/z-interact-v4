@@ -62,11 +62,18 @@ const { QUESTIONS } = await import('../src/lib/game/questions.ts');
 /** One `[key, promptFragment, negative]` job per future's cues, written per
  *  futures.md §2's per-future evidence (five cues each, folded into the
  *  moodLine already in futures.ts — see the report for the cue list). */
+/** Folded into every lens prompt and negative after solarpunk.jpg and
+ *  retrofuturism.jpg came back with a dozen sharp, identifiable people —
+ *  a populated stock-photo scene rather than the reference material's
+ *  anonymous-figures convention (futures.md §3's "no personas" brief). */
+const NO_PEOPLE_POSITIVE = 'no visible human figures; at most distant, blurred silhouettes; no faces';
+const NO_PEOPLE_NEGATIVE = 'crowds, people in focus, sharp faces, posed figures, identifiable persons';
+
 function lensJobs() {
 	return FUTURES.map((f) => ({
 		kind: 'lens',
 		outPath: join(ROOT, 'static/visuals/lens', `${f.key}.jpg`),
-		prompt: `A workplace of 2035 in its city, seen through the lens of ${f.name}: ${f.moodLine} Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}.`,
+		prompt: `A workplace of 2035 in its city, seen through the lens of ${f.name}: ${f.moodLine} ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}.`,
 		aspect_ratio: '4:3',
 		resolution: '1K'
 	}));

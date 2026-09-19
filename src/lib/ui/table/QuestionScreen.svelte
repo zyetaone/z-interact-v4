@@ -1,9 +1,11 @@
 <script lang="ts">
 	/**
-	 * Screens 4-13 — one question per screen. The stem is verbatim, the
-	 * Push line sits under it as a grey hint, and on the three ◆ questions
-	 * (Q2, Q5, Q9) that same line is also a typed field, because those
-	 * replies are spliced into the prompt rather than only spoken.
+	 * Screens 4-13 — one question per screen. The stem is verbatim; Q4 and
+	 * Q9 additionally carry a one-line `lead` shown just under the stem
+	 * before their facet options. The Push line (where the question has
+	 * one) sits under the options as a grey hint, and on Q2 and Q10 that
+	 * same line is also a typed field, because those replies are spliced
+	 * into the prompt rather than only spoken.
 	 *
 	 * The screen never advances on an unsaved answer: a failed save leaves
 	 * the selection on screen with a retry banner (game-flow.md §1).
@@ -40,6 +42,9 @@
 </script>
 
 <h1 class="stem">{question.prompt}</h1>
+{#if question.lead}
+	<p class="lead">{question.lead}</p>
+{/if}
 {#if question.push}
 	<p class="hint"><span class="push-label">Push</span>{question.push}</p>
 {/if}
@@ -73,6 +78,10 @@
 </div>
 
 <style>
+	.lead {
+		margin: -8px 0 12px;
+		opacity: 0.85;
+	}
 	.push-field {
 		margin-bottom: 18px;
 	}

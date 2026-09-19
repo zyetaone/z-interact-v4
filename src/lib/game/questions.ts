@@ -1,9 +1,12 @@
 /**
- * QUESTION SET — the 11 questions + wildcard (BRIEF.md §"The 11 questions",
- * 18 Sep, verbatim). Every `label` is copied exactly, including the ◆ flags
- * (as `diamond: boolean`, Q2/Q5/Q9) and the "Push:" lines (as `push`,
- * presenter prompts, not form fields — three of them double as a typed
- * capture field via `pushCapturesReply`, matching the ◆ questions).
+ * QUESTION SET — VERSION 3 (BRIEF.md §"The questions — VERSION 3", the
+ * question owner's 18 Sep 21:45 send, which supersedes the 07:44 set this
+ * file previously carried). Every `label` is copied exactly, including the
+ * ◆ flags (as `diamond: boolean`, now Q2/Q4/Q7/Q9/Q10 — five, not three)
+ * and the "Push:" lines (as `push`, presenter prompts, not form fields;
+ * only Q2 and Q10 double as a typed capture field via `pushCapturesReply` —
+ * Q4 and Q9 capture their free text through `open` facet options instead,
+ * because V3 gives them no generic "Push:" line to hang a capture field on).
  *
  * Fixed interface the plumbing builds against (routes, `answers.remote.ts`,
  * `prompt.ts`'s programme layer): an ordered `QUESTIONS` array, each with a
@@ -11,16 +14,25 @@
  * renumbering would orphan already-saved rows) and options, plus an
  * optional free-text wildcard question.
  *
+ * What changed vs the superseded set (BRIEF.md's own summary): Q1 options
+ * reworded; Q3 merges the old arrival + wayfinding questions; Q4 "Where
+ * does the hardest thinking happen?" is new (◆, facets, up to 3); Q5 becomes
+ * "what else protects and restores" (its two acoustic/null-signal options
+ * moved to Q4, two new restoration options added); Q6/Q8/Q11 unchanged; Q7
+ * absorbs the old Q9's sensing content and gains ◆ + `many`; Q9 "Where do
+ * the centaurs work" replaces the sensing content (◆, facets, up to 3); Q10
+ * "What makes your workplace agile?" is new (◆, single-select, plus a
+ * "hardest" capture on its push line) — Q9+Q10 together also answer the old
+ * proposed "how do agile teams/centaurs form" question, so `PROPOSED_QUESTIONS`
+ * drops q13; q12 (urban alignment) remains the only proposal.
+ *
  * Type extensions beyond the original stub (documented per the brief):
  * `layer` gained `'mood'` (Q1 feeds the mood/era layer, which the original
- * 3-value union had no slot for); `Question` gained `select` (Q6/Q10 are
- * multi-select, Q11 is pick-three-of-eight, the rest are single-select),
- * `diamond`, `push` and `pushCapturesReply`; `QuestionOption` gained
- * `promptFragment` (concrete, image-model-readable nouns and materials —
- * the brief's own conference phrasing does not render well) and `open`
- * (an option answered by typing as well as selecting, e.g. Q3's "both, and
- * in what order", Q6/Q9/Q10's "what has disappeared/stays human" fields).
- * `id`s, `TABLE_COUNT`, `WILDCARD`, `TableAnswers` are unchanged.
+ * 3-value union had no slot for); `Question` gained `select`, `diamond`,
+ * `push`, `pushCapturesReply` and `lead` (Q4/Q9's one-line lead-in sentence
+ * before their facet options); `SelectKind`'s `many` variant gained `max`
+ * (Q4/Q9/Q6/Q7/Q10 facets are capped multi-selects, not open-ended); `id`s,
+ * `TABLE_COUNT`, `WILDCARD`, `TableAnswers` are unchanged.
  */
 
 import { ENABLE_PROPOSED_QUESTIONS } from './config';
@@ -28,7 +40,10 @@ import { ENABLE_PROPOSED_QUESTIONS } from './config';
 export const TABLE_COUNT = 20;
 
 /** How a question is answered — mirrors the brief's own wording, not an invented scale. */
-export type SelectKind = { kind: 'one' } | { kind: 'many'; min?: number } | { kind: 'pick'; n: number };
+export type SelectKind =
+	| { kind: 'one' }
+	| { kind: 'many'; min?: number; max?: number }
+	| { kind: 'pick'; n: number };
 
 export interface QuestionOption {
 	key: string;
@@ -44,6 +59,8 @@ export interface QuestionOption {
 export interface Question {
 	id: string;
 	prompt: string;
+	/** Q4 and Q9's one-line lead-in sentence, shown above their facet options. */
+	lead?: string;
 	options: QuestionOption[];
 	/** Which prompt layer this question's answer feeds (prompt.ts's LayerInputs). */
 	layer: 'mood' | 'materialsAndLight' | 'programme' | 'feel';
@@ -52,11 +69,14 @@ export interface Question {
 	diamond: boolean;
 	/** The "Push:" line, verbatim. Shown as a hint under the stem; spoken at the table. */
 	push?: string;
-	/** True only for the three diamond questions (Q2, Q5, Q9) — the push line doubles
-	 *  as a typed capture field there; the other eight stay spoken-only. */
+	/** True only for Q2 and Q10 — the only two diamond questions V3 gives a generic
+	 *  "Push:" line to, which doubles there as a typed capture field. Q4 and Q9 are
+	 *  also diamond and also capture free text, but via `open` facet options instead
+	 *  (V3 gives them no generic push line to hang this flag on); Q7 is diamond and
+	 *  spoken-only, no capture at all. */
 	pushCapturesReply?: boolean;
-	/** True only for `PROPOSED_QUESTIONS` (q12, q13) — the question owner has not
-	 *  blessed these; they never appear in the flow unless `config.ts`'s
+	/** True only for `PROPOSED_QUESTIONS` (q12) — the question owner has not
+	 *  blessed this; it never appears in the flow unless `config.ts`'s
 	 *  `ENABLE_PROPOSED_QUESTIONS` is on. Absent (falsy) on every one of the 11. */
 	proposed?: boolean;
 }
@@ -68,7 +88,7 @@ export const QUESTIONS: Question[] = [
 		layer: 'mood',
 		select: { kind: 'one' },
 		diamond: false,
-		push: 'if "same as 2026," say what you are protecting by refusing to change.',
+		push: 'if the shell looks familiar, what has changed that you cannot see?',
 		options: [
 			{
 				key: 'hyperfuturistic-2040',
@@ -83,14 +103,15 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'same-as-2026',
-				label: 'Deliberately the same as 2026',
-				promptFragment: 'deliberately unchanged from 2026, the same desks, the same materials, refusing to date itself'
+				label: '2026 as we know it, but far smarter underneath',
+				promptFragment:
+					'the same familiar 2026 shell, deliberately unchanged at a glance, while newer intelligence works quietly out of sight'
 			},
 			{
 				key: 'retro-1930s',
-				label: 'Retro, 1930s warmth reborn',
+				label: 'Retro, 1930s warmth reborn with 2035 intelligence',
 				promptFragment:
-					'retro-futurist, 1930s warmth reborn — brass fittings, walnut and leather, deco geometry, warm incandescent light'
+					'retro-futurist, 1930s warmth reborn with 2035 intelligence tucked out of sight — brass fittings, walnut and leather, deco geometry, warm incandescent light, the technology hidden inside the cabinetry'
 			}
 		]
 	},
@@ -100,7 +121,7 @@ export const QUESTIONS: Question[] = [
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
 		diamond: true,
-		push: 'name two materials you would actually touch, not just a colour.',
+		push: 'name two materials you would actually want to touch.',
 		pushCapturesReply: true,
 		options: [
 			{
@@ -120,7 +141,7 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'raw-elemental',
-				label: 'Raw and elemental: concrete, stone, timber, texture',
+				label: 'Raw and elemental: concrete, stone, timber',
 				promptFragment: 'raw and elemental material world: exposed concrete, quarried stone, unfinished timber, deliberate surface texture'
 			},
 			{
@@ -137,47 +158,22 @@ export const QUESTIONS: Question[] = [
 	},
 	{
 		id: 'q3',
-		prompt: 'How does a visitor find their way in?',
+		prompt: 'How do people arrive and find their way?',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: false,
 		push: 'what is the first thing a visitor sees, hears and smells?',
 		options: [
 			{
-				key: 'ai-wayfinding',
-				label: 'AI wayfinding',
-				promptFragment: 'AI-guided arrival: an ambient digital concierge orienting the visitor before they consciously look for a sign'
-			},
-			{
-				key: 'human-welcome',
-				label: 'A human welcome',
-				promptFragment: 'a human welcome at arrival: a staffed reception, a face greeting the visitor first'
-			},
-			{
-				key: 'both-in-order',
-				label: 'Both, and in what order',
+				key: 'human-or-ai-order',
+				label: 'A human welcome or an AI one, and in what order',
 				open: true,
-				promptFragment: 'a layered arrival combining AI guidance and a human welcome, in an order the table specifies: {text}'
+				promptFragment: 'an arrival that blends a human welcome and an AI one, ordered as the table specifies: {text}'
 			},
 			{
-				key: 'greets-before-door',
-				label: 'Something that greets you before you reach the door',
-				promptFragment:
-					'an arrival that greets the visitor before the door itself — light, sound or motion sensing approach from outside'
-			}
-		]
-	},
-	{
-		id: 'q4',
-		prompt: 'How do employees move through the space?',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: false,
-		options: [
-			{
-				key: 'ai-voice-guide',
-				label: 'AI voice guide',
-				promptFragment: 'movement guided by an ambient AI voice, no visible signage needed'
+				key: 'voice-guide',
+				label: 'Voice guide',
+				promptFragment: 'wayfinding led by an ambient voice guide, no visible signage needed'
 			},
 			{
 				key: 'physical-signage',
@@ -201,19 +197,59 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'space-finds-you',
-				label: 'Your space finds you rather than you finding it',
+				label: 'The space finds you rather than you finding it',
 				promptFragment: 'a space that finds the person rather than the reverse — desks, rooms or zones reconfiguring toward them'
 			}
 		]
 	},
 	{
+		id: 'q4',
+		prompt: 'Where does the hardest thinking happen?',
+		lead: 'The one place someone goes for two uninterrupted hours of real thought.',
+		layer: 'materialsAndLight',
+		select: { kind: 'many', min: 1, max: 3 },
+		diamond: true,
+		options: [
+			{
+				key: 'what-shields-it',
+				label: 'What shields it: walls, water, distance, height',
+				promptFragment: 'shielded by walls, water, distance and height — physical layers separating it from the rest of the floor'
+			},
+			{
+				key: 'what-its-made-of',
+				label: 'What it is made of',
+				open: true,
+				promptFragment: 'built from materials the table names: {text}'
+			},
+			{
+				key: 'one-room-or-many',
+				label: 'One room or many small ones',
+				promptFragment: 'either a single dedicated room, or several small ones scattered through the floor, each holding one person'
+			},
+			{
+				key: 'who-is-allowed-in',
+				label: 'Who is allowed in',
+				open: true,
+				promptFragment: 'access reserved as the table specifies: {text}'
+			},
+			{
+				key: 'sub-35db-acoustic',
+				label: 'Sub-35dB acoustic cores',
+				promptFragment: 'an acoustic core rated below 35 decibels, dense sound-absorbing surfaces, near silence'
+			},
+			{
+				key: 'null-zones-no-signal',
+				label: 'Null zones with no signal',
+				promptFragment: 'a null zone with no signal at all — deliberately unconnected, unmarked, a room the network does not reach'
+			}
+		]
+	},
+	{
 		id: 'q5',
-		prompt: 'Which features protect attention?',
+		prompt: 'What else protects and restores attention?',
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
-		diamond: true,
-		push: 'name one place for two hours of uninterrupted thought, and one place for recovering afterwards.',
-		pushCapturesReply: true,
+		diamond: false,
 		options: [
 			{
 				key: 'glass-domes-gardens',
@@ -236,14 +272,14 @@ export const QUESTIONS: Question[] = [
 				promptFragment: 'an elevated sky walk, open to air and view, height itself protecting the thought'
 			},
 			{
-				key: 'null-zones',
-				label: 'Null zones with no signal at all',
-				promptFragment: 'a null zone with no signal at all — deliberately unconnected, unmarked, a room the network does not reach'
+				key: 'after-draining-day',
+				label: 'Where people go after a draining day',
+				promptFragment: 'a retreat for after a draining day — dim, soft-edged, no demands made of the person inside'
 			},
 			{
-				key: 'acoustic-cores',
-				label: 'Acoustic sub-35dB cores',
-				promptFragment: 'an acoustic core rated below 35 decibels, dense sound-absorbing surfaces, near silence'
+				key: 'nap-walk-water-dark',
+				label: 'Nap, walk, water, darkness',
+				promptFragment: 'restoration through the plainest tools: a place to nap, to walk, to be near water, to sit in darkness'
 			}
 		]
 	},
@@ -290,10 +326,10 @@ export const QUESTIONS: Question[] = [
 	{
 		id: 'q7',
 		prompt: 'Is the technology obvious or invisible?',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: false,
-		push: 'where in your office is there visibly no technology, on purpose?',
+		layer: 'materialsAndLight',
+		select: { kind: 'many', min: 1 },
+		diamond: true,
+		push: 'where is there visibly no technology, on purpose?',
 		options: [
 			{
 				key: 'walls-become-screens',
@@ -317,8 +353,14 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'notice-when-needed',
-				label: 'Tech you only notice when you need it',
+				label: 'Tech you notice only when you need it',
 				promptFragment: 'technology fully hidden until needed, surfaces reading as ordinary until activated'
+			},
+			{
+				key: 'senses-and-adjusts',
+				label: 'The space senses noise, air, occupancy and mood, and adjusts before you ask',
+				promptFragment:
+					'a space that senses noise, air, occupancy and mood in real time, and adjusts before it is asked to — visibly mid-adjustment'
 			},
 			{
 				key: 'analogue-zones',
@@ -365,71 +407,68 @@ export const QUESTIONS: Question[] = [
 	},
 	{
 		id: 'q9',
-		prompt: 'How does the building sense and learn?',
+		prompt: 'Where do the centaurs work, and what do they need?',
+		lead: 'Humans and AI working as one unit: AI brings speed, pattern and scale, people bring judgement, ethics, creativity and context.',
 		layer: 'programme',
-		select: { kind: 'one' },
+		select: { kind: 'many', min: 1, max: 3 },
 		diamond: true,
-		push: 'describe one visible moment where the space adapts to a person.',
-		pushCapturesReply: true,
 		options: [
 			{
-				key: 'reads-occupancy-noise-air-light-mood',
-				label: 'It reads occupancy, noise, air, light, mood',
-				promptFragment: 'a building visibly instrumented to read occupancy, noise, air quality, light and mood in real time'
+				key: 'room-look',
+				label: 'What does that room look like',
+				promptFragment: 'a centaur room whose shape and materials the table designed for humans and AI working side by side'
 			},
 			{
-				key: 'learns-rhythms-over-weeks',
-				label: 'It learns your rhythms over weeks',
-				promptFragment: "a building that has learned a person's rhythms over weeks, subtly anticipating their arrival"
+				key: 'ai-medium',
+				label: 'Is the AI on screens, in the light, in the walls, or unseen',
+				promptFragment: 'AI presence rendered as the table chose — on screens, folded into the light, embedded in the walls, or entirely unseen'
 			},
 			{
-				key: 'adjusts-before-you-ask',
-				label: 'It adjusts climate, sound or layout before you ask',
-				promptFragment: 'a building adjusting climate, sound or layout a moment before it is asked to, visibly mid-adjustment'
+				key: 'deciding-together',
+				label: 'What are they deciding together',
+				promptFragment: 'a shared table where the human and the AI are visibly deciding something together'
 			},
 			{
-				key: 'shows-what-it-knows',
-				label: 'It shows you what it knows',
-				promptFragment: 'a building that visibly displays what it senses — a panel or surface showing live readings back to the room'
+				key: 'space-needs',
+				label: "What does the space need that a meeting room with a screen doesn't have",
+				promptFragment: 'a room built for centaur work with something an ordinary meeting room with a screen does not have'
 			},
 			{
-				key: 'chooses-not-to-watch',
-				label: 'Where it deliberately chooses not to watch',
+				key: 'refused-to-automate',
+				label: 'What did your table refuse to automate',
 				open: true,
-				promptFragment:
-					'one room the building deliberately does not sense or record, specified by the table: {text}, conspicuously unmonitored'
+				promptFragment: 'one decision the table refused to hand to the AI, specified by the table: {text}, kept deliberately human'
 			}
 		]
 	},
 	{
 		id: 'q10',
-		prompt: 'What runs itself, and what stays human?',
+		prompt: 'What makes your workplace agile?',
 		layer: 'programme',
-		select: { kind: 'many', min: 1 },
-		diamond: false,
-		push: 'name the one thing your table refused to automate.',
+		select: { kind: 'one' },
+		diamond: true,
+		push: 'pick the one your design does best, and show us where. Then name the one you found hardest.',
+		pushCapturesReply: true,
 		options: [
 			{
-				key: 'autonomous-systems',
-				label: 'Energy, climate, cleaning, security, booking, catering: which are fully autonomous',
-				promptFragment:
-					'visible fully autonomous building systems at work — climate, cleaning or security operating with no human hand'
+				key: 'protects-attention',
+				label: 'It protects attention instead of competing for it',
+				promptFragment: 'an agile workplace that protects attention rather than competing for it — the chosen principle made visible in the room'
 			},
 			{
-				key: 'robots-visible-or-hidden',
-				label: 'Robots visible or hidden',
-				promptFragment: 'service robots present, either visibly moving through the space or working out of sight'
+				key: 'supports-judgement',
+				label: 'It supports judgement, not just efficiency',
+				promptFragment: "an agile workplace built to support judgement over raw efficiency, the room slowing down exactly where a decision needs weight"
 			},
 			{
-				key: 'decision-always-human',
-				label: 'What decision must a person always make',
-				open: true,
-				promptFragment: 'a room built around one decision a person always makes, specified by the table: {text}, visibly human-held'
+				key: 'adapts-as-needs-change',
+				label: 'It adapts as team needs change',
+				promptFragment: "an agile workplace that visibly reconfigures as a team's needs change, furniture and walls in motion"
 			},
 			{
-				key: 'humans-ai-decide-together',
-				label: 'Where humans and AI sit together and decide something hard',
-				promptFragment: 'a setting built for humans and AI deciding something hard together — shared table, shared display, both present'
+				key: 'knows-when-to-step-back',
+				label: 'It knows when to step back',
+				promptFragment: 'an agile workplace that recedes when it is not needed — technology and structure stepping back to leave room for people'
 			}
 		]
 	},
@@ -453,13 +492,14 @@ export const QUESTIONS: Question[] = [
 ];
 
 /**
- * PROPOSED QUESTIONS — game-flow.md §7's two proposals for the question
- * owner ("workstation ↔ urban alignment", "how teams form"). Proposals
- * only: never in `QUESTIONS` itself (which stays fixed at 11 and keeps its
- * own q1..q11 shape guards below), and never in the active flow unless
- * `config.ts`'s `ENABLE_PROPOSED_QUESTIONS` is on. `layers.ts` maps q12
- * into the programme layer's urban-edge/ground-plane clause and q13 into a
- * short "teams" clause, both gated the same way.
+ * PROPOSED QUESTIONS — game-flow.md §7's remaining proposal for the question
+ * owner ("workstation ↔ urban alignment"). The other proposal ("how do
+ * agile teams / centaurs form") is superseded: V3's own Q9 (centaurs) and
+ * Q10 (agile) now answer it directly, so the old q13 is dropped. Only q12
+ * remains: never in `QUESTIONS` itself (which stays fixed at 11 and keeps
+ * its own q1..q11 shape guards below), and never in the active flow unless
+ * `config.ts`'s `ENABLE_PROPOSED_QUESTIONS` is on. `layers.ts` maps it into
+ * the programme layer's urban-edge/ground-plane clause, gated the same way.
  */
 export const PROPOSED_QUESTIONS: Question[] = [
 	{
@@ -495,42 +535,6 @@ export const PROPOSED_QUESTIONS: Question[] = [
 				key: 'city-comes-to-building',
 				label: 'The city comes to the building — services, retail, transit arriving at the floorplate',
 				promptFragment: 'a ground floor where transit, retail and services arrive directly at the floorplate, the city delivered to the building rather than the reverse'
-			}
-		]
-	},
-	{
-		id: 'q13',
-		prompt: 'How does a team come together to do the work?',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: false,
-		proposed: true,
-		push: 'name the decision your table would never let the AI half of a centaur make.',
-		options: [
-			{
-				key: 'standing-team-for-years',
-				label: 'A standing team that stays together for years',
-				promptFragment: 'a long-standing team with assigned desks clustered together, the same faces year over year'
-			},
-			{
-				key: 'agile-squads-dissolve',
-				label: 'Agile squads that form for a sprint and dissolve',
-				promptFragment: 'a temporary squad clustered around a shared table and whiteboard, furniture built to be reconfigured once the sprint ends'
-			},
-			{
-				key: 'centaur-pairing',
-				label: 'One person plus their AI, a centaur pairing, as the default unit',
-				promptFragment: 'a single-person workstation paired with one dedicated screen for an AI collaborator, the two visibly a working pair'
-			},
-			{
-				key: 'human-core-ai-specialists',
-				label: 'A human core with AI specialists pulled in per task',
-				promptFragment: 'a small human core desk cluster with satellite screens for AI specialists pulled in only when a task needs them'
-			},
-			{
-				key: 'team-assembles-itself',
-				label: 'The team assembles itself: the work names who it needs and they arrive',
-				promptFragment: 'a flexible assembly area where seats and screens configure themselves as newly summoned people arrive for one task'
 			}
 		]
 	}
@@ -588,21 +592,26 @@ if (q11.select.kind !== 'pick' || q11.select.n !== 3) {
 	throw new Error('Q11 must be select: { kind: "pick", n: 3 } per the brief');
 }
 
+// V3 has five ◆ questions (q2, q4, q7, q9, q10) — up from three. Only q2 and
+// q10 also carry `pushCapturesReply`: V3 gives them a generic "Push:" line
+// to double as a capture field. q4 and q9 are diamond and DO capture free
+// text, just through `open` facet options instead (V3 gives them no
+// generic push line); q7 is diamond and spoken-only, no capture at all.
 const DIAMOND_IDS = QUESTIONS.filter((q) => q.diamond).map((q) => q.id);
 const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) => q.id);
-if (DIAMOND_IDS.join(',') !== PUSH_CAPTURE_IDS.join(',')) {
-	throw new Error('diamond questions and push-capturing questions have drifted apart');
+if (DIAMOND_IDS.join(',') !== 'q2,q4,q7,q9,q10') {
+	throw new Error(`expected diamond (◆) questions q2,q4,q7,q9,q10 per V3, got ${DIAMOND_IDS.join(',')}`);
 }
-if (DIAMOND_IDS.length !== 3) {
-	throw new Error(`expected exactly 3 diamond (◆) questions, got ${DIAMOND_IDS.length}`);
+if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q10') {
+	throw new Error(`expected push-capturing questions q2,q10 per V3, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 
-if (PROPOSED_QUESTIONS.length !== 2) {
-	throw new Error(`expected exactly 2 proposed questions, got ${PROPOSED_QUESTIONS.length}`);
+if (PROPOSED_QUESTIONS.length !== 1) {
+	throw new Error(`expected exactly 1 proposed question (q12) per V3, got ${PROPOSED_QUESTIONS.length}`);
 }
-if (!PROPOSED_QUESTIONS.every((q, i) => q.id === `q${12 + i}` && q.proposed === true)) {
-	throw new Error('proposed questions must be q12, q13, each marked proposed: true');
+if (!(PROPOSED_QUESTIONS[0].id === 'q12' && PROPOSED_QUESTIONS[0].proposed === true)) {
+	throw new Error('the one proposed question must be q12, marked proposed: true');
 }
-if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 13 : 11)) {
+if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 12 : 11)) {
 	throw new Error(`ACTIVE_QUESTIONS length does not match ENABLE_PROPOSED_QUESTIONS (got ${ACTIVE_QUESTIONS.length})`);
 }

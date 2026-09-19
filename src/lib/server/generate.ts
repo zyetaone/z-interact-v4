@@ -58,8 +58,9 @@ export interface GenerateDeps {
 	submit(prompt: string, requestKey: string): Promise<{ requestId: string }>;
 	pollStatus(requestId: string): Promise<PolledStatus>;
 	fetchResult(requestId: string): Promise<{ imageUrl: string }>;
-	fetchBytes(imageUrl: string): Promise<ArrayBuffer>;
-	putR2(bytes: ArrayBuffer): Promise<{ r2Key: string }>;
+	/** Bounded and host-checked — see `fetch-image.ts`. Returns the SNIFFED content type so R2 stores what actually arrived. */
+	fetchBytes(imageUrl: string): Promise<{ bytes: ArrayBuffer; contentType: string }>;
+	putR2(image: { bytes: ArrayBuffer; contentType: string }): Promise<{ r2Key: string }>;
 }
 
 export type TickResult =
@@ -110,8 +111,8 @@ export async function tick(row: GenerationRow, deps: GenerateDeps, now: number =
 				return { handled: false, reason: `fal status is ${status.status}, not ready yet` };
 			}
 			const { imageUrl } = await deps.fetchResult(row.falRequestId);
-			const bytes = await deps.fetchBytes(imageUrl);
-			const { r2Key } = await deps.putR2(bytes);
+			const image = await deps.fetchBytes(imageUrl);
+			const { r2Key } = await deps.putR2(image);
 			return { handled: true, nextState: 'stored', r2Key };
 		}
 		case 'stored':

@@ -17,7 +17,7 @@ function fakeDeps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
 		submit: vi.fn(async () => ({ requestId: 'req-1' })),
 		pollStatus: vi.fn(async () => ({ status: 'COMPLETED' as const })),
 		fetchResult: vi.fn(async () => ({ imageUrl: 'https://fal.example/a.webp' })),
-		fetchBytes: vi.fn(async () => new ArrayBuffer(4)),
+		fetchBytes: vi.fn(async () => ({ bytes: new ArrayBuffer(4), contentType: 'image/webp' })),
 		putR2: vi.fn(async () => ({ r2Key: 'event/1/overview/img-1.webp' })),
 		...overrides
 	};

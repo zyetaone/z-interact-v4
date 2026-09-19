@@ -20,13 +20,19 @@ import { tick, isTerminal, type GenerateDeps, type GenerationState } from './gen
 import { claimQueued, markRequested, markStored, markFailed } from './room';
 import { FAL_MODEL, submitZoneImage, pollStatus as pollFalStatus, fetchResult as fetchFalResult } from './fal';
 import { imageKey, putImage } from './r2';
+import { extForContentType, fetchImageBytes } from './fetch-image';
 
 /** Builds this app's own webhook URL for one image row — `image_id` is how the webhook route finds the D1 row (fal's own `request_id` isn't known until after submit). Returns undefined if the caller has no origin (outside a request, or the secret isn't set) so callers fall back to poll-only. */
 export function buildWebhookUrl(origin: string | undefined, secret: string | undefined, imageId: string): string | undefined {
-	if (!origin) return undefined;
+	// No origin: outside a request, nothing to call back to.
+	// No secret: the route now FAILS CLOSED, so a token-less callback would
+	// 401 on arrival. Returning undefined makes that explicit — the row is
+	// poll-only, which is a supported mode, rather than push-registered to an
+	// endpoint that will reject every delivery.
+	if (!origin || !secret) return undefined;
 	const url = new URL('/api/fal-webhook', origin);
 	url.searchParams.set('image_id', imageId);
-	if (secret) url.searchParams.set('token', secret);
+	url.searchParams.set('token', secret);
 	return url.toString();
 }
 
@@ -70,13 +76,14 @@ export function realGenerateDeps(
 			return fetchFalResult(falKey, model, requestId);
 		},
 		async fetchBytes(imageUrl) {
-			const res = await fetch(imageUrl);
-			if (!res.ok) throw new Error(`fetch image failed: ${res.status}`);
-			return res.arrayBuffer();
+			// Same guards as the webhook: allow-listed host, capped bytes, a real
+			// image type. The poll path reaches a fal-supplied URL rather than an
+			// attacker-supplied one, but it is the same code either way.
+			return fetchImageBytes(imageUrl);
 		},
-		async putR2(bytes) {
-			const key = imageKey({ event, table, zone, imageId, ext: 'webp' });
-			await putImage({ bucket: env.IMAGES, key, bytes, contentType: 'image/webp' });
+		async putR2({ bytes, contentType }) {
+			const key = imageKey({ event, table, zone, imageId, ext: extForContentType(contentType) });
+			await putImage({ bucket: env.IMAGES, key, bytes, contentType });
 			return { r2Key: key };
 		}
 	};

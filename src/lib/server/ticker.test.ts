@@ -44,7 +44,7 @@ function deps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
 		submit: vi.fn(async () => ({ requestId: `req-${crypto.randomUUID()}` })),
 		pollStatus: vi.fn(async () => ({ status: 'COMPLETED' as const })),
 		fetchResult: vi.fn(async () => ({ imageUrl: 'https://v3.fal.media/a.webp' })),
-		fetchBytes: vi.fn(async () => new ArrayBuffer(4)),
+		fetchBytes: vi.fn(async () => ({ bytes: new ArrayBuffer(4), contentType: 'image/webp' })),
 		putR2: vi.fn(async () => ({ r2Key: 'k' })),
 		...overrides
 	};

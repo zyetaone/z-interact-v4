@@ -770,6 +770,21 @@ export async function saveImageDetail(
 	}
 }
 
+/** Records the references an attempt was ACTUALLY submitted with. The planned set is written at insert; the anchor zone's URL is only known at submit time. */
+export async function setImageReferences(d: D1Database, imageId: string, urls: readonly string[]): Promise<void> {
+	const db = await dbWith(d, 'image_detail', IMAGE_DETAIL_SCHEMA);
+	if (!db) return;
+	try {
+		await db
+			.prepare(`UPDATE image_detail SET reference_urls = ? WHERE image_id = ?`)
+			.bind(urls.length ? JSON.stringify([...urls]) : null, imageId)
+			.run();
+	} catch (e) {
+		if (isTransientD1Error(e)) return;
+		throw e;
+	}
+}
+
 export async function getImageDetail(d: D1Database, imageId: string): Promise<ImageDetail | null> {
 	const db = await dbWith(d, 'image_detail', IMAGE_DETAIL_SCHEMA);
 	if (!db) return null;

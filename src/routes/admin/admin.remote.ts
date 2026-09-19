@@ -36,7 +36,7 @@ import {
 	exportRoomRows,
 	type Beat
 } from '$lib/server/room';
-import { tickAndPersist, realGenerateDeps, buildWebhookUrl } from '$lib/server/ticker';
+import { tickImageRow } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
@@ -120,10 +120,15 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 		.sort((a, b) => a.createdAt - b.createdAt)
 		.slice(0, ADMIN_TICK_BUDGET);
 
+	// Read once per TABLE, not once per row: the lens picture and the reset
+	// watermark are table-wide, and this loop runs on a 3 s poll.
+	const futuresForTick = pending.length ? await getTableFutures(env.DB, event) : new Map<number, string | null>();
 	const answersByTable = new Map<number, AnswerLike[]>();
+	const resetByTable = new Map<number, number>();
 	for (const row of pending) {
 		if (!answersByTable.has(row.table)) {
 			const since = await getResetAt(env.DB, event, row.table);
+			resetByTable.set(row.table, since);
 			const rows = await getCurrentAnswersSince(env.DB, event, row.table, since);
 			answersByTable.set(
 				row.table,
@@ -133,8 +138,15 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 		const zone = ZONES.find((z) => z.key === row.zoneKey);
 		const prompt = await getPromptRowById(env.DB, row.promptId);
 		if (!zone || !prompt) continue;
-		await tickAndPersist(
-			env.DB,
+		await tickImageRow(
+			{
+				db: env.DB,
+				env,
+				event,
+				origin: requestOrigin(),
+				futureKey: futuresForTick.get(row.table) ?? null,
+				since: resetByTable.get(row.table) ?? 0
+			},
 			{
 				id: row.id,
 				state: row.state,
@@ -143,15 +155,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				table: row.table,
 				zoneKey: row.zoneKey
 			},
-			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative),
-			realGenerateDeps(
-				env,
-				event,
-				row.table,
-				row.zoneKey,
-				row.id,
-				buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, row.id)
-			)
+			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative)
 		);
 	}
 
@@ -314,6 +318,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		});
 
 		// The zone suffix and the house negative, same composer the phone uses.
+		const regenFutures = await getTableFutures(env.DB, event);
 		const answerRows = await getCurrentAnswersSince(env.DB, event, table, since);
 		const answers: AnswerLike[] = answerRows.map((r) => ({
 			questionId: r.questionId,
@@ -345,8 +350,15 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 			);
 			if (!image) continue;
 			await requestWaitUntil(
-				tickAndPersist(
-					env.DB,
+				tickImageRow(
+					{
+						db: env.DB,
+						env,
+						event,
+						origin: requestOrigin(),
+						futureKey: regenFutures.get(table) ?? null,
+						since
+					},
 					{
 						id: image.id,
 						state: image.state,
@@ -355,8 +367,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 						table,
 						zoneKey: zone.key
 					},
-					zonePrompt,
-					realGenerateDeps(env, event, table, zone.key, image.id, buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, image.id))
+					zonePrompt
 				)
 			);
 			queued++;

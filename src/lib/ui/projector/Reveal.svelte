@@ -16,8 +16,6 @@
 
 	let { tables }: { tables: TableView[] } = $props();
 
-	const futureName = new Map(FUTURES.map((f) => [f.key, f.name]));
-
 	/** One band per future that actually has tables, in the palette's own order, with anything unchosen last. */
 	const bands = $derived.by(() => {
 		const byKey = new Map<string, TableView[]>();
@@ -27,13 +25,16 @@
 			if (held) held.push(t);
 			else byKey.set(key, [t]);
 		}
-		const out: { key: string; label: string; accent: string | null; tables: TableView[] }[] = [];
+		// A band carries its accent and its count. It does NOT carry its
+		// future's name: the lens is hidden analysis, so the room reads a
+		// colour and a number of tables, never "GARDEN CITY".
+		const out: { key: string; accent: string | null; tables: TableView[] }[] = [];
 		FUTURES.forEach((f, i) => {
 			const group = byKey.get(f.key);
-			if (group?.length) out.push({ key: f.key, label: f.name, accent: accentForFuture(i), tables: group });
+			if (group?.length) out.push({ key: f.key, accent: accentForFuture(i), tables: group });
 		});
 		const undecided = byKey.get('');
-		if (undecided?.length) out.push({ key: '', label: 'still choosing', accent: null, tables: undecided });
+		if (undecided?.length) out.push({ key: '', accent: null, tables: undecided });
 		return out;
 	});
 
@@ -56,12 +57,12 @@
 
 <!-- Reveal beat (game-flow.md §4, tag C): one band per future, tiles inside it. -->
 <section class="reveal">
-	<header>Every table, by the future it argued from</header>
+	<header>Every table</header>
 	<div class="bands">
 		{#each bands as band (band.key)}
 			<section class="band" style:--accent={band.accent ?? 'var(--line)'}>
 				<h3>
-					<span class="lens">{band.label}</span>
+					<span class="lens-band" aria-hidden="true"></span>
 					<span class="count">{band.tables.length}</span>
 				</h3>
 				<div class="row">
@@ -78,7 +79,6 @@
 							{/if}
 							<figcaption>
 								<span class="table-no">{t.table}</span>
-								{#if t.futureKey}<span class="future">{futureName.get(t.futureKey) ?? t.futureKey}</span>{/if}
 							</figcaption>
 						</figure>
 					{/each}
@@ -223,10 +223,11 @@
 		font-weight: 500;
 		color: var(--ink-muted);
 	}
-	.future {
-		color: var(--gold);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		font-size: 0.7rem;
+	/* The band's identity is its colour, not its name — see Lobby's note. */
+	.lens-band {
+		width: 3rem;
+		height: 0.35rem;
+		border-radius: 999px;
+		background: var(--accent);
 	}
 </style>

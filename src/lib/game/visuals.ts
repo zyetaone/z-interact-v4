@@ -1,0 +1,33 @@
+/**
+ * VISUALS — maps every future ("lens") and every fixed-choice question option
+ * to a generated still, produced by `scripts/gen-visuals.mjs` into
+ * `static/visuals/`. Read-only data: this module never calls fal itself.
+ *
+ * Coverage is deliberately partial for options: `open` options (answered by
+ * typing, e.g. Q3's "both, and in what order") and the free-text wildcard
+ * question have no fixed visual to render, so they carry no entry here.
+ * `hasOptionImage` is the one call site that needs to know that up front,
+ * rather than every consumer probing `OPTION_IMAGE` for `undefined`.
+ */
+import { FUTURES, type Future } from './futures';
+import { QUESTIONS } from './questions';
+
+function optionImageKey(questionId: string, optionId: string): string {
+	return `${questionId}:${optionId}`;
+}
+
+export const LENS_IMAGE: Record<Future['key'], string> = Object.fromEntries(
+	FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`])
+) as Record<Future['key'], string>;
+
+export const OPTION_IMAGE: Record<string, string> = Object.fromEntries(
+	QUESTIONS.flatMap((q) =>
+		q.options.filter((o) => !o.open).map((o) => [optionImageKey(q.id, o.key), `/visuals/opt/${q.id}-${o.key}.jpg`])
+	)
+);
+
+/** Whether this question/option pair has a generated image (false for `open`
+ *  options and the wildcard question, which were never in scope to render). */
+export function hasOptionImage(questionId: string, optionId: string): boolean {
+	return optionImageKey(questionId, optionId) in OPTION_IMAGE;
+}

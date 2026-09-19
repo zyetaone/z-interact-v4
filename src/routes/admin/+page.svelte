@@ -9,6 +9,7 @@
 	 * `?fixtures=1` renders 20 fake rows with zero network calls — no poll,
 	 * no token needed — so the screen can be built/reviewed without D1.
 	 */
+	import '../../app.css';
 	import { page } from '$app/state';
 	import { poll } from '$lib/poll.svelte';
 	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, seedRoom, exportRoom } from './admin.remote';
@@ -25,9 +26,23 @@
 	let room = $state.raw<AdminRoom>(fixturesMode ? FIXTURE_ROOM : await adminRoom({ token }));
 	let busy = $state(false);
 	let banner = $state<string | null>(null);
-	// Per-table inline confirm: which destructive verb (if any) is awaiting a second tap.
+	// Per-table inline confirm: which destructive verb (if any) is armed.
+	// The trigger stays where it is and a separate Confirm control appears
+	// BESIDE it, so a double-click on Regenerate/Reset cannot confirm itself
+	// (design-review.md fix 6). An armed confirm disarms itself after
+	// ARM_MS — the timer is the one legitimate $effect on this screen.
 	let pending = $state<Record<number, 'reset' | 'regenerate' | undefined>>({});
 	let focusInput = $state('');
+	const ARM_MS = 5000;
+
+	$effect(() => {
+		const armed = Object.entries(pending).filter(([, verb]) => verb);
+		if (armed.length === 0) return;
+		const t = setTimeout(() => {
+			pending = {};
+		}, ARM_MS);
+		return () => clearTimeout(t);
+	});
 
 	const { stale } = poll(3000, async () => {
 		if (fixturesMode) return; // fixtures never touch the network — no poll, no staleness
@@ -61,7 +76,9 @@
 		banner = null;
 		try {
 			const res = await fn();
-			if (!res.ok) banner = res.reason ?? `${label} failed`;
+			// Success is no longer silent: a working command and a dead one
+			// used to look the same until the 3 s poll landed.
+			banner = res.ok ? `${label} — done` : (res.reason ?? `${label} failed`);
 			await refresh();
 		} finally {
 			busy = false;
@@ -135,28 +152,28 @@
 		<p class="action-banner" role="status">{banner}</p>
 	{/if}
 
-	<header class="topbar">
+	<header class="desk-bar">
 		<h1>Mission Control</h1>
 
-		<div class="topbar-group">
+		<div class="desk-group">
 			<span class="lock-state" class:closed={room.closed}>Room is {room.closed ? 'closed' : 'open'}</span>
 			<button disabled={busy} onclick={toggleLock}>{room.closed ? 'Open' : 'Close'} room</button>
 		</div>
 
-		<div class="topbar-group">
+		<div class="desk-group" role="group" aria-label="Beat">
 			<span class="label">Beat</span>
 			{#each BEATS.filter((b) => b !== 'focus') as beat (beat)}
-				<button disabled={busy} class:active={room.beat === beat} onclick={() => chooseBeat(beat)}>{beat}</button>
+				<button disabled={busy} class:active={room.beat === beat} aria-pressed={room.beat === beat} onclick={() => chooseBeat(beat)}>{beat}</button>
 			{/each}
-			<span class="label">Focus table</span>
-			<input type="number" min="1" max="20" bind:value={focusInput} placeholder="#" />
+			<label class="label" for="focus-table">Focus table</label>
+			<input id="focus-table" type="number" min="1" max="20" bind:value={focusInput} placeholder="#" />
 			<button disabled={busy || !focusInput} onclick={goFocusInput}>Go</button>
 			{#if room.beat === 'focus' && room.focusTable}
 				<span class="label">(currently table {room.focusTable})</span>
 			{/if}
 		</div>
 
-		<div class="topbar-group">
+		<div class="desk-group">
 			{#if !room.seeded}
 				<button disabled={busy} onclick={doSeed}>Seed 20 tables</button>
 			{/if}
@@ -187,22 +204,39 @@
 						<button disabled={busy} onclick={() => run(`reopen table ${row.table}`, () => reopenTable({ token, table: row.table }))}>
 							Reopen
 						</button>
-
-						{#if pending[row.table] === 'regenerate'}
-							<button disabled={busy} class="confirm" onclick={() => confirmed(row.table, 'regenerate')}>Confirm?</button>
-							<button disabled={busy} onclick={() => cancelConfirm(row.table)}>Cancel</button>
-						{:else}
-							<button disabled={busy} onclick={() => askConfirm(row.table, 'regenerate')}>Regenerate</button>
-						{/if}
-
-						{#if pending[row.table] === 'reset'}
-							<button disabled={busy} class="confirm danger" onclick={() => confirmed(row.table, 'reset')}>Confirm?</button>
-							<button disabled={busy} onclick={() => cancelConfirm(row.table)}>Cancel</button>
-						{:else}
-							<button disabled={busy} class="danger-outline" onclick={() => askConfirm(row.table, 'reset')}>Reset</button>
-						{/if}
-
 						<button disabled={busy} onclick={() => focusOnProjector(row.table)}>Focus</button>
+
+						<!-- The trigger stays put and goes armed; the confirm is a
+						     SEPARATE control beside it, never under the cursor. -->
+						<button
+							disabled={busy}
+							class="armable"
+							class:armed={pending[row.table] === 'regenerate'}
+							aria-pressed={pending[row.table] === 'regenerate'}
+							onclick={() => (pending[row.table] === 'regenerate' ? cancelConfirm(row.table) : askConfirm(row.table, 'regenerate'))}
+						>
+							Regenerate
+						</button>
+						{#if pending[row.table] === 'regenerate'}
+							<button disabled={busy} class="confirm" onclick={() => confirmed(row.table, 'regenerate')}>Confirm regenerate</button>
+						{/if}
+
+						<!-- Reset is the most destructive verb on the row: pushed to the
+						     far end, its own shape, never the same size as Reopen. -->
+						<span class="danger-slot">
+							<button
+								disabled={busy}
+								class="danger-outline armable"
+								class:armed={pending[row.table] === 'reset'}
+								aria-pressed={pending[row.table] === 'reset'}
+								onclick={() => (pending[row.table] === 'reset' ? cancelConfirm(row.table) : askConfirm(row.table, 'reset'))}
+							>
+								Reset
+							</button>
+							{#if pending[row.table] === 'reset'}
+								<button disabled={busy} class="confirm danger" onclick={() => confirmed(row.table, 'reset')}>Confirm reset</button>
+							{/if}
+						</span>
 					</td>
 				</tr>
 			{/each}
@@ -211,75 +245,74 @@
 </div>
 
 <style>
+	/* The desk wears the phone's tokens (app.css, imported above): navy
+	   ground, gold accent, the same display/body faces. No white ground, no
+	   system-ui (design-review.md desk scorecard). Only desk-specific
+	   values are declared here. */
 	.admin-root {
-		--ink: #1a1f2b;
-		--ink-muted: #5a6472;
-		--line: #d8dde3;
-		--bg: #f7f8fa;
-		--card: #ffffff;
-		--accent: #2f6fed;
-		--danger: #c0392b;
-		--ok: #2f9e63;
-		font-family: system-ui, sans-serif;
+		--danger: #e0475c;
+		--ok: var(--teal);
+		--desk-tap: 44px;
+		min-height: 100dvh;
+		padding: 20px 24px 40px;
 		color: var(--ink);
-		background: var(--bg);
-		min-height: 100vh;
-		padding: 1.25rem;
 	}
 
 	h1 {
-		font-size: 1.1rem;
+		font-size: 22px;
 		margin: 0;
 		white-space: nowrap;
+		color: var(--gold);
 	}
 
 	.stale-banner,
 	.action-banner {
-		margin: 0 0 0.75rem;
-		padding: 0.5rem 0.9rem;
-		border-radius: 6px;
-		font-size: 0.85rem;
+		margin: 0 0 12px;
+		padding: 10px 14px;
+		border-radius: 10px;
+		font-size: 14px;
+		border: 1px solid var(--line-strong);
 	}
 	.stale-banner {
-		background: #fbeaea;
-		color: var(--danger);
+		border-left: 3px solid var(--danger);
+		background: rgba(224, 71, 92, 0.12);
 	}
 	.action-banner {
-		background: #eef2fb;
-		color: var(--ink);
+		border-left: 3px solid var(--teal);
+		background: rgba(62, 201, 176, 0.1);
 	}
 
-	.topbar {
+	.desk-bar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 1.25rem;
-		background: var(--card);
+		gap: 12px 28px;
+		background: var(--card-solid);
 		border: 1px solid var(--line);
-		border-radius: 10px;
-		padding: 0.75rem 1rem;
-		margin-bottom: 1rem;
+		border-radius: var(--radius);
+		padding: 12px 16px;
+		margin-bottom: 16px;
 		position: sticky;
-		top: 0.5rem;
+		top: 8px;
 		z-index: 5;
 	}
 
-	.topbar-group {
+	.desk-group {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 8px;
 		flex-wrap: wrap;
 	}
 
 	.label {
-		font-size: 0.75rem;
-		color: var(--ink-muted);
+		font-size: 12px;
+		color: var(--ink-faint);
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.12em;
 	}
 
 	.lock-state {
-		font-size: 0.85rem;
+		font-size: 14px;
 		font-weight: 600;
 		color: var(--ok);
 	}
@@ -287,45 +320,70 @@
 		color: var(--danger);
 	}
 
-	button {
+	/* Every desk control clears 44px — five per row, twenty rows, under
+	   live pressure (desk scorecard: click targets). */
+	.admin-root button {
 		font: inherit;
-		font-size: 0.82rem;
-		padding: 0.35rem 0.65rem;
-		border-radius: 6px;
-		border: 1px solid var(--line);
-		background: var(--card);
-		cursor: pointer;
+		font-size: 14px;
+		min-height: var(--desk-tap);
+		padding: 0 14px;
+		border-radius: 10px;
+		border: 1px solid var(--line-strong);
+		background: transparent;
 		color: var(--ink);
+		cursor: pointer;
 	}
-	button:hover:not(:disabled) {
-		border-color: var(--accent);
+	.admin-root button:hover:not(:disabled) {
+		border-color: var(--gold);
 	}
-	button:disabled {
-		opacity: 0.5;
+	.admin-root button:focus-visible {
+		outline: 3px solid var(--gold);
+		outline-offset: 2px;
+	}
+	.admin-root button:disabled {
+		opacity: 0.45;
 		cursor: default;
 	}
-	button.active {
-		background: var(--accent);
-		color: white;
-		border-color: var(--accent);
+	.admin-root button.active {
+		background: var(--gold);
+		border-color: var(--gold);
+		color: #10192a;
+		font-weight: 700;
 	}
-	button.danger-outline {
+	.admin-root button.danger-outline {
 		color: var(--danger);
 		border-color: var(--danger);
 	}
-	button.confirm {
-		background: var(--accent);
-		color: white;
+	.admin-root button.armable.armed {
+		border-style: dashed;
+		color: var(--ink-dim);
 	}
-	button.confirm.danger {
+	.admin-root button.confirm {
+		background: var(--gold);
+		border-color: var(--gold);
+		color: #10192a;
+		font-weight: 700;
+	}
+	.admin-root button.confirm.danger {
 		background: var(--danger);
+		border-color: var(--danger);
+		color: #fff;
 	}
 
 	input[type='number'] {
-		width: 3.5rem;
-		padding: 0.3rem 0.4rem;
-		border-radius: 6px;
-		border: 1px solid var(--line);
+		width: 64px;
+		min-height: var(--desk-tap);
+		padding: 0 10px;
+		border-radius: 10px;
+		border: 1px solid var(--line-strong);
+		background: rgba(10, 16, 32, 0.6);
+		color: var(--ink);
+		font: inherit;
+		font-size: 15px;
+	}
+	input[type='number']:focus-visible {
+		outline: 2px solid var(--teal);
+		outline-offset: 1px;
 	}
 
 	.room-table {
@@ -333,37 +391,51 @@
 		border-collapse: collapse;
 		background: var(--card);
 		border: 1px solid var(--line);
-		border-radius: 10px;
+		border-radius: var(--radius);
 		overflow: hidden;
-		font-size: 0.85rem;
+		font-size: 15px;
 	}
 	.room-table th,
 	.room-table td {
 		text-align: left;
-		padding: 0.5rem 0.6rem;
+		padding: 8px 12px;
 		border-bottom: 1px solid var(--line);
+		vertical-align: middle;
 	}
 	.room-table th {
-		background: #eef1f5;
-		font-size: 0.72rem;
+		background: var(--card-solid);
+		font-size: 12px;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--ink-muted);
+		letter-spacing: 0.12em;
+		color: var(--ink-faint);
+		font-weight: 500;
 	}
 	.tnum {
+		font-family: var(--display);
+		font-size: 18px;
 		font-variant-numeric: tabular-nums;
-		font-weight: 600;
+		color: var(--gold);
 	}
 	tr.submitted .tnum::after {
 		content: ' ✓';
 		color: var(--ok);
+		font-family: var(--body);
+		font-size: 14px;
 	}
 	tr.granted td:first-child {
-		box-shadow: inset 3px 0 0 var(--accent);
+		box-shadow: inset 3px 0 0 var(--teal);
 	}
 	.actions {
 		display: flex;
-		gap: 0.3rem;
+		gap: 8px;
 		flex-wrap: wrap;
+		align-items: center;
+	}
+	.danger-slot {
+		display: inline-flex;
+		gap: 8px;
+		margin-left: auto;
+		padding-left: 16px;
+		border-left: 1px solid var(--line);
 	}
 </style>

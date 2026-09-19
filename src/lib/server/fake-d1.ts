@@ -11,12 +11,6 @@
  * Test-only: never imported by non-test source (no `$app/server`, no
  * production import of `node:sqlite`).
  */
-// @ts-expect-error — this is a Cloudflare Workers project (tsconfig's `types`
-// is `["@cloudflare/workers-types"]` only, deliberately no `@types/node`), so
-// there is no ambient declaration for Node's built-in `node:sqlite`. It still
-// resolves and runs fine under vitest (Node), which is all this test-only
-// file needs — the missing types are a `npm run check` cosmetic gap, not a
-// runtime one.
 import { DatabaseSync } from 'node:sqlite';
 
 interface FakeStatement {

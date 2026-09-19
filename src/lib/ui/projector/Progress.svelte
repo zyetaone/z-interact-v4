@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { FUTURES } from '$lib/game/futures';
+	import { LENS_IMAGE } from '$lib/game/visuals';
 	import { accentForFuture, BEAT_LABEL } from './tokens';
 	import type { TableView } from './types';
 
@@ -11,6 +12,13 @@
 		if (!futureKey) return null;
 		const i = futureIndex.get(futureKey);
 		return i == null ? null : accentForFuture(i);
+	}
+
+	/** The chosen lens as a dimmed backdrop — the picture, never the name: the
+	 *  lens is hidden analysis (Lobby's note), so no text names it here. */
+	function backdrop(futureKey: string | null): string | null {
+		if (!futureKey || !(futureKey in LENS_IMAGE)) return null;
+		return `linear-gradient(rgba(22, 35, 58, 0.72), rgba(22, 35, 58, 0.72)), url(${LENS_IMAGE[futureKey as keyof typeof LENS_IMAGE]})`;
 	}
 
 	function label(t: TableView): string {
@@ -30,7 +38,12 @@
 	<h2>In the room</h2>
 	<div class="grid">
 		{#each tables as t (t.table)}
-			<div class="cell" class:done={t.beatState === 'done'} style:--accent={accentFor(t.futureKey) ?? 'var(--line)'}>
+			<div
+				class="cell"
+				class:done={t.beatState === 'done'}
+				style:--accent={accentFor(t.futureKey) ?? 'var(--line)'}
+				style:background-image={backdrop(t.futureKey)}
+			>
 				<span class="table-no">{t.table}</span>
 				<span class="state">{label(t)}</span>
 			</div>
@@ -75,12 +88,15 @@
 		border: 1px solid var(--accent);
 		border-radius: 0.5rem;
 		background: var(--card-alpha);
+		background-size: cover;
+		background-position: center;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: 0.4rem;
 		box-shadow: inset 0 0 0 2px transparent;
+		text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
 	}
 	.cell.done {
 		box-shadow: inset 0 0 0 2px var(--accent);

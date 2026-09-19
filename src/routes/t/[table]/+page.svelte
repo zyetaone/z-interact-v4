@@ -189,6 +189,7 @@
 			prompt={flow.status.prompt}
 			images={flow.status.images}
 			regenerating={saving}
+			{failed}
 			{refresh}
 			onregenerate={() => run(() => regenerate({ table }), false)}
 			ondone={() => flow.go('done')}

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { currentAnswers, getCurrentAnswers, rowToAnswers, saveAnswer } from './room';
+import {
+	currentAnswers,
+	getCurrentAnswers,
+	getRenderBudget,
+	insertQueuedImageIfIdle,
+	markFailed,
+	markStored,
+	rowToAnswers,
+	saveAnswer
+} from './room';
 import { fakeD1 } from './fake-d1';
 
 describe('rowToAnswers', () => {
@@ -132,5 +141,103 @@ describe('append-only writes never share a timestamp', () => {
 		const rows = await getCurrentAnswers(db, 'e', 4);
 		const stamps = rows.map((r) => r.createdAt);
 		expect(new Set(stamps).size).toBe(stamps.length);
+	});
+});
+
+/**
+ * The cross-isolate idempotent submit. `insertQueuedImage`'s callers
+ * read-then-write, which two isolates can both pass before either writes —
+ * the double-tap that queued two full generation sets for one table. The
+ * check and the write have to be one statement, which is what this drives
+ * against real SQLite.
+ */
+describe('insertQueuedImageIfIdle', () => {
+	const attempt = (over: Record<string, unknown> = {}) => ({
+		eventId: 'e',
+		table: 5,
+		zoneKey: 'library',
+		promptId: 'p-1',
+		prompt: 'a prompt',
+		model: 'test-model',
+		...over
+	});
+
+	it('inserts the first attempt for a table+zone', async () => {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, attempt());
+		expect(row?.state).toBe('queued');
+	});
+
+	it('refuses a SECOND attempt while the first is still live', async () => {
+		const db = fakeD1();
+		const first = await insertQueuedImageIfIdle(db, attempt());
+		const second = await insertQueuedImageIfIdle(db, attempt());
+		expect(first).not.toBeNull();
+		expect(second).toBeNull();
+	});
+
+	it('allows a fresh attempt once the previous one has finished', async () => {
+		const db = fakeD1();
+		const first = await insertQueuedImageIfIdle(db, attempt());
+		// stored is terminal — a regenerate is meant to supersede it.
+		await db.prepare(`UPDATE image SET state = 'requested' WHERE id = ?`).bind(first!.id).run();
+		await markStored(db, first!.id, 'k');
+		expect(await insertQueuedImageIfIdle(db, attempt())).not.toBeNull();
+	});
+
+	it('allows a fresh attempt after a failure', async () => {
+		const db = fakeD1();
+		const first = await insertQueuedImageIfIdle(db, attempt());
+		await markFailed(db, first!.id, 'content policy');
+		expect(await insertQueuedImageIfIdle(db, attempt())).not.toBeNull();
+	});
+
+	it('a live attempt in ONE zone does not block another zone', async () => {
+		const db = fakeD1();
+		await insertQueuedImageIfIdle(db, attempt());
+		expect(await insertQueuedImageIfIdle(db, attempt({ zoneKey: 'studio' }))).not.toBeNull();
+	});
+
+	it('a pre-reset attempt never blocks a post-reset one', async () => {
+		const db = fakeD1();
+		const old = await insertQueuedImageIfIdle(db, attempt());
+		expect(old).not.toBeNull();
+		// Watermark set after that row: it is history, not a live attempt.
+		expect(await insertQueuedImageIfIdle(db, attempt(), old!.createdAt)).not.toBeNull();
+	});
+});
+
+describe('getRenderBudget', () => {
+	it('counts rows since the reset watermark and reports the newest', async () => {
+		const db = fakeD1();
+		const a = await insertQueuedImageIfIdle(db, {
+			eventId: 'e',
+			table: 9,
+			zoneKey: 'library',
+			promptId: 'p',
+			prompt: 'x',
+			model: 'm'
+		});
+		const b = await insertQueuedImageIfIdle(db, {
+			eventId: 'e',
+			table: 9,
+			zoneKey: 'studio',
+			promptId: 'p',
+			prompt: 'x',
+			model: 'm'
+		});
+		const all = await getRenderBudget(db, 'e', 9);
+		expect(all.used).toBe(2);
+		expect(all.lastRenderAt).toBe(b!.createdAt);
+
+		// A reset gives the table its budget back.
+		const afterReset = await getRenderBudget(db, 'e', 9, b!.createdAt);
+		expect(afterReset.used).toBe(0);
+		expect(afterReset.lastRenderAt).toBe(0);
+		expect(a!.createdAt).toBeLessThan(b!.createdAt);
+	});
+
+	it('a table that has never drawn has spent nothing', async () => {
+		expect(await getRenderBudget(fakeD1(), 'e', 2)).toEqual({ used: 0, lastRenderAt: 0 });
 	});
 });

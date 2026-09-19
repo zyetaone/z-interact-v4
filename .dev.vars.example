@@ -3,3 +3,8 @@ FAL_KEY=
 FAL_WEBHOOK_SECRET=
 SIMULATE_ENABLED=false
 EVENT_ID=dev-event
+# Gate on the hidden /admin URL. UNSET FAILS CLOSED in production (open in dev only).
+ADMIN_TOKEN=
+# Total renders one table may spend all night (first submit + every regenerate).
+# Unset or unparseable falls back to 12, never to "no cap".
+MAX_RENDERS_PER_TABLE=12

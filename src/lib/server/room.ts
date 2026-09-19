@@ -504,6 +504,100 @@ export async function insertQueuedImage(d: D1Database, input: ImageInsertInput):
 	};
 }
 
+/**
+ * The CROSS-ISOLATE idempotent submit: inserts a `queued` attempt only if
+ * this table+zone has no non-terminal row already, in ONE statement, and
+ * returns null when it did not insert.
+ *
+ * `insertQueuedImage`'s callers read-then-write ("is there a current image?
+ * no — insert one"), which two isolates can both pass before either writes.
+ * That is the double-tap that queued two full generation sets for one
+ * table. `INSERT ... SELECT ... WHERE NOT EXISTS` makes the check and the
+ * write the same statement, so the database decides, not the reader.
+ *
+ * `sinceTs` is the table's reset watermark: a pre-reset attempt is history,
+ * never a reason to refuse a fresh one.
+ */
+export async function insertQueuedImageIfIdle(
+	d: D1Database,
+	input: ImageInsertInput,
+	sinceTs = 0
+): Promise<ImageRow | null> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	await dbWith(d, 'image_current_idx', IMAGE_CURRENT_IDX);
+	await dbWith(d, 'image_pending_idx', IMAGE_PENDING_IDX);
+	const id = newId();
+	const createdAt = monotonicNow();
+	if (!db) return null;
+	const res = (await db
+		.prepare(
+			`INSERT INTO image (id, event_id, table_no, zone_key, prompt_id, model, reference_image_id, state, actor, supersedes_id, created_at)
+                 SELECT ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM image
+                     WHERE event_id = ? AND table_no = ? AND zone_key = ?
+                       AND state IN ('queued', 'requested') AND created_at > ?
+                 )`
+		)
+		.bind(
+			id,
+			input.eventId,
+			input.table,
+			input.zoneKey,
+			input.promptId,
+			input.model,
+			input.referenceImageId ?? null,
+			input.actor ?? 'table',
+			input.supersedesId ?? null,
+			createdAt,
+			input.eventId,
+			input.table,
+			input.zoneKey,
+			sinceTs
+		)
+		.run()) as unknown as { meta?: { changes?: number } };
+	if ((res?.meta?.changes ?? 0) === 0) return null;
+	return {
+		id,
+		eventId: input.eventId,
+		table: input.table,
+		zoneKey: input.zoneKey,
+		promptId: input.promptId,
+		r2Key: null,
+		tileKey: null,
+		fullKey: null,
+		model: input.model,
+		state: 'queued',
+		falRequestId: null,
+		error: null,
+		createdAt
+	};
+}
+
+/**
+ * What one table has already spent: how many render rows it holds since its
+ * last reset, and when the newest one was inserted. Both spend limits
+ * (`limits.ts`) are derived from this rather than from an in-isolate timer,
+ * which an isolate recycle or a second isolate would silently reset.
+ */
+export async function getRenderBudget(
+	d: D1Database,
+	eventId: string,
+	table: number,
+	sinceTs = 0
+): Promise<{ used: number; lastRenderAt: number }> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return { used: 0, lastRenderAt: 0 };
+	const row = await db
+		.prepare(
+			`SELECT COUNT(*) as n, COALESCE(MAX(created_at), 0) as last_at
+                 FROM image WHERE event_id = ? AND table_no = ? AND created_at > ?`
+		)
+		.bind(eventId, table, sinceTs)
+		.first<{ n: number; last_at: number }>();
+	return { used: row?.n ?? 0, lastRenderAt: row?.last_at ?? 0 };
+}
+
 interface ImageRawRow {
 	id: string;
 	event_id: string;

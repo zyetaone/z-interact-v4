@@ -20,7 +20,9 @@ import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gat
 import {
 	getPendingImagesForEvent,
 	getCurrentImage,
-	insertQueuedImage,
+	insertQueuedImageIfIdle,
+	getRenderBudget,
+	getResetAt,
 	insertPrompt,
 	getPromptRowById,
 	getAdminRoomRows,
@@ -35,6 +37,7 @@ import {
 } from '$lib/server/room';
 import { tickAndPersist, realGenerateDeps, buildWebhookUrl } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
+import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
 import { ZONES } from '$lib/game/zones';
 import type { AdminRoom } from '$lib/ui/admin/types';
@@ -200,6 +203,19 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 	if (!throttle.acquire(table)) return { ok: false as const, reason: 'This table is already drawing — hang tight.' };
 	try {
 		const event = eventId(env);
+		const since = await getResetAt(env.DB, event, table);
+		// The per-table cap is a SPEND cap, so it binds the desk too. The
+		// cooldown does not: that one exists to stop a phone being tapped
+		// repeatedly, and the desk acting deliberately is the case it is meant
+		// to leave room for. `resetTable` is the desk's way past the cap.
+		const budget = await getRenderBudget(env.DB, event, table, since);
+		const cap = checkRenderCap({
+			used: budget.used,
+			about: ZONES.length,
+			max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
+		});
+		if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
 		let queued = 0;
 		for (const zone of ZONES) {
 			const existing = await getCurrentImage(env.DB, event, table, zone.key);
@@ -220,16 +236,23 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 				actor: 'admin',
 				supersedesId: existing.promptId
 			});
-			const image = await insertQueuedImage(env.DB, {
-				eventId: event,
-				table,
-				zoneKey: zone.key,
-				promptId,
-				prompt: composed,
-				model: FAL_MODEL,
-				actor: 'admin',
-				supersedesId: existing.id
-			});
+			// Same single-statement guard the phone uses: a zone with a live
+			// attempt is skipped rather than given a second one.
+			const image = await insertQueuedImageIfIdle(
+				env.DB,
+				{
+					eventId: event,
+					table,
+					zoneKey: zone.key,
+					promptId,
+					prompt: composed,
+					model: FAL_MODEL,
+					actor: 'admin',
+					supersedesId: existing.id
+				},
+				since
+			);
+			if (!image) continue;
 			await requestWaitUntil(
 				tickAndPersist(
 					env.DB,

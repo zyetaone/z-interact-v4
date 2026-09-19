@@ -60,7 +60,14 @@ import {
   insertQueuedImage,
   getCurrentImage,
   getPendingImagesForTable,
+  insertQueuedImageIfIdle,
+  getRenderBudget,
 } from "$lib/server/room";
+import {
+  checkCooldown,
+  checkRenderCap,
+  maxRendersPerTable,
+} from "$lib/server/limits";
 import { createThrottle } from "$lib/server/throttle";
 import {
   tickAndPersist,
@@ -434,8 +441,8 @@ async function queueGeneration(
   env: Env,
   event: string,
   table: number,
-  opts: { composedOverride?: string; regenerate: boolean },
-): Promise<{ promptId: string; composed: string; queued: number }> {
+  opts: { composedOverride?: string; regenerate: boolean; since: number },
+): Promise<{ promptId: string; composed: string; queued: number; inFlight: number }> {
   const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
   const layers = buildLayerInputs({
     futureKey: futureOf(answers),
@@ -462,23 +469,38 @@ async function queueGeneration(
   });
 
   let queued = 0;
+  let inFlight = 0;
   for (const zone of ZONES) {
     const existing = await getCurrentImage(env.DB, event, table, zone.key);
     // "A generation already in flight is returned, not duplicated"
-    // (game-flow §8) — but a regenerate deliberately supersedes it.
+    // (game-flow §8) — but a regenerate deliberately supersedes a FINISHED
+    // attempt. Neither case may start a second attempt while one is live.
     if (!opts.regenerate && existing && existing.state !== "failed") continue;
 
     const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers));
-    const image = await insertQueuedImage(env.DB, {
-      eventId: event,
-      table,
-      zoneKey: zone.key,
-      promptId,
-      prompt: zonePrompt,
-      model: MODEL,
-      actor: "table",
-      supersedesId: existing?.id ?? null,
-    });
+    // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
+    // The read-then-write above is per-isolate and two isolates can both
+    // pass it — that is the double-tap that queued two full sets per table.
+    // A null return means another isolate got there first; its attempt is
+    // the one this call returns, rather than a second one being started.
+    const image = await insertQueuedImageIfIdle(
+      env.DB,
+      {
+        eventId: event,
+        table,
+        zoneKey: zone.key,
+        promptId,
+        prompt: zonePrompt,
+        model: MODEL,
+        actor: "table",
+        supersedesId: existing?.id ?? null,
+      },
+      opts.since,
+    );
+    if (!image) {
+      inFlight += 1;
+      continue;
+    }
     queued += 1;
 
     // waitUntil kicks the first tick; the phone/admin polls and the
@@ -499,7 +521,7 @@ async function queueGeneration(
       ),
     );
   }
-  return { promptId, composed, queued };
+  return { promptId, composed, queued, inFlight };
 }
 
 /** Screen 15's *Draw our workspace*. `composed` is the edited textarea, when the table changed it. */
@@ -520,10 +542,23 @@ export const finishTable = command(
       );
       if (!decision.ok) return { ok: false as const, reason: decision.reason };
 
+      const since = await getResetAt(env.DB, event, table);
+      // The cap is about total spend per table, so it binds the first
+      // submit as well as *Draw again* — a table that has burned its budget
+      // has burned it whichever button spent it.
+      const budget = await getRenderBudget(env.DB, event, table, since);
+      const cap = checkRenderCap({
+        used: budget.used,
+        about: ZONES.length,
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+      });
+      if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
       await finishTableRow(env.DB, event, table);
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: false,
+        since,
       });
       void tableStatus({ table }).refresh();
       return { ok: true as const, queued: result.queued };
@@ -560,10 +595,36 @@ export const regenerate = command(
           reason: "Still drawing — wait for this one before asking for another.",
         };
       }
+
+      // Both limits read the `image` table, never an in-isolate timer: a
+      // recycled isolate, or simply a second one, would hand a double-tap
+      // an empty timer and no limit at all (see `limits.ts`).
+      const since = await getResetAt(env.DB, event, table);
+      const budget = await getRenderBudget(env.DB, event, table, since);
+      const cooldown = checkCooldown({
+        lastRenderAt: budget.lastRenderAt,
+        now: Date.now(),
+      });
+      if (!cooldown.ok)
+        return { ok: false as const, reason: cooldown.reason };
+      const cap = checkRenderCap({
+        used: budget.used,
+        about: ZONES.length,
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+      });
+      if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: true,
+        since,
       });
+      if (result.queued === 0 && result.inFlight > 0) {
+        return {
+          ok: false as const,
+          reason: "Still drawing — wait for this one before asking for another.",
+        };
+      }
       void tableStatus({ table }).refresh();
       return { ok: true as const, queued: result.queued };
     }),

@@ -280,21 +280,103 @@ export interface RoomSnapshot {
 	tables: TableState[];
 }
 
-/** Full room snapshot for the projector poll. */
+/**
+ * The highest `q<N>` reached among a table's ANSWERED question ids, or 0 if
+ * none. `room.ts` stays content-free (no `game/questions.ts` import), so
+ * this reads the fixed `q<N>` id shape those questions happen to use rather
+ * than the real step index a content-aware caller (which knows the actual
+ * question order, including the non-numbered `future`/wildcard ids) would
+ * compute — a plumbing-level "how far in" signal, not `getTableState`'s
+ * exact count. Existence-only (any row for that id, ignoring supersession):
+ * a cleared-then-reconsidered answer still means the table reached that
+ * question.
+ */
+function highestQuestionIndex(questionIds: readonly string[]): number {
+	let max = 0;
+	for (const id of questionIds) {
+		const m = /^q(\d+)$/.exec(id);
+		if (m) max = Math.max(max, Number(m[1]));
+	}
+	return max;
+}
+
+/**
+ * Full room snapshot for the projector poll. `currentStep` used to be
+ * hardcoded to 0 (gallery.remote.ts's own module note #2 flagged this) —
+ * now real, and batched: one extra query for every table's answered
+ * question ids, not `tableCount` calls to `getCurrentAnswers`/
+ * `getTableState` (the latter is an upsert, per that same note).
+ */
 export async function getRoom(d: D1Database, eventId: string, tableCount: number): Promise<RoomSnapshot> {
-	const db = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
-	if (!db) return { tables: [] };
-	const { results } = await db
-		.prepare(`SELECT table_no, submitted_at FROM event_table WHERE event_id = ?`)
-		.bind(eventId)
-		.all<{ table_no: number; submitted_at: number | null }>();
-	const byTable = new Map((results ?? []).map((r) => [r.table_no, r]));
+	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	if (!etDb) return { tables: [] };
+	const answerDb = await dbWith(d, 'answer', ANSWER_SCHEMA);
+
+	const [etRes, answerRes] = await Promise.all([
+		etDb
+			.prepare(`SELECT table_no, submitted_at FROM event_table WHERE event_id = ?`)
+			.bind(eventId)
+			.all<{ table_no: number; submitted_at: number | null }>(),
+		answerDb
+			? answerDb
+					.prepare(`SELECT table_no, question_id FROM answer WHERE event_id = ? GROUP BY table_no, question_id`)
+					.bind(eventId)
+					.all<{ table_no: number; question_id: string }>()
+			: Promise.resolve({ results: [] as { table_no: number; question_id: string }[] })
+	]);
+
+	const byTable = new Map((etRes.results ?? []).map((r) => [r.table_no, r]));
+	const idsByTable = new Map<number, string[]>();
+	for (const r of answerRes.results ?? []) {
+		let arr = idsByTable.get(r.table_no);
+		if (!arr) idsByTable.set(r.table_no, (arr = []));
+		arr.push(r.question_id);
+	}
+
 	const tables: TableState[] = [];
 	for (let t = 1; t <= tableCount; t++) {
 		const row = byTable.get(t);
-		tables.push({ table: t, currentStep: 0, submittedAt: row?.submitted_at ?? null });
+		tables.push({ table: t, currentStep: highestQuestionIndex(idsByTable.get(t) ?? []), submittedAt: row?.submitted_at ?? null });
 	}
 	return { tables };
+}
+
+/**
+ * Every table's chosen future, batched — for the projector's future-per-
+ * table need (gallery.remote.ts's module note #1). Reads the `answer`
+ * table's `future` pseudo-question (`answers.remote.ts`'s local
+ * `FUTURE_ID` constant), NOT `event_table.future_key` — that column exists
+ * in the `EVENT_TABLE_SCHEMA` above but nothing in this codebase writes
+ * it (`saveFuture` in `answers.remote.ts` stores the pick as an ordinary
+ * `answer` row, same as every other question); reading the column would
+ * return null for every table. The id string is inlined here rather than
+ * imported from that route module (this file stays content/route-free) —
+ * it is this app's one fixed pseudo-question id, matching `FUTURE_ID`'s own
+ * status there as a local const.
+ */
+const FUTURE_QUESTION_ID = 'future';
+
+export async function getTableFutures(d: D1Database, eventId: string): Promise<Map<number, string | null>> {
+	const db = await dbWith(d, 'answer', ANSWER_SCHEMA);
+	const out = new Map<number, string | null>();
+	if (!db) return out;
+	// "Bare column follows the lone MAX()" (SQLite's documented behaviour for
+	// a single min()/max() aggregate): `keys` comes from each table's newest
+	// `future` row, i.e. latest-wins, in one query rather than `tableCount`
+	// calls to `getCurrentAnswers`.
+	const { results } = await db
+		.prepare(`SELECT table_no, keys, MAX(created_at) as created_at FROM answer WHERE event_id = ? AND question_id = ? GROUP BY table_no`)
+		.bind(eventId, FUTURE_QUESTION_ID)
+		.all<{ table_no: number; keys: string; created_at: number }>();
+	for (const r of results ?? []) {
+		try {
+			const keys = JSON.parse(r.keys) as unknown;
+			out.set(r.table_no, Array.isArray(keys) && typeof keys[0] === 'string' && keys[0] ? keys[0] : null);
+		} catch {
+			out.set(r.table_no, null);
+		}
+	}
+	return out;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -761,7 +843,6 @@ export interface AdminImageState {
 
 export interface AdminRoomRow {
 	table: number;
-	futureKey: string | null;
 	submittedAt: number | null;
 	lastSeenAt: number | null;
 	/** Distinct question ids with a current (post-reset) answer — a rough step count, not `getTableState`'s exact one. */
@@ -786,9 +867,9 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 	const [etRes, answerRes, imageRes, resetRes] = await Promise.all([
 		etDb
 			? etDb
-					.prepare(`SELECT table_no, future_key, submitted_at, last_seen_at FROM event_table WHERE event_id = ?`)
+					.prepare(`SELECT table_no, submitted_at, last_seen_at FROM event_table WHERE event_id = ?`)
 					.bind(eventId)
-					.all<{ table_no: number; future_key: string | null; submitted_at: number | null; last_seen_at: number | null }>()
+					.all<{ table_no: number; submitted_at: number | null; last_seen_at: number | null }>()
 			: Promise.resolve({ results: [] as never[] }),
 		answerDb
 			? answerDb
@@ -811,8 +892,8 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 	]);
 
 	const resetAt = new Map<number, number>((resetRes.results ?? []).map((r) => [r.table_no, r.reset_at]));
-	const byTable = new Map<number, { futureKey: string | null; submittedAt: number | null; lastSeenAt: number | null }>();
-	for (const r of etRes.results ?? []) byTable.set(r.table_no, { futureKey: r.future_key, submittedAt: r.submitted_at, lastSeenAt: r.last_seen_at });
+	const byTable = new Map<number, { submittedAt: number | null; lastSeenAt: number | null }>();
+	for (const r of etRes.results ?? []) byTable.set(r.table_no, { submittedAt: r.submitted_at, lastSeenAt: r.last_seen_at });
 
 	const answeredByTable = new Map<number, Set<string>>();
 	for (const r of answerRes.results ?? []) {
@@ -835,7 +916,6 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		const et = byTable.get(t);
 		rows.push({
 			table: t,
-			futureKey: et?.futureKey ?? null,
 			submittedAt: et?.submittedAt ?? null,
 			lastSeenAt: et?.lastSeenAt ?? null,
 			answeredCount: answeredByTable.get(t)?.size ?? 0,
@@ -888,15 +968,18 @@ export interface ExportTableRow {
 
 export async function exportRoomRows(d: D1Database, eventId: string, tableCount: number, zoneKeys: readonly string[]): Promise<ExportTableRow[]> {
 	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	// One batched read for every table's future — see `getTableFutures`'s
+	// module note on why this reads `answer`, not `event_table.future_key`.
+	const futures = await getTableFutures(d, eventId);
 	const rows: ExportTableRow[] = [];
 	for (let t = 1; t <= tableCount; t++) {
 		const since = await getResetAt(d, eventId, t);
 		const answers = await getCurrentAnswersSince(d, eventId, t, since);
 		const et = etDb
 			? await etDb
-					.prepare(`SELECT future_key, submitted_at FROM event_table WHERE event_id = ? AND table_no = ?`)
+					.prepare(`SELECT submitted_at FROM event_table WHERE event_id = ? AND table_no = ?`)
 					.bind(eventId, t)
-					.first<{ future_key: string | null; submitted_at: number | null }>()
+					.first<{ submitted_at: number | null }>()
 			: null;
 		const images: ExportTableRow['images'] = [];
 		for (const zoneKey of zoneKeys) {
@@ -912,7 +995,7 @@ export async function exportRoomRows(d: D1Database, eventId: string, tableCount:
 		}
 		rows.push({
 			table: t,
-			futureKey: et?.future_key ?? null,
+			futureKey: futures.get(t) ?? null,
 			submittedAt: et?.submitted_at ?? null,
 			resetAt: since,
 			answers,

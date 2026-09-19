@@ -23,6 +23,7 @@ import {
 	insertPrompt,
 	getPromptRowById,
 	getAdminRoomRows,
+	getTableFutures,
 	countTables,
 	seedTables,
 	resetTable as resetTableRow,
@@ -72,24 +73,25 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 	if (!env || !checkToken(env, token)) return emptyRoom();
 	const event = eventId(env);
 
-	// TICKER: walk EVERY non-terminal image in the event.
-	// TODO(content/plumbing): same placeholder `answers.remote.ts`'s
-	// `tableStatus` already carries — reading the real composed prompt by
-	// `row.promptId` (via `getPromptRowById`, added by this workstream) is
-	// a one-line follow-up once that placeholder is retired everywhere.
+	// TICKER: walk EVERY non-terminal image in the event, submitting each
+	// row's REAL composed prompt (read by `promptId` via `getPromptRowById`)
+	// rather than a placeholder — the one-line follow-up the earlier
+	// `TODO(content/plumbing)` note here named is now wired.
 	for (const row of await getPendingImagesForEvent(env.DB, event)) {
+		const prompt = await getPromptRowById(env.DB, row.promptId);
 		await tickAndPersist(
 			env.DB,
 			{ id: row.id, state: row.state, falRequestId: row.falRequestId, table: row.table, zoneKey: row.zoneKey },
-			'TODO(content): prompt',
+			prompt?.composed ?? '',
 			realGenerateDeps(env, event, row.table, row.zoneKey, row.id)
 		);
 	}
 
-	const [closed, beatState, rows, granted, tableCount] = await Promise.all([
+	const [closed, beatState, rows, futures, granted, tableCount] = await Promise.all([
 		lockedAt(env.DB, event),
 		getBeat(env.DB, event),
 		getAdminRoomRows(env.DB, event, TABLE_COUNT),
+		getTableFutures(env.DB, event),
 		grantedTables(env.DB, event),
 		countTables(env.DB, event)
 	]);
@@ -104,7 +106,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 			const images = ZONES.map((z) => imagesByZone.get(z.key)?.state ?? ('none' as const));
 			return {
 				table: r.table,
-				futureKey: r.futureKey,
+				futureKey: futures.get(r.table) ?? null,
 				step: r.answeredCount,
 				totalSteps: TOTAL_STEPS,
 				submittedAt: r.submittedAt,

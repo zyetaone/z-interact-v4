@@ -33,7 +33,7 @@ export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
  * Hosts fal serves results from. Exact host or a subdomain of one of these
  * — never a suffix match on a bare string, which `evil-fal.media` would pass.
  */
-export const ALLOWED_IMAGE_HOSTS = ['fal.media', 'fal.ai', 'fal.run', 'r2.dev'] as const;
+export const ALLOWED_IMAGE_HOSTS = ['fal.media', 'fal.ai', 'fal.run'] as const;
 
 export function isAllowedImageHost(raw: string): boolean {
 	let url: URL;

@@ -9,29 +9,39 @@
 	 * screen for its whole turn is the one thing a finale must not do.
 	 */
 	import TableSequence from './TableSequence.svelte';
+	import { ZONE_STEP_SECONDS } from './tokens';
 	import type { TableView } from './types';
 
-	let { tables, secondsPerTable = 12 }: { tables: TableView[]; secondsPerTable?: number } = $props();
+	let { tables, secondsPerTable }: { tables: TableView[]; secondsPerTable?: number } = $props();
 
 	const shown = $derived(tables.filter((t) => t.images.some((i) => i.url)));
 
+	// An $effect assigning state is usually a smell, and the Svelte autofixer
+	// flags this one. It is the exception the rule leaves room for: the cursor
+	// advances with WALL-CLOCK TIME, which is not derivable from any other
+	// state, and the timer genuinely is a side effect that has to start and
+	// stop with the component. Same shape as poll.svelte.ts, the only other
+	// $effect in this tree.
 	let cursor = $state(0);
 
-	// An $effect assigning state is usually a smell, and the Svelte autofixer
-	// flags it here. This is the exception the rule leaves room for: the
-	// cursor advances with WALL-CLOCK TIME, which is not derivable from any
-	// other state, and the interval genuinely is a side effect that must
-	// start and stop with the component. Same shape as poll.svelte.ts, the
-	// only other $effect in this tree.
+	const current = $derived(shown.length ? shown[cursor % shown.length] : null);
+
+	/**
+	 * A table holds the screen for its WHOLE sequence. `TableSequence` loops at
+	 * one zone per `ZONE_STEP_SECONDS`, so a fixed 12 s turn showed the first
+	 * two of four zones and cut away before the rest ever appeared.
+	 */
+	const turnSeconds = $derived(
+		secondsPerTable ?? Math.max(1, current?.images.filter((i) => i.url).length ?? 1) * ZONE_STEP_SECONDS
+	);
+
 	$effect(() => {
 		if (shown.length <= 1) return;
-		const id = setInterval(() => {
+		const id = setTimeout(() => {
 			cursor += 1;
-		}, secondsPerTable * 1000);
-		return () => clearInterval(id);
+		}, turnSeconds * 1000);
+		return () => clearTimeout(id);
 	});
-
-	const current = $derived(shown.length ? shown[cursor % shown.length] : null);
 </script>
 
 <section class="finale">

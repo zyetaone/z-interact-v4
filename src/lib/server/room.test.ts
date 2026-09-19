@@ -4,8 +4,10 @@ import {
 	getCurrentAnswers,
 	getRenderBudget,
 	insertQueuedImageIfIdle,
+	getResetAt,
 	markFailed,
 	markStored,
+	resetTable,
 	rowToAnswers,
 	saveAnswer
 } from './room';
@@ -239,5 +241,56 @@ describe('getRenderBudget', () => {
 
 	it('a table that has never drawn has spent nothing', async () => {
 		expect(await getRenderBudget(fakeD1(), 'e', 2)).toEqual({ used: 0, lastRenderAt: 0 });
+	});
+});
+
+describe('resetTable', () => {
+	it('abandons renders already in flight, so no ticker keeps paying for them', async () => {
+		const db = fakeD1();
+		const queued = await insertQueuedImageIfIdle(db, {
+			eventId: 'e',
+			table: 6,
+			zoneKey: 'library',
+			promptId: 'p',
+			prompt: 'x',
+			model: 'm'
+		});
+		await resetTable(db, 'e', 6);
+
+		const after = await db
+			.prepare(`SELECT state, error FROM image WHERE id = ?`)
+			.bind(queued!.id)
+			.first<{ state: string; error: string | null }>();
+		// The watermark only filters READS. A pending row left pending was
+		// still walked by the admin poll's ticker and still submitted to fal.
+		expect(after?.state).toBe('failed');
+		expect(after?.error).toContain('reset');
+	});
+
+	it('leaves a render that already landed alone', async () => {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, {
+			eventId: 'e',
+			table: 6,
+			zoneKey: 'studio',
+			promptId: 'p',
+			prompt: 'x',
+			model: 'm'
+		});
+		await db.prepare(`UPDATE image SET state = 'requested' WHERE id = ?`).bind(row!.id).run();
+		await markStored(db, row!.id, 'k');
+		await resetTable(db, 'e', 6);
+
+		const after = await db.prepare(`SELECT state FROM image WHERE id = ?`).bind(row!.id).first<{ state: string }>();
+		expect(after?.state).toBe('stored');
+	});
+
+	it('writes a watermark newer than everything before it', async () => {
+		const db = fakeD1();
+		await saveAnswer(db, { eventId: 'e', table: 6, questionId: 'q2', keys: ['a'] });
+		await resetTable(db, 'e', 6);
+		const since = await getResetAt(db, 'e', 6);
+		const rows = await getCurrentAnswers(db, 'e', 6);
+		expect(rows.every((r) => r.createdAt < since)).toBe(true);
 	});
 });

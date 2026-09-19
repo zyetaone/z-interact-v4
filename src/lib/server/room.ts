@@ -940,6 +940,26 @@ export async function resetTable(d: D1Database, eventId: string, table: number, 
 			.bind(eventId, table)
 			.run();
 	}
+	// Renders already in flight for this table are ABANDONED, not left
+	// running. The watermark only filters READS; a `queued`/`requested` row
+	// stays pending, and the admin poll's ticker walks every pending row in
+	// the event, so a reset mid-generation used to be followed by fal bills
+	// for work the desk had just thrown away. `failed` is terminal, so every
+	// ticker skips them from here on.
+	const img = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (img) {
+		try {
+			await img
+				.prepare(
+					`UPDATE image SET state = 'failed', error = 'the desk reset this table'
+                     WHERE event_id = ? AND table_no = ? AND state IN ('queued', 'requested')`
+				)
+				.bind(eventId, table)
+				.run();
+		} catch (e) {
+			if (!isTransientD1Error(e)) throw e;
+		}
+	}
 }
 
 /** `getCurrentAnswers`, filtered to what's current SINCE a reset — the resolved (latest-wins) row's own `createdAt` is what's compared, so a question untouched since the reset correctly reads as unanswered again. */

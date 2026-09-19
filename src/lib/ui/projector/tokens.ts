@@ -40,3 +40,10 @@ export const BEAT_LABEL: Record<string, string> = {
 	drawing: 'drawing',
 	done: 'in'
 };
+
+/**
+ * Seconds one zone holds the screen in `TableSequence`'s crossfade. Shared
+ * with `Finale`, which has to hold each table for its WHOLE loop — hard-coding
+ * a shorter turn there cut every table's sequence off part way through.
+ */
+export const ZONE_STEP_SECONDS = 6;

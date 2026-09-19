@@ -661,6 +661,17 @@ export const regenerate = command(
           reason: "The room is closed — the screen has moved on.",
         };
       }
+      // *Draw again* redraws something. A table that has never submitted has
+      // nothing to redraw, and letting it through meant anyone who could
+      // reach a `/t/<n>` URL could burn that table's whole render budget on
+      // an empty prompt without answering a single question.
+      const regenState = await getTableState(env.DB, event, table);
+      if (!regenState.submittedAt) {
+        return {
+          ok: false as const,
+          reason: "Nothing to redraw yet — send your answers first.",
+        };
+      }
       // "Regenerate (throttled, per table)" (game-flow §1, screen 17).
       // `withTableLock` only covers concurrent CALLS, which release in
       // milliseconds; this covers a generation still in flight, so a

@@ -18,6 +18,7 @@
 	import Reveal from '$lib/ui/projector/Reveal.svelte';
 	import Finale from '$lib/ui/projector/Finale.svelte';
 	import TableSequence from '$lib/ui/projector/TableSequence.svelte';
+	import { isWideWall, panelCount, parseAspect } from '$lib/ui/projector/aspect';
 	import type { ProjectorBeat, ProjectorRoom } from '$lib/ui/projector/types';
 
 	let { data } = $props();
@@ -64,7 +65,24 @@
 	const focusedTable = $derived(tableOverride ?? room.focusTable);
 	const focusedView = $derived(focusedTable ? room.tables.find((t) => t.table === focusedTable) : null);
 	const overridden = $derived(beatOverride != null || tableOverride != null);
+
+	/**
+	 * THE FRAME DECIDES THE LAYOUT. Bound rather than measured in an
+	 * `$effect`: the browser already tracks these two numbers, and a resize
+	 * (a scaler waking up, an operator moving the window between the wall
+	 * and a TV) has to re-lay the beat without a reload.
+	 */
+	let frameWidth = $state(0);
+	let frameHeight = $state(0);
+	const ratio = $derived(frameHeight > 0 ? frameWidth / frameHeight : 0);
+	const aspectOverride = $derived(parseAspect(page.url.searchParams.get('aspect')));
+	const wide = $derived(isWideWall(aspectOverride, ratio));
+	// A forced `wide` on a 16:9 frame still gets the venue's three panels,
+	// so the preview shows the composition the wall will show.
+	const panels = $derived(wide ? Math.max(3, panelCount(ratio)) : 1);
 </script>
+
+<svelte:window bind:innerWidth={frameWidth} bind:innerHeight={frameHeight} />
 
 <svelte:head>
 	<title>{data.eventTitle} — Projector</title>
@@ -79,15 +97,15 @@
 {/if}
 
 {#if beat === 'focus' && focusedView}
-	<TableSequence table={focusedView} />
+	<TableSequence table={focusedView} {panels} />
 {:else if beat === 'finale'}
-	<Finale tables={room.tables} />
+	<Finale tables={room.tables} {panels} />
 {:else if beat === 'progress'}
-	<Progress tables={room.tables} />
+	<Progress tables={room.tables} {wide} />
 {:else if beat === 'reveal'}
-	<Reveal tables={room.tables} />
+	<Reveal tables={room.tables} {panels} />
 {:else}
-	<Lobby eventTitle={data.eventTitle} tables={room.tables} />
+	<Lobby eventTitle={data.eventTitle} tables={room.tables} {wide} />
 {/if}
 
 <style>

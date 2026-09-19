@@ -14,7 +14,7 @@
 	import { accentForFuture } from './tokens';
 	import type { TableView } from './types';
 
-	let { tables }: { tables: TableView[] } = $props();
+	let { tables, panels = 1 }: { tables: TableView[]; panels?: number } = $props();
 
 	/** One band per future that actually has tables, in the palette's own order, with anything unchosen last. */
 	const bands = $derived.by(() => {
@@ -109,7 +109,7 @@
 	}
 	header {
 		flex: 0 0 auto;
-		font-size: 0.85rem;
+		font-size: var(--type-caption);
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: var(--ink-muted);
@@ -139,9 +139,9 @@
 		flex: 0 0 auto;
 		margin: 0;
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: 0.5rem;
-		font-size: 0.8rem;
+		font-size: var(--type-caption);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
@@ -200,7 +200,7 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--ink-muted);
-		font-size: 0.8rem;
+		font-size: var(--type-caption);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 	}
@@ -211,7 +211,7 @@
 		justify-content: space-between;
 		padding: 0.4rem 0.6rem;
 		background: linear-gradient(0deg, rgba(0, 0, 0, 0.65), transparent);
-		font-size: 0.85rem;
+		font-size: var(--type-caption);
 	}
 	.empty-cell figcaption {
 		background: none;

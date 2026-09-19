@@ -13,7 +13,11 @@
 	import { ZONE_STEP_SECONDS } from './tokens';
 	import type { TableView } from './types';
 
-	let { tables, secondsPerTable }: { tables: TableView[]; secondsPerTable?: number } = $props();
+	let {
+		tables,
+		secondsPerTable,
+		panels = 1
+	}: { tables: TableView[]; secondsPerTable?: number; panels?: number } = $props();
 
 	// Sequenced in lens order. With the future's name gone from the wall,
 	// the ORDER is what is left of the grouping: tables that argued from the
@@ -52,7 +56,7 @@
 <section class="finale">
 	{#if current}
 		{#key current.table}
-			<TableSequence table={current} />
+			<TableSequence table={current} {panels} />
 		{/key}
 		<footer>
 			<span>{(cursor % shown.length) + 1} of {shown.length}</span>

@@ -70,6 +70,14 @@ test.describe('projector wall captures', () => {
 		await capture(page, '/projector?fixtures=1&beat=reveal&aspect=16x9', 'projector-reveal-5760x1080-forced-16x9');
 	});
 
+	test('the room ledger is its own surface, not a shrunken wall', async ({ page }) => {
+		// The two ceiling televisions. Captured at 1920x1080 only: they are
+		// 16:9 panels, and the point of the surface is that it does NOT
+		// follow the wall's shape.
+		await page.setViewportSize(TV);
+		await capture(page, '/projector?fixtures=1&surface=ledger&beat=progress', 'projector-ledger-1920x1080');
+	});
+
 	test('no beat prints a future name, at either size', async ({ page }) => {
 		// The reason the captures exist: the live reveal was printing
 		// "GARDEN CITY 2" as a group header. Names are read off the real

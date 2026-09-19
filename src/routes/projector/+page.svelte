@@ -18,6 +18,7 @@
 	import Reveal from '$lib/ui/projector/Reveal.svelte';
 	import Finale from '$lib/ui/projector/Finale.svelte';
 	import TableSequence from '$lib/ui/projector/TableSequence.svelte';
+	import Ledger from '$lib/ui/projector/Ledger.svelte';
 	import { isWideWall, panelCount, parseAspect } from '$lib/ui/projector/aspect';
 	import type { ProjectorBeat, ProjectorRoom } from '$lib/ui/projector/types';
 
@@ -80,6 +81,17 @@
 	// A forced `wide` on a 16:9 frame still gets the venue's three panels,
 	// so the preview shows the composition the wall will show.
 	const panels = $derived(wide ? Math.max(3, panelCount(ratio)) : 1);
+
+	/**
+	 * `?surface=ledger` turns this screen into the room ledger rather than a
+	 * copy of the wall — what the two ceiling-mounted televisions show. See
+	 * `Ledger.svelte`. Opt-in, because a bare 16:9 frame is just as likely
+	 * to be a rehearsal laptop, which should show the wall.
+	 */
+	const ledgerSurface = $derived(page.url.searchParams.get('surface') === 'ledger');
+
+	/** `?diag=1` — operator words on screen, for a rehearsal with no desk. */
+	const diagnostics = $derived(page.url.searchParams.get('diag') === '1');
 </script>
 
 <svelte:window bind:innerWidth={frameWidth} bind:innerHeight={frameHeight} />
@@ -88,15 +100,26 @@
 	<title>{data.eventTitle} — Projector</title>
 </svelte:head>
 
+<!-- STALENESS, WITHOUT OPERATOR COPY ON THE AUDIENCE WALL.
+     This was a red pill of 13.6px text in front of the room: too small for
+     the room to read and on the wrong screen for the operator (design
+     review §2). The wall now says it with a hairline along the top edge —
+     a fact the operator can see from the desk and the room reads as
+     nothing at all. `?diag=1` restores the words for a rehearsal. -->
 {#if !fixturesMode && stale}
-	<p class="stale-banner" role="alert">Connection is stale — showing the last good snapshot.</p>
+	<div class="stale-edge" role="alert" aria-label="Connection is stale"></div>
+	{#if diagnostics}
+		<p class="stale-banner">Connection is stale — showing the last good snapshot.</p>
+	{/if}
 {/if}
 
 {#if overridden && !fixturesMode}
 	<p class="override-badge">manual — ignoring the desk</p>
 {/if}
 
-{#if beat === 'focus' && focusedView}
+{#if ledgerSurface}
+	<Ledger {beat} tables={room.tables} focusTable={focusedTable} />
+{:else if beat === 'focus' && focusedView}
 	<TableSequence table={focusedView} {panels} />
 {:else if beat === 'finale'}
 	<Finale tables={room.tables} {panels} />
@@ -109,9 +132,16 @@
 {/if}
 
 <style>
+	.stale-edge {
+		position: absolute;
+		inset: 0 0 auto 0;
+		height: 0.6vh;
+		z-index: 10;
+		background: #e0475c;
+	}
 	.stale-banner {
 		position: absolute;
-		top: 1rem;
+		top: 1.5vh;
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 10;
@@ -120,7 +150,7 @@
 		border-radius: 999px;
 		background: rgba(224, 71, 92, 0.9);
 		color: white;
-		font-size: 0.85rem;
+		font-size: var(--type-caption);
 		letter-spacing: 0.03em;
 	}
 

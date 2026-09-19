@@ -70,6 +70,24 @@ test.describe('projector wall captures', () => {
 		await capture(page, '/projector?fixtures=1&beat=reveal&aspect=16x9', 'projector-reveal-5760x1080-forced-16x9');
 	});
 
+	test('a reveal tile is a picture, not a strip', async ({ page }) => {
+		// Live at 1920x1080 the old grid collapsed each tile's image to about
+		// 25px of the frame with empty navy beneath it. The paged layout sizes
+		// tiles from the grid rather than from the number of tables, so the
+		// bug cannot come back with more data — this measures it anyway,
+		// because that is the assertion, not the reasoning.
+		for (const size of [WALL, TV]) {
+			await page.setViewportSize(size);
+			await page.goto('/projector?fixtures=1&beat=reveal');
+			await page.waitForLoadState('networkidle');
+			const boxes = await page.locator('figure img').evaluateAll((els) =>
+				els.map((e) => e.getBoundingClientRect().height)
+			);
+			expect(boxes.length).toBeGreaterThan(0);
+			for (const h of boxes) expect(h).toBeGreaterThan(size.height * 0.3);
+		}
+	});
+
 	test('the room ledger is its own surface, not a shrunken wall', async ({ page }) => {
 		// The two ceiling televisions. Captured at 1920x1080 only: they are
 		// 16:9 panels, and the point of the surface is that it does NOT

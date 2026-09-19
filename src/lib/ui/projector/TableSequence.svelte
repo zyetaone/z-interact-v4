@@ -37,10 +37,6 @@
      pipeline, no video file — pure CSS, reuses images already on screen
      elsewhere in the finale. -->
 <section class="sequence" style:--loop="{loopSeconds}s" style:--accent={accent}>
-	<header>
-		<span class="table-no">Table {table.table}</span>
-		<span class="lens-band" aria-hidden="true"></span>
-	</header>
 	<div class="stage">
 		{#if shown.length === 0}
 			<div class="empty">no zones drawn yet</div>
@@ -58,25 +54,40 @@
 			</div>
 		{/each}
 	</div>
+	<!-- Over the picture, not above it: the render gets the whole frame and
+	     the number rides a bottom gradient. A header band pushed the image
+	     down and read as a dim strip of navy across the top of the wall. -->
+	<footer>
+		<span class="table-no">Table {table.table}</span>
+		<span class="lens-band" aria-hidden="true"></span>
+	</footer>
 </section>
 
 <style>
+	/* FULL BLEED. The render is the beat; everything else sits on top of it.
+	   The previous version padded the frame and put a header band above the
+	   stage, so on the wall the picture was inset in navy on all four sides
+	   and read as dim from across the room. */
 	.sequence {
+		position: relative;
 		height: 100%;
-		display: flex;
-		flex-direction: column;
-		padding: 2rem;
-		gap: 1rem;
+		overflow: hidden;
 	}
-	header {
+	footer {
+		position: absolute;
+		inset: auto 0 0 0;
 		display: flex;
-		align-items: baseline;
-		gap: 1rem;
+		align-items: center;
+		gap: 2vh;
+		padding: 3vh 4vh;
+		background: linear-gradient(0deg, rgba(0, 0, 0, 0.75), transparent);
 	}
 	.table-no {
 		font-family: 'Playfair Display', Georgia, serif;
 		font-size: var(--type-table-no);
 		line-height: 1;
+		font-weight: 700;
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
 	}
 	/* The lens as a colour band. Never as a word: naming the future on the
 	   wall would hand the room the analysis it is supposed to arrive at. */
@@ -88,19 +99,17 @@
 		background: var(--accent);
 	}
 	.stage {
-		position: relative;
-		flex: 1;
-		min-height: 0;
+		position: absolute;
+		inset: 0;
 		display: flex;
-		gap: 0.75rem;
+		gap: 2px;
 	}
 	.panel {
 		position: relative;
 		flex: 1 1 0;
 		min-width: 0;
-		border-radius: 0.75rem;
 		overflow: hidden;
-		background: var(--card);
+		background: #000;
 	}
 	.stage img {
 		position: absolute;
@@ -126,6 +135,15 @@
 		font-size: var(--type-caption);
 	}
 
+	/* THE ZONES MUST CROSS-DISSOLVE, NOT BLINK THROUGH THE BACKGROUND.
+	   Each image holds one slot of the loop, and with four zones a slot is
+	   25%. The old curve was opaque only from 2% to 23% and back to zero by
+	   25%, so for the two percent before the next zone began fading in there
+	   was nothing on screen but the panel behind it — on the wall a navy
+	   wash pulsing through the picture, which reads as a dim image rather
+	   than as a transition. Holding to 25% and releasing over the next two,
+	   while the following zone fades up across the same window, makes the
+	   two overlap instead. */
 	@keyframes kenburns {
 		0% {
 			opacity: 0;
@@ -134,11 +152,11 @@
 		2% {
 			opacity: 1;
 		}
-		23% {
+		25% {
 			opacity: 1;
 			transform: scale(1.08) translate(-1.5%, 1.5%);
 		}
-		25% {
+		27% {
 			opacity: 0;
 		}
 		100% {
@@ -158,11 +176,11 @@
 			2% {
 				opacity: 1;
 			}
-			23% {
+			25% {
 				opacity: 1;
 				transform: none;
 			}
-			25% {
+			27% {
 				opacity: 0;
 			}
 			100% {

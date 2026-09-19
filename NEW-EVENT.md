@@ -31,6 +31,7 @@ reads exactly like a dead one.
 | `MAX_RENDERS_PER_TABLE` | var | falls back to **12**, never to "no cap". Unparseable values also fall back rather than disabling the cap |
 | `SIMULATE_ENABLED` | var | the rehearsal route is off unless this is exactly `true` |
 | `PUBLIC_EVENT_TITLE` | var | the Lobby beat reads "Twenty Tables" |
+| `ADMIN_TICK_BUDGET` | var | falls back to **8** — how many pending rows one admin poll advances after it has answered. Never unbounded |
 | `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
 - [ ] `FAL_KEY` set and confirmed live/billable
@@ -49,6 +50,16 @@ another. `lens` anchors only zone 1 to the chosen lens picture; `chain`
 anchors zones 2-4 to zone 1 as well, which matches the lens mood most closely
 but makes all four zones the same composition with small edits, because the
 edit endpoint reproduces a reference's framing rather than recomposing.
+
+## Nothing renders unless something is polling
+
+The simulator submits rows; it does not carry them. A row advances only
+when a ticker touches it, and there are three: the phone's own 2 s poll,
+the fal webhook, and the admin page's 3 s poll. A rehearsal with no phones
+in the room therefore needs **the admin page open**, or the rows sit
+queued and nothing appears on the wall. The admin poll advances
+`ADMIN_TICK_BUDGET` rows at a time, after it has answered, so a room full
+of pending rows drains over several polls rather than in one.
 
 ## Spend
 

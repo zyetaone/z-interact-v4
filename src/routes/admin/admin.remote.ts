@@ -54,8 +54,17 @@ const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus', 'finale']
 // never generated with, so this imports the same value.
 const MODEL = FAL_MODEL;
 
-/** Rows this poll will advance. The desk's screen must return in well under its own 3 s interval. */
-const ADMIN_TICK_BUDGET = 8;
+/**
+ * Rows this poll will advance, oldest first. Overridable with
+ * `ADMIN_TICK_BUDGET` for a rehearsal that wants the desk to carry more of
+ * the room. Never unbounded: that is the bug this constant exists for.
+ */
+const DEFAULT_ADMIN_TICK_BUDGET = 8;
+
+function adminTickBudget(raw: string | undefined): number {
+	const n = Number(raw);
+	return Number.isInteger(n) && n > 0 ? n : DEFAULT_ADMIN_TICK_BUDGET;
+}
 
 /** How settled a row must be before the DESK's ticker touches it — the phone's own 2 s poll gets first refusal on a row its table is watching. */
 const ADMIN_TICK_COOLDOWN_MS = 3000;
@@ -84,45 +93,39 @@ function emptyRoom(): AdminRoom {
 /* alongside `answers.remote.ts`'s `tableStatus` and the fal webhook.        */
 /* -------------------------------------------------------------------------- */
 
-export const adminRoom = query(v.object({ token: tokenField }), async ({ token }) => {
-	const env = requestEnv();
-	if (!env || !checkToken(env, token)) return emptyRoom();
-	const event = eventId(env);
-
-	// TICKER: walk EVERY non-terminal image in the event. Three things this
-	// loop used to get wrong, all of which only bite the rows the admin poll
-	// happens to reach first:
-	//
-	//  1. It submitted `prompt.composed` bare — the TABLE-level text, with no
-	//     zone suffix and no house negative. A row this ticker won was drawn
-	//     from a different prompt than the same row drawn by the phone poll.
-	//     It now runs `composeZonePrompt` exactly as `tableStatus` does.
-	//  2. It called `realGenerateDeps` with five arguments, omitting the
-	//     webhook URL, so any row it claimed was poll-only for the rest of
-	//     its life.
-	//  3. Answers are read once per TABLE, not once per row — this loop runs
-	//     on a 3 s poll across the whole event.
-	// BOUNDED. This used to walk EVERY non-terminal row in the event on every
-	// 3 s poll — with twenty tables drawing four zones each that is eighty
-	// rows, each costing a prompt read and a fal round trip, inside one
-	// request. The fidelity run had it hanging for minutes, which also
-	// starves the desk's own screen because the poll returns nothing until
-	// the whole walk finishes.
-	//
-	// Two limits. OLDEST FIRST, so nothing starves: a row skipped this poll
-	// is older next poll and rises to the front. And a cooling-off window, so
-	// this ticker stops racing the phone's own 2 s poll for a row that was
-	// just touched — the compare-and-swap makes that safe, but a lost race is
-	// still a wasted fal round trip.
+/**
+ * Advances a bounded slice of the event's pending rows. Called from the
+ * admin poll inside `waitUntil`, so nothing here is on the response path.
+ *
+ * Three things this loop used to get wrong, all of which only bit the rows
+ * the admin poll happened to reach first:
+ *
+ *  1. It submitted `prompt.composed` bare — the TABLE-level text, with no
+ *     zone suffix and no house negative. A row this ticker won was drawn
+ *     from a different prompt than the same row drawn by the phone poll.
+ *     It now runs `composeZonePrompt` exactly as `tableStatus` does.
+ *  2. It called `realGenerateDeps` with five arguments, omitting the
+ *     webhook URL, so any row it claimed was poll-only for the rest of
+ *     its life.
+ *  3. Answers were read once per ROW rather than once per table.
+ *
+ * OLDEST FIRST, so nothing starves: a row skipped this poll is older next
+ * poll and rises to the front. And a cooling-off window, so this ticker
+ * stops racing the phone's own 2 s poll for a row that was just touched —
+ * the compare-and-swap makes that safe, but a lost race is still a wasted
+ * fal round trip.
+ */
+async function tickSlice(env: Env, event: string): Promise<void> {
 	const now = Date.now();
 	const pending = (await getPendingImagesForEvent(env.DB, event))
 		.filter((r) => now - r.createdAt > ADMIN_TICK_COOLDOWN_MS)
 		.sort((a, b) => a.createdAt - b.createdAt)
-		.slice(0, ADMIN_TICK_BUDGET);
+		.slice(0, adminTickBudget(env.ADMIN_TICK_BUDGET));
+	if (pending.length === 0) return;
 
 	// Read once per TABLE, not once per row: the lens picture and the reset
 	// watermark are table-wide, and this loop runs on a 3 s poll.
-	const futuresForTick = pending.length ? await getTableFutures(env.DB, event) : new Map<number, string | null>();
+	const futuresForTick = await getTableFutures(env.DB, event);
 	const answersByTable = new Map<number, AnswerLike[]>();
 	const resetByTable = new Map<number, number>();
 	for (const row of pending) {
@@ -158,6 +161,28 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative)
 		);
 	}
+}
+
+export const adminRoom = query(v.object({ token: tokenField }), async ({ token }) => {
+	const env = requestEnv();
+	if (!env || !checkToken(env, token)) return emptyRoom();
+	const event = eventId(env);
+
+	// THE DESK ANSWERS FROM D1. THE TICK HAPPENS AFTERWARDS.
+	//
+	// Measured live with ~60 rows pending after the 20-table render run:
+	// `GET /admin?token=...` took 36.6 s and 35.3 s on two runs, against
+	// 0.7 s for the projector. The row budget below was already in place —
+	// what was missing is that the request AWAITED those eight ticks, and
+	// eight fal round trips with a fetch of the finished bytes is most of
+	// half a minute. On the night that is the desk frozen while the room
+	// renders, which is the one screen that must never be.
+	//
+	// So the tick moves into `waitUntil`: the response goes out on the D1
+	// reads alone, and the slice advances after it. Each 3 s poll still
+	// carries a slice, and the phones' own 2 s polls carry the rest. The
+	// compare-and-swap in `room.ts` is what makes overlapping tickers safe.
+	requestWaitUntil(tickSlice(env, event));
 
 	const [closed, beatState, rows, futures, granted, tableCount] = await Promise.all([
 		lockedAt(env.DB, event),
@@ -263,10 +288,18 @@ export const resetTable = command(v.object({ token: tokenField, table: tableNo }
  * This used to insert one per zone, which left `getLatestPrompt` choosing
  * between four near-identical rows written in the same breath.
  */
-export const regenerateTable = command(v.object({ token: tokenField, table: tableNo }), async ({ token, table }) => {
+export const regenerateTable = command(
+	v.object({ token: tokenField, table: tableNo, zone: v.optional(v.string()) }),
+	async ({ token, table, zone }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
 	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	// ONE ZONE, OPTIONALLY. The 20-table run lost a single zone on four
+	// tables; redrawing all four to recover one spends four of that table's
+	// twelve. With `zone` the desk repairs exactly the tile that failed,
+	// and the cap counts one render rather than four.
+	const zones = zone ? ZONES.filter((z) => z.key === zone) : ZONES;
+	if (zones.length === 0) return { ok: false as const, reason: `unknown zone ${zone}` };
 	if (!throttle.acquire(table)) return { ok: false as const, reason: 'This table is already drawing — hang tight.' };
 	try {
 		const event = eventId(env);
@@ -278,7 +311,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		const budget = await getRenderBudget(env.DB, event, table, since);
 		const cap = checkRenderCap({
 			used: budget.used,
-			about: ZONES.length,
+			about: zones.length,
 			max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
 		});
 		if (!cap.ok) return { ok: false as const, reason: cap.reason };
@@ -286,9 +319,9 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		// Which zones have something to regenerate, and the prompt they were
 		// drawn from. A zone that never drew is skipped, not failed.
 		const existingByZone = new Map<string, NonNullable<Awaited<ReturnType<typeof getCurrentImage>>>>();
-		for (const zone of ZONES) {
-			const existing = await getCurrentImage(env.DB, event, table, zone.key);
-			if (existing) existingByZone.set(zone.key, existing);
+		for (const z of zones) {
+			const existing = await getCurrentImage(env.DB, event, table, z.key);
+			if (existing) existingByZone.set(z.key, existing);
 		}
 		if (existingByZone.size === 0) {
 			return { ok: false as const, reason: `table ${table} has no prior renders to regenerate` };
@@ -328,10 +361,10 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		}));
 
 		let queued = 0;
-		for (const zone of ZONES) {
-			const existing = existingByZone.get(zone.key);
+		for (const z of zones) {
+			const existing = existingByZone.get(z.key);
 			if (!existing) continue;
-			const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers), negative);
+			const zonePrompt = composeZonePrompt(composed, resolveZone(z, answers), negative);
 			// Same single-statement guard the phone uses: a zone with a live
 			// attempt is skipped rather than given a second one.
 			const image = await insertQueuedImageIfIdle(
@@ -339,7 +372,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 				{
 					eventId: event,
 					table,
-					zoneKey: zone.key,
+					zoneKey: z.key,
 					promptId,
 					prompt: zonePrompt,
 					model: MODEL,
@@ -365,7 +398,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 						falRequestId: image.falRequestId,
 						createdAt: image.createdAt,
 						table,
-						zoneKey: zone.key
+						zoneKey: z.key
 					},
 					zonePrompt
 				)
@@ -377,7 +410,8 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 	} finally {
 		throttle.release(table);
 	}
-});
+	}
+);
 
 /* -------------------------------------------------------------------------- */
 /* Whole-room verbs                                                          */

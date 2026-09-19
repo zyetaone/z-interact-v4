@@ -31,6 +31,13 @@ export interface Env {
 	 * real table. Unrecognised falls back to `none`.
 	 */
 	REFERENCE_MODE?: string;
+	/**
+	 * How many pending rows one admin poll advances, oldest first. Unset or
+	 * unparseable means 8. The tick runs after the response either way, so
+	 * this trades how much of the room the desk carries, not how fast the
+	 * desk answers.
+	 */
+	ADMIN_TICK_BUDGET?: string;
 	/** fal render resolution (`0.5K`/`1K`/`2K`/`4K`). Unset or unrecognised falls back to `1K`, fal's own default. The single biggest cost lever in the app — see NEW-EVENT.md. */
 	FAL_RESOLUTION?: string;
 	/** Total renders one table may spend across the whole event — first submit plus every regenerate. Parsed by `limits.ts`'s `maxRendersPerTable`, which falls back to 12 rather than to "no cap". */

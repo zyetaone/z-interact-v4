@@ -19,6 +19,7 @@ import { requestEnv, eventId, requestOrigin, requestWaitUntil } from '$lib/serve
 import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gate';
 import {
 	getPendingImagesForEvent,
+	getCurrentAnswersSince,
 	getCurrentImage,
 	insertQueuedImageIfIdle,
 	getRenderBudget,
@@ -38,15 +39,20 @@ import {
 import { tickAndPersist, realGenerateDeps, buildWebhookUrl } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
+import { FAL_MODEL } from '$lib/server/fal';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
 import { ZONES } from '$lib/game/zones';
+import { composeZonePrompt, resolveZone, type AnswerLike } from '../t/[table]/layers';
 import type { AdminRoom } from '$lib/ui/admin/types';
 
 const tableNo = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT));
 const tokenField = v.string();
 const BeatSchema = v.picklist(['lobby', 'progress', 'reveal', 'focus']) satisfies v.GenericSchema<string, Beat>;
 
-const FAL_MODEL = 'TODO(content): fal model id';
+// The stored `model` column. The submit itself reads `fal.ts`'s own
+// constant; these disagreeing is how a row ends up recording a model it was
+// never generated with, so this imports the same value.
+const MODEL = FAL_MODEL;
 const TOTAL_STEPS = QUESTIONS.length;
 
 // One per isolate, separate from the phone's own throttle instance in
@@ -77,12 +83,33 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 	if (!env || !checkToken(env, token)) return emptyRoom();
 	const event = eventId(env);
 
-	// TICKER: walk EVERY non-terminal image in the event, submitting each
-	// row's REAL composed prompt (read by `promptId` via `getPromptRowById`)
-	// rather than a placeholder — the one-line follow-up the earlier
-	// `TODO(content/plumbing)` note here named is now wired.
-	for (const row of await getPendingImagesForEvent(env.DB, event)) {
+	// TICKER: walk EVERY non-terminal image in the event. Three things this
+	// loop used to get wrong, all of which only bite the rows the admin poll
+	// happens to reach first:
+	//
+	//  1. It submitted `prompt.composed` bare — the TABLE-level text, with no
+	//     zone suffix and no house negative. A row this ticker won was drawn
+	//     from a different prompt than the same row drawn by the phone poll.
+	//     It now runs `composeZonePrompt` exactly as `tableStatus` does.
+	//  2. It called `realGenerateDeps` with five arguments, omitting the
+	//     webhook URL, so any row it claimed was poll-only for the rest of
+	//     its life.
+	//  3. Answers are read once per TABLE, not once per row — this loop runs
+	//     on a 3 s poll across the whole event.
+	const pending = await getPendingImagesForEvent(env.DB, event);
+	const answersByTable = new Map<number, AnswerLike[]>();
+	for (const row of pending) {
+		if (!answersByTable.has(row.table)) {
+			const since = await getResetAt(env.DB, event, row.table);
+			const rows = await getCurrentAnswersSince(env.DB, event, row.table, since);
+			answersByTable.set(
+				row.table,
+				rows.map((r) => ({ questionId: r.questionId, keys: r.keys, text: r.text, pushReply: r.pushReply }))
+			);
+		}
+		const zone = ZONES.find((z) => z.key === row.zoneKey);
 		const prompt = await getPromptRowById(env.DB, row.promptId);
+		if (!zone || !prompt) continue;
 		await tickAndPersist(
 			env.DB,
 			{
@@ -93,8 +120,15 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				table: row.table,
 				zoneKey: row.zoneKey
 			},
-			prompt?.composed ?? '',
-			realGenerateDeps(env, event, row.table, row.zoneKey, row.id)
+			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative),
+			realGenerateDeps(
+				env,
+				event,
+				row.table,
+				row.zoneKey,
+				row.id,
+				buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, row.id)
+			)
 		);
 	}
 
@@ -190,11 +224,15 @@ export const resetTable = command(v.object({ token: tokenField, table: tableNo }
 });
 
 /**
- * Appends a new image set per zone, copying each zone's current prompt
- * forward (never re-deriving it from answers — that composition belongs to
- * `routes/t/[table]`'s own screens, not this file) and kicking a fresh
- * tick. A zone that never drew has nothing to regenerate and is skipped,
- * not failed — the whole call only fails if every zone was skipped.
+ * Appends a new image set, copying the table's current prompt forward
+ * (never re-deriving it from answers — that composition belongs to
+ * `routes/t/[table]`'s own screens) and kicking a fresh tick. A zone that
+ * never drew has nothing to regenerate and is skipped, not failed; the call
+ * only fails if every zone was skipped.
+ *
+ * ONE prompt row per table, matching the rule `answers.remote.ts` states.
+ * This used to insert one per zone, which left `getLatestPrompt` choosing
+ * between four near-identical rows written in the same breath.
  */
 export const regenerateTable = command(v.object({ token: tokenField, table: tableNo }), async ({ token, table }) => {
 	const env = requestEnv();
@@ -216,26 +254,54 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 		});
 		if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
-		let queued = 0;
+		// Which zones have something to regenerate, and the prompt they were
+		// drawn from. A zone that never drew is skipped, not failed.
+		const existingByZone = new Map<string, NonNullable<Awaited<ReturnType<typeof getCurrentImage>>>>();
 		for (const zone of ZONES) {
 			const existing = await getCurrentImage(env.DB, event, table, zone.key);
+			if (existing) existingByZone.set(zone.key, existing);
+		}
+		if (existingByZone.size === 0) {
+			return { ok: false as const, reason: `table ${table} has no prior renders to regenerate` };
+		}
+
+		// ONE prompt row for the table, not one per zone — the rule
+		// `answers.remote.ts` states and holds to ("`schema.draft.ts`'s
+		// `PromptRow` has no zone column"). Writing four near-identical rows
+		// per regenerate made `getLatestPrompt` a coin toss between them.
+		const anyExisting = [...existingByZone.values()][0];
+		const prevPrompt = await getPromptRowById(env.DB, anyExisting.promptId);
+		const composed = prevPrompt?.composed ?? '';
+		const negative = prevPrompt?.negative ?? '';
+		const promptId = await insertPrompt(env.DB, {
+			eventId: event,
+			table,
+			mood: prevPrompt?.mood ?? '',
+			material: prevPrompt?.material ?? '',
+			programme: prevPrompt?.programme ?? '',
+			feel: prevPrompt?.feel ?? '',
+			wildcard: prevPrompt?.wildcard ?? undefined,
+			composed,
+			negative,
+			editedByTable: prevPrompt?.editedByTable ?? false,
+			actor: 'admin',
+			supersedesId: anyExisting.promptId
+		});
+
+		// The zone suffix and the house negative, same composer the phone uses.
+		const answerRows = await getCurrentAnswersSince(env.DB, event, table, since);
+		const answers: AnswerLike[] = answerRows.map((r) => ({
+			questionId: r.questionId,
+			keys: r.keys,
+			text: r.text,
+			pushReply: r.pushReply
+		}));
+
+		let queued = 0;
+		for (const zone of ZONES) {
+			const existing = existingByZone.get(zone.key);
 			if (!existing) continue;
-			const prevPrompt = await getPromptRowById(env.DB, existing.promptId);
-			const composed = prevPrompt?.composed ?? '';
-			const promptId = await insertPrompt(env.DB, {
-				eventId: event,
-				table,
-				mood: prevPrompt?.mood ?? '',
-				material: prevPrompt?.material ?? '',
-				programme: prevPrompt?.programme ?? '',
-				feel: prevPrompt?.feel ?? '',
-				wildcard: prevPrompt?.wildcard ?? undefined,
-				composed,
-				negative: prevPrompt?.negative ?? '',
-				editedByTable: prevPrompt?.editedByTable ?? false,
-				actor: 'admin',
-				supersedesId: existing.promptId
-			});
+			const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers), negative);
 			// Same single-statement guard the phone uses: a zone with a live
 			// attempt is skipped rather than given a second one.
 			const image = await insertQueuedImageIfIdle(
@@ -245,8 +311,8 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 					table,
 					zoneKey: zone.key,
 					promptId,
-					prompt: composed,
-					model: FAL_MODEL,
+					prompt: zonePrompt,
+					model: MODEL,
 					actor: 'admin',
 					supersedesId: existing.id
 				},
@@ -264,7 +330,7 @@ export const regenerateTable = command(v.object({ token: tokenField, table: tabl
 						table,
 						zoneKey: zone.key
 					},
-					composed,
+					zonePrompt,
 					realGenerateDeps(env, event, table, zone.key, image.id, buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, image.id))
 				)
 			);

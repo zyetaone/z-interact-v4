@@ -75,6 +75,7 @@ import {
   buildWebhookUrl,
 } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
+import { sanitizeComposed } from "$lib/server/prompt";
 import {
   buildLayerInputs,
   composeBase,
@@ -147,6 +148,43 @@ function depsFor(
     imageId,
     buildWebhookUrl(requestOrigin(), env.FAL_WEBHOOK_SECRET, imageId),
   );
+}
+
+/**
+ * The lock check every per-answer save now runs. Only `finishTable` used to
+ * check anything, so a table could keep editing its answers after it had
+ * submitted, and after the desk had closed the room — and those edits feed
+ * `resolveZone` on the next poll or regenerate, silently changing what gets
+ * sent to fal.
+ *
+ * Deliberately NOT `assertCanSubmit`: that function CONSUMES a one-shot
+ * reopen grant on success, so calling it from a per-tap save would burn the
+ * desk's grant on the first question the table answered. This reads the
+ * same state without consuming anything and applies the same pure rule —
+ * the pattern `tableStatus`'s own gate read already uses.
+ */
+async function assertCanSave(
+  env: Env,
+  event: string,
+  table: number,
+): Promise<{ ok: true } | Fail> {
+  const state = await getTableState(env.DB, event, table);
+  const alreadyAnswered = !!state.submittedAt;
+  const [locked, granted] = await Promise.all([
+    lockedAt(env.DB, event),
+    alreadyAnswered
+      ? mayReopen(env.DB, event, table)
+      : Promise.resolve(false),
+  ]);
+  const decision = decideSubmit({
+    reachable: true,
+    locked: !!locked,
+    alreadyAnswered,
+    granted,
+  });
+  return decision.ok
+    ? { ok: true as const }
+    : { ok: false as const, reason: decision.reason };
 }
 
 function answersOf(
@@ -231,7 +269,11 @@ export const tableStatus = query(
           table,
           zoneKey: row.zoneKey,
         },
-        composeZonePrompt(stored.composed, resolveZone(zone, answers)),
+        composeZonePrompt(
+          stored.composed,
+          resolveZone(zone, answers),
+          stored.negative,
+        ),
         depsFor(env, event, table, row.zoneKey, row.id),
       );
     }
@@ -305,12 +347,14 @@ export const saveFuture = command(
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
+      const event = eventId(env);
+      const gate = await assertCanSave(env, event, table);
+      if (!gate.ok) return gate;
       const future = futureKey
         ? FUTURES.find((f) => f.key === futureKey)
         : undefined;
       if (futureKey && !future)
         return { ok: false as const, reason: "unknown future" };
-      const event = eventId(env);
       await saveAnswerRow(env.DB, {
         eventId: event,
         table,
@@ -350,6 +394,8 @@ export const saveEra = command(
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
       const event = eventId(env);
+      const gate = await assertCanSave(env, event, table);
+      if (!gate.ok) return gate;
       const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
       const future = FUTURES.find((f) => f.key === futureOf(answers));
       // The greying rule is data (era.ts), so it is enforced here too —
@@ -387,6 +433,8 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
   withTableLock(input.table, async () => {
     const env = requestEnv();
     if (!env) return { ok: false as const, reason: "no environment" };
+    const gate = await assertCanSave(env, eventId(env), input.table);
+    if (!gate.ok) return gate;
     await saveAnswerRow(env.DB, {
       eventId: eventId(env),
       table: input.table,
@@ -409,6 +457,8 @@ export const saveWildcard = command(
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
+      const gate = await assertCanSave(env, eventId(env), table);
+      if (!gate.ok) return gate;
       const trimmed = text.trim();
       await saveAnswerRow(env.DB, {
         eventId: eventId(env),
@@ -449,8 +499,14 @@ async function queueGeneration(
     era: eraOf(answers),
     answers,
   });
+  // A table-edited prompt is free text that becomes the ENTIRE prompt sent
+  // to fal and then shown on a public screen. It is capped and stripped
+  // here as well as in `composeZonePrompt`, so the `prompt` row stores what
+  // was actually submitted rather than the raw paste.
   const edited = !!opts.composedOverride?.trim();
-  const composed = edited ? opts.composedOverride!.trim() : composeBase(layers);
+  const composed = sanitizeComposed(
+    edited ? opts.composedOverride! : composeBase(layers),
+  );
   const previous = await getLatestPrompt(env.DB, event, table);
 
   const promptId = await insertPrompt(env.DB, {
@@ -477,7 +533,11 @@ async function queueGeneration(
     // attempt. Neither case may start a second attempt while one is live.
     if (!opts.regenerate && existing && existing.state !== "failed") continue;
 
-    const zonePrompt = composeZonePrompt(composed, resolveZone(zone, answers));
+    const zonePrompt = composeZonePrompt(
+      composed,
+      resolveZone(zone, answers),
+      layers.negative,
+    );
     // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
     // The read-then-write above is per-isolate and two isolates can both
     // pass it — that is the double-tap that queued two full sets per table.

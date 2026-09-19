@@ -43,6 +43,14 @@ const Body = v.object({
 	token: v.string(),
 	/** How many tables to drive. Defaults to the room's full size. */
 	tables: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT))),
+	/**
+	 * First table to drive. One invocation may make at most ~1000 D1 calls
+	 * ("Too many API requests by single Worker invocation", measured live at
+	 * 20 tables), so a full room is run as two halves: `{from:1,tables:10}`
+	 * then `{from:11,tables:10}`. Plans are seeded over the whole room, so
+	 * the halves are the same tables a single run would have produced.
+	 */
+	from: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT))),
 	/** Same seed, same run — a rehearsal that cannot be repeated cannot confirm a fix. */
 	seed: v.optional(v.pipe(v.number(), v.integer())),
 	/** Milliseconds between one table starting and the next. Twenty phones do not tap in unison. */
@@ -134,7 +142,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return json({ ok: false, reason: 'bad token' }, { status: 401 });
 	}
 
-	const tables = body.tables ?? TABLE_COUNT;
+	const from = body.from ?? 1;
+	const tables = Math.min(body.tables ?? TABLE_COUNT, TABLE_COUNT - from + 1);
 	const seed = body.seed ?? 1;
 	const staggerMs = body.staggerMs ?? 250;
 	const startedAt = Date.now();
@@ -142,7 +151,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	// Staggered, then awaited together — twenty phones overlap, they do not
 	// take turns. Running them strictly in series would never reproduce the
 	// concurrency the compare-and-swap and the throttle exist for.
-	const plans = planRoom(tables, seed);
+	const plans = planRoom(TABLE_COUNT, seed).slice(from - 1, from - 1 + tables);
 	const runs = plans.map(async (plan, i) => {
 		if (staggerMs) await sleep(i * staggerMs);
 		return runTable(plan, body.answersOnly === true);
@@ -157,7 +166,11 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			return { table: r.table, currentStep: state.currentStep, submittedAt: state.submittedAt };
 		})
 	);
-	const disagreements = reports
+	// In answers-only mode nothing submits, so a table submitted on an earlier
+	// run would read as a disagreement that is not one.
+	const disagreements = body.answersOnly
+		? []
+		: reports
 		.filter((r) => r.submitted !== !!readBack.find((s) => s.table === r.table)?.submittedAt)
 		.map((r) => r.table);
 
@@ -165,6 +178,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		ok: true,
 		event,
 		seed,
+		from,
 		tables,
 		staggerMs,
 		answersOnly: body.answersOnly === true,

@@ -134,6 +134,26 @@
 		draftWildcard ?? flow.answer('wildcard')?.text?.['wildcard-open'] ?? ''
 	);
 	const promptText = $derived(draftPrompt ?? flow.status.prompt);
+
+	/* EVERY STEP STARTS AT THE TOP. The flow swaps components on state, never
+	   on navigation, so the browser keeps scrollTop and SvelteKit's own scroll
+	   restoration never fires: a table tapping Next at the foot of one tile
+	   grid lands mid-grid on the next question with the stem off-screen,
+	   eleven times. The key is the step identity, not the object, so a
+	   re-render of the same step does not yank the page. Focus moves to the
+	   new heading so a screen reader announces the question. */
+	const stepKey = $derived(current.kind === 'question' ? `q:${current.id}` : current.kind);
+	$effect(() => {
+		stepKey;
+		if (typeof window === 'undefined') return;
+		window.scrollTo(0, 0);
+		const stem = document.querySelector<HTMLElement>('main.phone h1.stem');
+		if (!stem) return;
+		// A heading is not focusable on its own; -1 makes it a programmatic
+		// target without putting it in the tab order.
+		stem.tabIndex = -1;
+		stem.focus({ preventScroll: true });
+	});
 </script>
 
 <svelte:head><title>Table {table}</title></svelte:head>

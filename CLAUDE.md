@@ -223,13 +223,19 @@ what the room reads back) must be empty. Curl lines are in `NEW-EVENT.md`.
 ## What's still open for the content/plumbing workstreams
 
 The earlier list here (placeholder prompts, stub screens, an unset fal model
-id, an ungrouped gallery) is **done** — the tap flow, the admin desk, the
-three tickers' real composed prompts, the grouped Reveal and the model id all
-landed. What is actually still open:
+id, an ungrouped gallery) is **done**. So is the list after it: the lens and
+option images landed, and so did the reference-mode switch, the per-zone
+retry, the bounded admin tick and the projector rework. Those are summarised
+below under *recently closed* rather than deleted, because each one changed a
+default that a reader of this file would otherwise have to infer from code.
 
-- **Lens and option images** — `src/lib/game/visuals.ts` and
-  `static/visuals/**` land on a separate branch; `FutureScreen`/`OptionList`
-  are deliberately untouched here.
+What is actually still open:
+
+- **The retry UI hooks** — the server side of per-zone retry is done
+  (`retryZone` on the phone route, `regenerateTable`'s optional `zone` on
+  the desk) and the failure text is on the export as `images[].error`. The
+  two controls that call them — the phone's failed tile and the desk's
+  images cell — belong to the wiring workstream and are not in this branch.
 - **The tile step.** `stored -> done` stays unreachable until a real resizer
   is wired — see `r2.ts`'s `// ponytail:` note. Nothing downstream is blocked
   by it; the projector and phones serve the full-size object.
@@ -247,3 +253,25 @@ landed. What is actually still open:
 - **`event_table` has no `current_step` column** — step is still derived from
   the answer count. The batched admin/projector read now gives a real count,
   so this only matters for resume semantics with skipped questions.
+
+### Recently closed, with the defaults they set
+
+- **`REFERENCE_MODE`** decides how much the chosen lens picture decides the
+  render: `none` (default) text-to-image everywhere, `lens` first zone only,
+  `chain` every zone. Default is `none` because the edit endpoint reproduces
+  a reference's framing rather than recomposing, which made all four zones of
+  a table one picture with small edits. An unrecognised value falls back to
+  `none`. See `server/reference.ts`.
+- **The admin read never awaits a tick.** It answers from D1 and advances a
+  bounded slice in `waitUntil` (`ADMIN_TICK_BUDGET`, default 8, oldest
+  first). It used to walk its slice inside the request and took 36 s with a
+  room full of pending rows.
+- **A failed zone can be retried on its own**, for one render rather than
+  four, with the prompt read back verbatim from the `image_detail` sidecar.
+- **The projector picks its layout from the frame.** Above 2.5:1 it lays out
+  as three 16:9 panels; `?aspect=wide` and `?aspect=16x9` force either.
+  `?surface=ledger` turns a screen into the room ledger for the venue's two
+  televisions. No beat prints a future's name — the lens is hidden analysis,
+  and it survives on the wall as position and colour only (`grouping.ts`).
+- **R2 objects are keyed and labelled from sniffed bytes**, both written and
+  served. The `.webp`-for-everything assumption is gone from both paths.

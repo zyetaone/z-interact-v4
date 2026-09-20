@@ -14,6 +14,12 @@ on every table, so the archive step at the end needs no bespoke loader.
       so a stale key from a previous event 404s rather than serving
 - [ ] `nodejs_als` compatibility flag present (`getRequestEvent()` is used
       throughout)
+- [ ] Workers AI binding present (`"ai": { "binding": "AI" }` in
+      `wrangler.jsonc`) — it writes the phone done screen's read-back
+      paragraph and nothing else. Absent, the paragraph simply never appears
+- [ ] *Optional* pre-warm of the `narrative` table, so it exists before the
+      first phone submits (the app creates it on first use either way):
+      `wrangler d1 execute <event>-db --remote --file=migrations/0001_narrative.sql`
 
 ## Secrets and variables
 
@@ -33,6 +39,7 @@ reads exactly like a dead one.
 | `PUBLIC_EVENT_TITLE` | var | the Lobby beat reads "Twenty Tables" |
 | `FAL_RESOLUTION` | var | falls back to **1K**. Anything unrecognised falls back too, rather than being passed through to the provider |
 | `ADMIN_TICK_BUDGET` | var | falls back to **8** — how many pending rows one admin poll advances after it has answered. Never unbounded |
+| `AI_FAKE` | var | unset means the real Workers AI binding writes the done screen's paragraph. `1` writes a deterministic stand-in and never calls the binding — set it locally, never in production |
 | `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
 - [ ] `FAL_KEY` set and confirmed live/billable
@@ -45,6 +52,8 @@ reads exactly like a dead one.
 - [ ] `ADMIN_TICK_BUDGET` left unset unless the desk is deliberately carrying more of the room
 - [ ] `FAL_RESOLUTION` reviewed — it multiplies the per-render cost
 - [ ] `PUBLIC_EVENT_TITLE` set, or the Lobby beat reads "Twenty Tables"
+- [ ] `AI_FAKE` **unset** in production (it is a local switch; set it in
+      `.dev.vars` so `npm run dev` never spends on inference)
 
 There is no `PUBLIC_ORIGIN`. The app derives its origin from the request, so
 the fal webhook URL is correct on whatever domain the deploy answers on, and

@@ -77,6 +77,20 @@ describe('buildLayerInputs', () => {
 		}
 	});
 
+	it('drops a moment phrase the room-participates clause already says (no device anywhere, once)', () => {
+		const answers = [
+			{ questionId: 'q5c', keys: ['sealed-cell'] },
+			{ questionId: 'q5c:and', keys: ['unseen'] },
+			{ questionId: 'q7', keys: ['nothing-to-see'] }
+		];
+		const inp = buildLayerInputs({ futureKey: 'solarpunk', answers });
+		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
+		const prompt = composeZonePrompt(composeBase(inp), resolveZone(library, answers), inp.negative);
+		expect(prompt.match(/no device anywhere/g)).toHaveLength(1);
+		expect(prompt).toContain('the AI unseen');
+		expect(prompt).toContain(ROOM_PARTICIPATES['nothing-to-see']);
+	});
+
 	it('has the room participate for every q7 option — a full clause with a verb, composed in place of the option fragment', () => {
 		const q7 = QUESTIONS.find((q) => q.id === 'q7')!;
 		for (const o of q7.options) {

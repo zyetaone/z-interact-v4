@@ -336,7 +336,13 @@ export function composeZonePrompt(base: string, zone: ZoneRef, negative?: string
 	const head = clean.startsWith(FRAME_HEAD) ? clean.indexOf('. ') : -1;
 	const frame = head > 0 ? clean.slice(0, head) : clean;
 	const rest = head > 0 ? clean.slice(head + 2) : '';
-	return composeLayers({ mood: frame, materialsAndLight: rest, programme: '', feel: '' }, zone, negative);
+	// A phrase the base already carries (the room-participates clause and a
+	// q5c:and reply both say "no device anywhere") is dropped from the moment.
+	const moment = zone.renderSuffix
+		.split(', ')
+		.filter((seg) => !rest.includes(seg))
+		.join(', ');
+	return composeLayers({ mood: frame, materialsAndLight: rest, programme: '', feel: '' }, { ...zone, renderSuffix: moment }, negative);
 }
 
 /** Words in a submitted prompt — the recipe's 90–130 target, and the test's 160 ceiling. */

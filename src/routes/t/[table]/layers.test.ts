@@ -145,13 +145,19 @@ describe('buildLayerInputs', () => {
 
 	it('puts the layout guard first, then the house terms, then the futures own, without duplicates', () => {
 		expect(built.negative).toBe(
-			'collage, grid, split screen, personas, stark white, posed faces, neon signage, dead plants, text, watermark, sterile, grey, concrete, glare'
+			'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels, ' +
+				'personas, stark white, posed faces, neon signage, dead plants, glare'
 		);
 	});
 
 	it('names collage in the negative', () => {
 		expect(built.negative).toContain('collage');
 		expect(built.negative).toContain('split screen');
+	});
+
+	it('never lets a lens negative argue with the tables material answer', () => {
+		const materialWords = /\b(concrete|timber|wood|chrome|pastel|grey|plastic|screens|minimalism)\b/;
+		for (const f of FUTURES) expect(f.negativeFragment, f.key).not.toMatch(materialWords);
 	});
 
 	it('ignores an And pick whose parent question was never answered, without a placeholder', () => {
@@ -256,7 +262,8 @@ describe('composeBase / composeZonePrompt', () => {
  * fully answered table — every question, every And, both push replies, a
  * wildcard, a nudged era — must stay under 160 in every zone, with the
  * zone's moment present. The second case stacks the LONGEST option of
- * every question and documents the ceiling that combination reaches.
+ * every question and documents the ceiling that combination reaches
+ * (167 measured on 20 Sep, with the full anti-board Avoid list).
  */
 describe('word budget', () => {
 	const base = composeBase(built);
@@ -271,7 +278,7 @@ describe('word budget', () => {
 		expect(prompt).toContain(zone.moment.split(/[:;]/)[0]); // the subject, before its slot
 	});
 
-	it('stays at or under 165 words even with the longest option of every question stacked', () => {
+	it('stays at or under 170 words even with the longest option of every question stacked', () => {
 		const longest: AnswerLike[] = QUESTIONS.flatMap((q) => {
 			const n = q.select.kind === 'pick' ? q.select.n : 1;
 			const byLength = (a: { promptFragment: string }, b: { promptFragment: string }) =>
@@ -287,7 +294,7 @@ describe('word budget', () => {
 		for (const future of FUTURES) {
 			const b = buildLayerInputs({ futureKey: future.key, era: 'hyperfuturistic-2040', answers: longest });
 			for (const zone of ZONE_SETS.book) {
-				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(165);
+				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(170);
 			}
 		}
 	});

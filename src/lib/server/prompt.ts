@@ -33,7 +33,8 @@ export const NO_TEXT = 'no text';
  * rendering guard, the same family as `NO_TEXT` above, not content — and
  * `futures.ts` belongs to another workstream.
  */
-export const NO_COLLAGE = 'collage, grid, split screen';
+export const NO_COLLAGE =
+	'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels';
 
 /**
  * The ceiling on the table-editable prompt. Screen 15's textarea is free

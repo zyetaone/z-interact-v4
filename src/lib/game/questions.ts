@@ -38,9 +38,10 @@
  *
  * Push lines: `push` is her "PUSH —" line verbatim, spoken at the table.
  * Two double as a typed capture field (`pushCapturesReply`): Q2's "name two
- * materials" (as in V3) and Q5's "what did your table refuse to automate?"
- * (V3 captured that through an `open` facet; V4 makes it the push line, so
- * the capture moves with it). The rest are spoken only.
+ * materials" (as in V3, and drawn) and Q5's "what did your table refuse to
+ * automate?" (V3 captured that through an `open` facet; V4 makes it the
+ * push line, so the capture moves with it — kept for the wall, never
+ * drawn: `pushNotDrawn`). The rest are spoken only.
  *
  * Fixed interface the plumbing builds against (routes, `answers.remote.ts`,
  * `prompt.ts`'s programme layer): an ordered `QUESTIONS` array, each with a
@@ -92,6 +93,9 @@ export interface Question {
 	push?: string;
 	/** True where the push line doubles as a typed capture field (Q2, Q5). */
 	pushCapturesReply?: boolean;
+	/** True where that captured reply is kept for the wall and the export but never composed
+	 *  into the prompt (Q5's "refused to automate" — a decision, not a subject; `layers.ts`). */
+	pushNotDrawn?: boolean;
 	/** The "And:" sub-question, where V4 has one. Optional to answer; never blocks Next. */
 	and?: AndQuestion;
 	/** True only for `PROPOSED_QUESTIONS` (q12) — the question owner has not
@@ -340,6 +344,7 @@ export const QUESTIONS: Question[] = [
 		diamond: true,
 		push: 'what did your table refuse to automate?',
 		pushCapturesReply: true,
+		pushNotDrawn: true,
 		options: [
 			{
 				key: 'sealed-cell',

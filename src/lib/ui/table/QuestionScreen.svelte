@@ -96,7 +96,9 @@
 			value={pushReply}
 			onchange={(e) => onpush(e.currentTarget.value)}
 		></textarea>
-		<p class="count note">Optional — added to the prompt word for word.</p>
+		<p class="count note">
+			{question.pushNotDrawn ? 'Optional — kept with your answers for the wall, not drawn.' : 'Optional — added to the prompt word for word.'}
+		</p>
 	</section>
 {/if}
 

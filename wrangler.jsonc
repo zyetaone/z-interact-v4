@@ -29,6 +29,14 @@
 			"database_id": "REPLACE_WITH_NEW_D1_ID"
 		}
 	],
+	// Workers AI — the phone done screen's table narrative and nothing else
+	// (routes/t/[table]/narrative.ts). No model is pinned here; the model id
+	// lives in that file. `AI_FAKE=1` bypasses the binding entirely, which is
+	// what tests and local runs use, since platformProxy proxies `ai` to the
+	// REAL remote binding under `npm run dev`.
+	"ai": {
+		"binding": "AI"
+	},
 	// R2 — full-size renders and (once the tile upgrade lands) a ~512px tile
 	// per image. See src/lib/server/r2.ts's `// ponytail:` note.
 	"r2_buckets": [

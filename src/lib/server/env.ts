@@ -17,6 +17,14 @@ import { getRequestEvent } from '$app/server';
 export interface Env {
 	DB: D1Database;
 	IMAGES: R2Bucket;
+	/**
+	 * Workers AI, for the done screen's table narrative only (`routes/t/[table]/narrative.ts`).
+	 * Structural rather than the `Ai` type, so nothing new is installed for one call.
+	 * Absent (an older deploy, a missing binding) means the phone shows no paragraph.
+	 */
+	AI?: { run(model: string, input: unknown): Promise<unknown> };
+	/** `1` writes a deterministic narrative and never touches the `AI` binding — the `FAL_FAKE` of this feature. */
+	AI_FAKE?: string;
 	FAL_KEY?: string;
 	FAL_WEBHOOK_SECRET?: string;
 	SIMULATE_ENABLED?: string;

@@ -28,7 +28,7 @@ import {
 
 const ABUNDANT = FUTURES.find((f) => f.key === 'solarpunk')!;
 const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
-const FRAME_2040 = 'A film still, a workplace in 2040: anamorphic 35 mm, shallow focus, volumetric light, haze, one viewpoint, no logos';
+const FRAME_2040 = 'A film still, a 2040 workplace: anamorphic 35 mm, shallow focus, volumetric light, no logos';
 
 /** A fully answered table: every question, every And, both push replies, the wildcard, a nudged era. */
 const ANSWERS: AnswerLike[] = [
@@ -86,7 +86,7 @@ describe('buildLayerInputs', () => {
 	it('builds materialsAndLight from q2 (her tone; materials; finish), its scale as a camera clause, its push reply, then q7 and q8', () => {
 		expect(built.materialsAndLight).toBe(
 			'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished. ' +
-				'50 mm at eye level, ceilings within reach. ' +
+				'50 mm, eye level, ceilings within reach. ' +
 				'raw concrete and brushed steel. ' +
 				'walls and tables blank until needed, one surface awake. ' +
 				'deliberate pockets of greenery'
@@ -125,18 +125,21 @@ describe('buildLayerInputs', () => {
 		expect(prompt).not.toContain('metre-deep desk');
 	});
 
-	it('builds feel from q11s three picks as light-and-weather clauses, in option order — never the bare adjectives', () => {
-		expect(built.feel).toBe('soft even light, still air, one pool of light, shadow around, leaves, water and birds moving');
+	it('builds feel from q10s visible consequence, then q11s three light-and-weather clauses in option order — never the bare adjectives', () => {
+		expect(built.feel).toBe(
+			'half the floor visibly unpowered, nothing switched on, soft even light, still air, one pool of light, shadow around, leaves, water and birds moving'
+		);
 		expect(built.feel).not.toMatch(/\b(calm|focused|alive)\b/);
 	});
 
-	it('does not draw q10 or its hardest pick — they are answered for the wall (WALL_ONLY_IDS)', () => {
-		expect(WALL_ONLY_IDS).toContain('q10');
-		expect(composeBase(built)).not.toMatch(/free of AI|hardest trade-off/);
+	it('draws q10 (it is ◆, "point at where it is visible") but not its hardest pick, which is wall-only', () => {
+		expect(WALL_ONLY_IDS).toContain('q10:and');
+		expect(composeBase(built)).toContain('half the floor visibly unpowered');
+		expect(composeBase(built)).not.toContain('hardest trade-off');
 	});
 
-	it('carries the wildcard verbatim inside its two-word wrapper', () => {
-		expect(built.wildcard).toBe('also, a room with a working fireplace');
+	it('carries the wildcard verbatim, no wrapper', () => {
+		expect(built.wildcard).toBe('a room with a working fireplace');
 	});
 
 	it('omits the wildcard entirely when nothing was typed', () => {
@@ -168,13 +171,12 @@ describe('buildLayerInputs', () => {
 });
 
 describe('every V4 question reaches a layer or a zone', () => {
-	it('is owned by a zone, or feeds materials, or feeds feel, or is a wall-only answer — never silently dropped', () => {
+	it('is owned by a zone, or feeds materials, or feeds feel — never silently dropped', () => {
 		for (const q of QUESTIONS) {
 			const reached =
 				ZONE_OWNED_IDS.has(q.id) ||
 				(MATERIAL_IDS as readonly string[]).includes(q.id) ||
-				(FEEL_IDS as readonly string[]).includes(q.id) ||
-				(WALL_ONLY_IDS as readonly string[]).includes(q.id);
+				(FEEL_IDS as readonly string[]).includes(q.id);
 			expect(reached, `${q.id} reaches nothing`).toBe(true);
 		}
 	});
@@ -187,6 +189,7 @@ describe('every V4 question reaches a layer or a zone', () => {
 		expect(owners('q6r')).toEqual(['garden']); // biome -> garden
 		expect(MATERIAL_IDS).toContain('q8'); // nature -> all zones (via the base)
 		expect(MATERIAL_IDS).toContain('q7'); // technology -> all zones (via the base)
+		expect(FEEL_IDS).toContain('q10'); // brilliant-at-one -> drawn, last content clause before the light line
 		for (const id of ['q7', 'q8', 'q10', 'q11']) expect(ZONE_OWNED_IDS.has(id)).toBe(false);
 	});
 });
@@ -263,7 +266,7 @@ describe('composeBase / composeZonePrompt', () => {
  * wildcard, a nudged era — must stay under 160 in every zone, with the
  * zone's moment present. The second case stacks the LONGEST option of
  * every question and documents the ceiling that combination reaches
- * (167 measured on 20 Sep, with the full anti-board Avoid list).
+ * (171 measured on 20 Sep, with the full anti-board Avoid list and q10 drawn).
  */
 describe('word budget', () => {
 	const base = composeBase(built);
@@ -278,7 +281,7 @@ describe('word budget', () => {
 		expect(prompt).toContain(zone.moment.split(/[:;]/)[0]); // the subject, before its slot
 	});
 
-	it('stays at or under 170 words even with the longest option of every question stacked', () => {
+	it('stays at or under 175 words even with the longest option of every question stacked', () => {
 		const longest: AnswerLike[] = QUESTIONS.flatMap((q) => {
 			const n = q.select.kind === 'pick' ? q.select.n : 1;
 			const byLength = (a: { promptFragment: string }, b: { promptFragment: string }) =>
@@ -294,7 +297,7 @@ describe('word budget', () => {
 		for (const future of FUTURES) {
 			const b = buildLayerInputs({ futureKey: future.key, era: 'hyperfuturistic-2040', answers: longest });
 			for (const zone of ZONE_SETS.book) {
-				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(170);
+				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(175);
 			}
 		}
 	});

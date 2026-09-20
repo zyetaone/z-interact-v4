@@ -91,10 +91,10 @@ export function negativeClause(negative: string | undefined): string {
  * `layers.ts`'s `composeZonePrompt` recognises this sentence at the head of
  * a stored base (`FRAME_HEAD`) so the zone's moment can follow it directly.
  */
-export const FRAME_HEAD = 'A film still, a workplace in';
+export const FRAME_HEAD = 'A film still, a';
 
 export function houseBase(year: string): string {
-	return `${FRAME_HEAD} ${year}: anamorphic 35 mm, shallow focus, volumetric light, haze, one viewpoint, no logos`;
+	return `${FRAME_HEAD} ${year} workplace: anamorphic 35 mm, shallow focus, volumetric light, no logos`;
 }
 
 export interface LayerInputs {

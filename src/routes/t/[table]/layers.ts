@@ -35,11 +35,11 @@
  *                       already owns (all four, under the `book` set) —
  *                       plus q12 (urban edge / ground plane) ONLY when
  *                       `ENABLE_PROPOSED_QUESTIONS` is on
- *   feel             <- q11's three picks as light-and-weather clauses
- *                       (`questions.ts` holds the table) — a comma list
- *   (not drawn)      <- q10 and its "hardest" pick, and q5c's push reply:
- *                       captured for the wall and the export, see
- *                       `WALL_ONLY_IDS`
+ *   feel             <- q10's strength as one visible consequence, then
+ *                       q11's three picks as light-and-weather clauses
+ *                       (`questions.ts` holds both tables) — a comma list
+ *   (not drawn)      <- q10's "hardest" pick and q5c's push reply: captured
+ *                       for the wall and the export, see `WALL_ONLY_IDS`
  *   wildcard         <- verbatim, never rewritten
  *   negative         <- the house terms + the future's own `negativeFragment`
  *
@@ -72,7 +72,7 @@ import { FRAME_HEAD, NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, typ
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
  *  up in the opening line too, not just in the mood clause after it. */
 const ERA_YEAR: Record<Era, string> = {
-    'retro-1930s': 'the 1930s, reborn',
+    'retro-1930s': '1930s-revival',
     'same-as-2026': '2026',
     'recognisably-2035': '2035',
     'hyperfuturistic-2040': '2040'
@@ -114,12 +114,13 @@ const OPTIONS_BY_ID: ReadonlyMap<string, readonly QuestionOption[]> = new Map([
 /** Which V4 question feeds which table-level layer. Exported so a test can prove no question is orphaned. */
 export const MATERIAL_IDS = ['q2', 'q7', 'q8'] as const;
 export const PROGRAMME_IDS = ['q3', 'q4w', 'q5c', 'q6r'] as const;
-export const FEEL_IDS = ['q11'] as const;
-/** Answered for the wall and the ledger, never drawn: prompt-recipe.md's per-zone order has no
- *  place for "which strength did you choose" (its push line is "point at where it is visible in
- *  your image" — it is read off the picture, not written into it), and its "hardest" pick is a
- *  sentence about the table, not a subject. Both stay on the review screen and in the export. */
-export const WALL_ONLY_IDS = ['q10'] as const;
+/** q10 (brilliant at one) is ◆ and its push line is "point at the exact place in your image
+ *  where your choice is visible" — so it is drawn, as one short visible consequence, the last
+ *  content clause before the light-and-weather line in every zone. */
+export const FEEL_IDS = ['q10', 'q11'] as const;
+/** Answered for the wall and the ledger, never drawn: q10's "hardest" pick is a sentence
+ *  about the table, not a subject. It stays on the review screen and in the export. */
+export const WALL_ONLY_IDS = ['q10:and'] as const;
 
 export function futureByKey(key: string | null | undefined): Future | undefined {
 	return key ? FUTURES.find((f) => f.key === key) : undefined;
@@ -234,8 +235,9 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	);
 	const programme = joinClauses(programmeIds.flatMap((id) => fragmentsWithAnd(by, id)));
 
-	// --- feel: q11's three picks as light-and-weather clauses (recipe §2,
-	// move 5) — a comma list. q10 is `WALL_ONLY_IDS`.
+	// --- feel: q10's visible consequence, then q11's three picks as
+	// light-and-weather clauses (recipe §2, move 5) — a comma list. q10's
+	// "hardest" And is `WALL_ONLY_IDS`, so `fragmentsFor`, not `fragmentsWithAnd`.
 	const feel = FEEL_IDS.flatMap((id) => fragmentsFor(by.get(id))).join(', ');
 
 	// --- wildcard: verbatim, through its own `{text}` slot.

@@ -179,7 +179,7 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'human',
 					label: 'Human',
-					promptFragment: '50 mm at eye level, ceilings within reach'
+					promptFragment: '50 mm, eye level, ceilings within reach'
 				},
 				{
 					key: 'nested',
@@ -570,24 +570,24 @@ export const QUESTIONS: Question[] = [
 			{
 				key: 'protects-attention',
 				label: 'It protects attention — we made it quiet and enclosed, and accepted that it feels less buzzy',
-				promptFragment: 'quiet enclosed rooms, doors closed, a hush in the corridor'
+				promptFragment: 'more small quiet rooms than open floor'
 			},
 			{
 				key: 'supports-judgement',
 				label: 'It supports judgement — we built space for hard conversations, and gave up floor area to do it',
 				promptFragment:
-					'generous rooms for hard conversations, floor area given up to make them'
+					'one oversized room built for a hard decision'
 			},
 			{
 				key: 'adapts-as-needs-change',
 				label: 'It adapts — we made everything movable, and accepted that nothing feels permanent or owned',
-				promptFragment: 'everything movable, nothing permanent or owned'
+				promptFragment: 'the same furniture set up two different ways in view'
 			},
 			{
 				key: 'knows-when-to-step-back',
 				label: 'It knows when to step back — we kept AI out of some places on purpose, and gave up efficiency there',
 				promptFragment:
-					'places kept deliberately free of AI, slower on purpose'
+					'half the floor visibly unpowered, nothing switched on'
 			}
 		],
 		and: {
@@ -711,7 +711,7 @@ export const WILDCARD: WildcardQuestion = {
 			key: 'wildcard-open',
 			label: 'Wildcard',
 			open: true,
-			promptFragment: 'also, {text}'
+			promptFragment: '{text}'
 		}
 	]
 };

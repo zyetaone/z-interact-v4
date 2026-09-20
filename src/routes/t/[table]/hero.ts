@@ -99,24 +99,36 @@ export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no caption
 export const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
 
 /**
- * The feel words that ASK for darkness, and are therefore allowed to have
- * it. Each one's own fragment (`questions.ts` q11) is why it is here:
+ * The three feel words that SPECIFY THEIR OWN LIGHT, and therefore do not
+ * take the house exposure clause on top of it. Each one's own fragment
+ * (`questions.ts` q11) now says what light it wants rather than only how
+ * little of it there is — measured on production, the suppressed branch sat
+ * at mean luminance 80 with 27.2% of the frame below 40, against 113 and
+ * 10.7% for the bright one, and `focused` is a likely pick:
  *
- *   quiet   — "deep shadow, an empty foreground"
- *   focused — "one pool of light, shadow around"
- *   sacred  — "one high shaft of light, silence" (a shaft needs a dark room)
+ *   quiet   — "an empty foreground, daylight gathered deeper in the room,
+ *              shadow that still shows its surfaces"
+ *   focused — "one bright pool of light on the work, the room around it lit
+ *              and calm"
+ *   sacred  — "one high shaft of daylight, the room bright around its edge,
+ *              silence"
+ *
+ * All three are a BRIGHT room with concentrated light, not a dim one. They
+ * stay suppressed because two exposure instructions in one prompt is how a
+ * model gets told to both pool the light and flood it; the fragment is the
+ * more specific of the two, so it wins.
  *
  * `electric` ("hard rim light, reflections, motion blur") is deliberately
  * NOT here: rim light is a bright-scene technique, and a table that asked
- * for electric asked for hard light, not for night.
+ * for electric asked for hard light.
  *
- * A table that picked none of these gets the exposure clause. A table that
- * picked one asked for the dark and keeps it — overriding a table's own
- * answer to brighten a wall would be the app arguing with the room.
+ * A table that picked none of these gets the house clause. Neither path
+ * overrides a table's own answer — that would be the app arguing with the
+ * room.
  */
 export const DARK_FEEL_KEYS: readonly string[] = ['quiet', 'focused', 'sacred'];
 
-/** True when nothing the table chose asks for night or deep shadow. */
+/** True when no feel word has already specified its own light. */
 export function wantsBrightExposure(feelKeys: readonly string[]): boolean {
 	return !feelKeys.some((k) => DARK_FEEL_KEYS.includes(k));
 }

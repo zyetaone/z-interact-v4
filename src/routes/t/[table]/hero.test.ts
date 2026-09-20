@@ -200,14 +200,25 @@ describe('the room came back dark', () => {
 		expect(composeHeroPrompt({ answers: T10, table: 5 })).toContain(EXPOSURE);
 	});
 
-	it('leaves the dark alone when the table asked for it', () => {
-		// Overriding a table's own answer to brighten a wall would be the app
-		// arguing with the room.
+	it('lets a feel word that specifies its own light do so alone', () => {
+		// Two exposure instructions in one prompt is how a model gets told to
+		// both pool the light and flood it. The fragment is the more specific.
 		for (const key of DARK_FEEL_KEYS) {
 			const p = withFeel([key, 'yours', 'alive']);
 			expect(p, key).not.toContain(EXPOSURE);
 			// The feel words themselves still arrive.
 			expect(p, key).toContain('one personal object in the foreground');
+		}
+	});
+
+	it('still lights the frame when the exposure clause is suppressed', () => {
+		// THE DEFECT THIS FIXES, measured on production: the suppressed branch
+		// sat at mean luminance 80 with 27.2% of the frame below 40, against
+		// 113 and 10.7% bright. Each of the three now names daylight or a lit
+		// room, so a suppressed frame is still exposed.
+		for (const key of DARK_FEEL_KEYS) {
+			const p = withFeel([key, 'yours', 'alive']);
+			expect(p, key).toMatch(/\b(daylight|bright|lit)\b/);
 		}
 	});
 

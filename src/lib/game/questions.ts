@@ -23,7 +23,9 @@
  * The "And:" sub-questions (Q2 scale, Q3 when it knows you're coming, Q4
  * how much it knows about you, Q5 where the AI sits, Q6 how far it goes,
  * Q9 which was hardest) are `and`: a single-select chip row under the
- * options, optional, stored as its own answer row under `${id}:and`.
+ * options, optional, stored as its own answer row under `${id}:and`. Q9's
+ * chips are her "A · B · C · D" as each option's leading phrase (the
+ * options are not lettered on screen) — the one label not verbatim.
  *
  * `promptFragment`s are the one thing here not in her words: a concrete,
  * drawable, lens-neutral phrase per option, written from her option text
@@ -593,22 +595,22 @@ export const QUESTIONS: Question[] = [
 			options: [
 				{
 					key: 'a',
-					label: 'A',
+					label: 'Protects attention',
 					promptFragment: 'the hardest trade-off was protecting attention'
 				},
 				{
 					key: 'b',
-					label: 'B',
+					label: 'Supports judgement',
 					promptFragment: 'the hardest trade-off was supporting judgement'
 				},
 				{
 					key: 'c',
-					label: 'C',
+					label: 'Adapts',
 					promptFragment: 'the hardest trade-off was adapting'
 				},
 				{
 					key: 'd',
-					label: 'D',
+					label: 'Steps back',
 					promptFragment: 'the hardest trade-off was knowing when to step back'
 				}
 			]

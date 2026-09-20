@@ -43,7 +43,7 @@ export const TABLE_1: TableAnswers = {
 		},
 		{ id: 'q7', labels: ['Screens everywhere, always on — displays, dashboards and data visible across the floor at all times.'] },
 		{ id: 'q8', labels: ['Sparse inside, abundant outside — the greenery is beyond the glass'] },
-		{ id: 'q10', labels: ['It adapts — we made everything movable, and accepted that nothing feels permanent or owned'], and: 'A' },
+		{ id: 'q10', labels: ['It adapts — we made everything movable, and accepted that nothing feels permanent or owned'], and: 'Protects attention' },
 		{ id: 'q11', labels: ['Electric', 'Focused', 'Alive'] }
 	],
 	wildcard: 'a glass bridge between two towers'

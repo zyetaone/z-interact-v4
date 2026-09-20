@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FUTURES } from './futures';
 import { QUESTIONS, WILDCARD } from './questions';
 import { LENS_IMAGE, OPTION_IMAGE, hasOptionImage } from './visuals';
+import { VISUAL_FILES } from './visuals-manifest';
 
 // Vite's own glob, not node:fs — keeps this test free of a node type-defs
 // dependency the rest of the app doesn't otherwise need. Keys come back as
@@ -12,6 +13,13 @@ const onDisk = new Set(Object.keys(files).map((p) => p.replace(/^\/static/, ''))
 function fileExistsForPublicPath(publicPath: string): boolean {
 	return onDisk.has(publicPath);
 }
+
+describe('visuals-manifest', () => {
+	it('lists exactly the jpgs on disk — stale in either direction means gen-visuals.mjs --manifest-only was not run', () => {
+		const manifest = new Set(VISUAL_FILES.map((f) => `/visuals/${f}`));
+		expect([...manifest].sort()).toEqual([...onDisk].sort());
+	});
+});
 
 describe('LENS_IMAGE', () => {
 	it('has one entry per future', () => {
@@ -31,6 +39,13 @@ describe('OPTION_IMAGE coverage', () => {
 			expect(hasOptionImage(q.id, o.key)).toBe(fileExistsForPublicPath(`/visuals/opt/${q.id}-${o.key}.jpg`));
 		}
 		for (const path of Object.values(OPTION_IMAGE)) expect(fileExistsForPublicPath(path)).toBe(true);
+	});
+
+	it('a key without a file has no image, even for a real option', () => {
+		expect(hasOptionImage('q2', 'no-such-option')).toBe(false);
+		const pending = renderableOptions.find(({ q, o }) => !fileExistsForPublicPath(`/visuals/opt/${q.id}-${o.key}.jpg`));
+		if (pending) expect(hasOptionImage(pending.q.id, pending.o.key)).toBe(false);
+		expect(OPTION_IMAGE['q2:no-such-option']).toBeUndefined();
 	});
 
 	it('open options and the wildcard have no mapping (nothing to render)', () => {

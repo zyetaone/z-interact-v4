@@ -11,6 +11,7 @@
  */
 import { FUTURES, type Future } from './futures';
 import { QUESTIONS } from './questions';
+import { VISUAL_FILES } from './visuals-manifest';
 
 export type FutureKey = Future['key'];
 
@@ -18,21 +19,20 @@ function optionImageKey(questionId: string, optionId: string): string {
 	return `${questionId}:${optionId}`;
 }
 
-export const LENS_IMAGE: Record<Future['key'], string> = Object.fromEntries(
-	FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`])
-) as Record<Future['key'], string>;
-
 /**
- * What is actually on disk. Vite's glob (not `node:fs`, so this module stays
- * importable on the client and in the Worker) — a picture the generator has
- * not produced yet is simply absent, and `OptionList` falls back to its
- * text row rather than an `<img>` with a 404 source. V4 shipped with 36 of
- * its 53 option pictures pending on a fal balance; this is what makes that
- * a plain list rather than a wall of blank tiles.
+ * What is actually on disk, per `visuals-manifest.ts` — written by
+ * `scripts/gen-visuals.mjs` on every run and by `--manifest-only`. A picture
+ * the generator has not produced yet is simply absent, and `OptionList`
+ * falls back to its text row rather than an `<img>` with a 404 source. V4
+ * shipped with 36 of its 53 option pictures pending on a fal balance; this
+ * is what makes that a plain list rather than a wall of blank tiles.
  */
-const ON_DISK: ReadonlySet<string> = new Set(
-	Object.keys(import.meta.glob('/static/visuals/opt/*.jpg')).map((p) => p.replace(/^\/static/, ''))
-);
+const ON_DISK: ReadonlySet<string> = new Set(VISUAL_FILES.map((f) => `/visuals/${f}`));
+
+/** Every future's lens picture path, for the ones on disk (all six today). */
+export const LENS_IMAGE: Record<Future['key'], string> = Object.fromEntries(
+	FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`] as const).filter(([, path]) => ON_DISK.has(path))
+) as Record<Future['key'], string>;
 
 /** Every non-open option's picture path, for the ones that exist on disk. */
 export const OPTION_IMAGE: Record<string, string> = Object.fromEntries(

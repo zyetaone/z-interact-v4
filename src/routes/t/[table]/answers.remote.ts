@@ -290,15 +290,24 @@ export const tableStatus = query(
       );
     }
 
+    // A table that has submitted SINCE its last reset should have a row for
+    // every zone. If one is missing, nothing is coming for it: reporting
+    // `none` made the phone render it as "still drawing" for ever, which is
+    // the one thing a table cannot act on. It reads as failed instead, with
+    // a reason, which is also what makes the per-zone retry reachable.
+    const submittedSinceReset = !!state.submittedAt && state.submittedAt > since;
     const images = [];
     for (const zone of ZONES) {
       const row = await getCurrentImageSince(env.DB, event, table, zone.key, since);
       const arrived = row?.state === "stored" || row?.state === "done";
+      const missing = !row && submittedSinceReset;
       images.push({
         zoneKey: zone.key,
-        state: row?.state ?? "none",
+        state: missing ? "failed" : (row?.state ?? "none"),
         url: arrived && row ? `/t/${table}/img/${row.id}` : null,
-        error: row?.error ?? null,
+        error: missing
+          ? "this one was never sent — try it again"
+          : (row?.error ?? null),
       });
     }
 
@@ -539,7 +548,21 @@ async function queueGeneration(
   let queued = 0;
   let inFlight = 0;
   for (const zone of ZONES) {
-    const existing = await getCurrentImage(env.DB, event, table, zone.key);
+    // SINCE THE RESET, not ever. `getCurrentImage` ignores the reset
+    // watermark, and image rows are append-only, so after a desk Reset a
+    // zone's pre-reset `stored` row still read as current and this skipped
+    // it. Live, table 20 was reset, walked again, and submitted: only
+    // `garden` — the one zone whose prior row had FAILED, and so passed the
+    // test below — got a new row. The other three were silently never sent
+    // and the phone showed them drawing for ever. The insert underneath
+    // already applies the watermark; this read did not.
+    const existing = await getCurrentImageSince(
+      env.DB,
+      event,
+      table,
+      zone.key,
+      opts.since,
+    );
     // "A generation already in flight is returned, not duplicated"
     // (game-flow §8) — but a regenerate deliberately supersedes a FINISHED
     // attempt. Neither case may start a second attempt while one is live.
@@ -761,10 +784,16 @@ export const retryZone = command(
         zone,
         since,
       );
-      if (!existing) {
+      // A zone with NO row since the reset is exactly the case the phone
+      // now shows as failed, so the retry has to be able to act on it.
+      // There is no prior attempt to copy a prompt from, so it composes one
+      // the same way the first submit would have.
+      const tableState = await getTableState(env.DB, event, table);
+      const neverSent = !existing && !!tableState.submittedAt && tableState.submittedAt > since;
+      if (!existing && !neverSent) {
         return { ok: false as const, reason: "Nothing to try again yet." };
       }
-      if (existing.state !== "failed") {
+      if (existing && existing.state !== "failed") {
         return {
           ok: false as const,
           reason:
@@ -784,12 +813,15 @@ export const retryZone = command(
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
       // The exact text that was submitted, not a recomposition of it. If
-      // the sidecar is missing (a row from before it existed), fall back to
-      // composing from the same prompt row the failed attempt used.
-      const detail = await getImageDetail(env.DB, existing.id);
+      // there is no sidecar (a row from before it existed) or no row at all
+      // (the never-sent case), compose from the table's current prompt the
+      // same way the first submit would have.
+      const detail = existing ? await getImageDetail(env.DB, existing.id) : null;
       let zonePrompt = detail?.prompt ?? "";
+      const promptRow = existing
+        ? await getPromptById(env.DB, existing.promptId)
+        : await getLatestPrompt(env.DB, event, table);
       if (!zonePrompt) {
-        const promptRow = await getPromptById(env.DB, existing.promptId);
         if (!promptRow) {
           return { ok: false as const, reason: "Nothing to try again yet." };
         }
@@ -802,6 +834,9 @@ export const retryZone = command(
           promptRow.negative,
         );
       }
+      if (!promptRow) {
+        return { ok: false as const, reason: "Nothing to try again yet." };
+      }
 
       // Same single-statement guard every other queue path uses: two
       // isolates both reaching here produce one row, not two.
@@ -811,11 +846,11 @@ export const retryZone = command(
           eventId: event,
           table,
           zoneKey: zone,
-          promptId: existing.promptId,
+          promptId: promptRow.id,
           prompt: zonePrompt,
           model: MODEL,
           actor: "table",
-          supersedesId: existing.id,
+          supersedesId: existing?.id ?? null,
         },
         since,
       );

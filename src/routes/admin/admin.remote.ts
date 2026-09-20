@@ -21,6 +21,7 @@ import {
 	getPendingImagesForEvent,
 	getCurrentAnswersSince,
 	getCurrentImage,
+	getCurrentImageSince,
 	insertQueuedImageIfIdle,
 	getRenderBudget,
 	getResetAt,
@@ -323,7 +324,9 @@ export const regenerateTable = command(
 		// drawn from. A zone that never drew is skipped, not failed.
 		const existingByZone = new Map<string, NonNullable<Awaited<ReturnType<typeof getCurrentImage>>>>();
 		for (const z of zones) {
-			const existing = await getCurrentImage(env.DB, event, table, z.key);
+			// Since the reset, for the same reason the phone's submit path is:
+			// a pre-reset row is not this table's current work.
+			const existing = await getCurrentImageSince(env.DB, event, table, z.key, since);
 			if (existing) existingByZone.set(z.key, existing);
 		}
 		if (existingByZone.size === 0) {

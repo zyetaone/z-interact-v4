@@ -22,6 +22,13 @@ export const REGENERATE_COOLDOWN_MS = 60_000;
 export const DEFAULT_MAX_RENDERS_PER_TABLE = 12;
 
 /** Reads `MAX_RENDERS_PER_TABLE` from the environment, falling back to the default on anything unparseable — a typo in a Pages variable must not become "no cap". */
+/**
+ * A note on what the default now buys: under `ZONE_SET=hero` (the default)
+ * a submit queues ONE render, not four, so 12 is about twelve attempts per
+ * table rather than three. Generous on purpose — it is a backstop against a
+ * loop, not a budget — and the fal dashboard cap is still the only limit
+ * that survives a bug in this one (NEW-EVENT.md).
+ */
 export function maxRendersPerTable(raw: string | undefined): number {
 	const n = Number(raw);
 	if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return DEFAULT_MAX_RENDERS_PER_TABLE;

@@ -70,6 +70,31 @@ test.describe('projector wall captures', () => {
 		await capture(page, '/projector?fixtures=1&beat=reveal&aspect=16x9', 'projector-reveal-5760x1080-forced-16x9');
 	});
 
+	test('nothing on the progress beat overlaps or leaves the frame', async ({ page }) => {
+		// Live at 1920x1080 the twenty-tile grid grew past the bottom of the
+		// screen: row four was cut off and the summary line printed over it.
+		// A bare `1fr` row will not shrink below its content, so the content
+		// decided the size instead of the frame.
+		for (const size of [WALL, TV]) {
+			await page.setViewportSize(size);
+			await page.goto('/projector?fixtures=1&beat=progress');
+			await page.waitForLoadState('networkidle');
+
+			const box = await page.evaluate(() => {
+				const grid = document.querySelector('.grid')!.getBoundingClientRect();
+				const summary = document.querySelector('.summary')!.getBoundingClientRect();
+				return { gridBottom: grid.bottom, summaryTop: summary.top, summaryBottom: summary.bottom };
+			});
+			// The summary starts at or below the grid, and the whole beat ends
+			// inside the frame.
+			expect(box.summaryTop).toBeGreaterThanOrEqual(box.gridBottom - 1);
+			expect(box.summaryBottom).toBeLessThanOrEqual(size.height);
+			// And the page itself never scrolls.
+			const overflow = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+			expect(overflow).toBeLessThanOrEqual(0);
+		}
+	});
+
 	test('a reveal tile is a picture, not a strip', async ({ page }) => {
 		// Live at 1920x1080 the old grid collapsed each tile's image to about
 		// 25px of the frame with empty navy beneath it. The paged layout sizes

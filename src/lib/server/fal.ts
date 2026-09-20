@@ -202,11 +202,28 @@ export async function httpFailure(what: string, res: Response): Promise<string> 
 	return `${what} failed: ${res.status}${text ? ` ${text.slice(0, 300)}` : ''}`;
 }
 
-/** True for a fal failure worth ONE fresh submit — the 422s in the fidelity run cleared on a retry for other tables in the same run. */
+/**
+ * Statuses that say something about the ACCOUNT rather than the request.
+ * A second identical submit cannot fix any of them, and trying costs a
+ * live table another tick of watching a picture that is not coming.
+ *
+ * 402 and 403 are the ones that bite: the fal balance ran out mid-event
+ * and every submit came back `403 User is locked`. The room does not need
+ * that discovered twice per zone.
+ */
+const TERMINAL_STATUSES = new Set([401, 402, 403, 404]);
+
+/**
+ * True for a fal failure worth ONE fresh submit — the 422s in the fidelity
+ * run cleared on a retry for other tables in the same run, which is what a
+ * wobble looks like. An auth or balance refusal is not a wobble; it is an
+ * answer, and it goes straight to `failed` so the tile shows it.
+ */
 export function isRetryableFailure(message: string): boolean {
 	const m = /failed: (\d{3})/.exec(message);
 	if (!m) return false;
 	const status = Number(m[1]);
+	if (TERMINAL_STATUSES.has(status)) return false;
 	return status >= 400 && status < 600;
 }
 

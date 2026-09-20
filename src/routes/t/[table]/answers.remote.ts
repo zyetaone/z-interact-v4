@@ -71,7 +71,7 @@ import {
   maxRendersPerTable,
 } from "$lib/server/limits";
 import { createThrottle } from "$lib/server/throttle";
-import { tickImageRow, type TickContext } from "$lib/server/ticker";
+import { tickImageRow, tickRowSafely, type TickContext } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
 import { sanitizeComposed } from "$lib/server/prompt";
 import {
@@ -270,7 +270,9 @@ export const tableStatus = query(
       const zone = ZONES.find((z) => z.key === row.zoneKey);
       const stored = await getPromptById(env.DB, row.promptId);
       if (!zone || !stored) continue;
-      await tickImageRow(
+      // Safely: a throw here used to reject the whole poll, so the phone
+      // kept showing its last snapshot ("being drawn") with no error.
+      await tickRowSafely(
         tickContext(env, event, futureOf(answers), since),
         {
           id: row.id,

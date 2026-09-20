@@ -194,6 +194,33 @@ export interface TickContext {
  * Advances one row, honouring the style anchor. Returns what it did, which
  * is what the tests read — a skipped row is a normal outcome, not an error.
  */
+/**
+ * ONE ZONE'S FAILURE MUST NOT TAKE THE POLL WITH IT.
+ *
+ * The three tickers all walk a list of rows. If a tick throws anywhere
+ * outside `tickAndPersist`'s own catch, the loop stops and — for the
+ * phone, where the loop is inside the `tableStatus` query — the whole poll
+ * rejects. The screen then keeps rendering its last good snapshot, which
+ * says "being drawn", and shows no error at all, while the rows behind it
+ * are never advanced by that ticker again.
+ *
+ * That is the shape of the stuck table seen on the night: three zones in
+ * "being drawn" indefinitely with nothing on the phone to say why. So the
+ * boundary is explicit: a tick that throws is one row's problem, reported
+ * as a reason like any other refusal, and the next row still gets its turn.
+ */
+export async function tickRowSafely(
+	ctx: TickContext,
+	row: TickableImageRow,
+	prompt: string
+): Promise<{ ticked: boolean; reason: string }> {
+	try {
+		return await tickImageRow(ctx, row, prompt);
+	} catch (e) {
+		return { ticked: false, reason: `tick threw: ${String(e).slice(0, 200)}` };
+	}
+}
+
 export async function tickImageRow(ctx: TickContext, row: TickableImageRow, prompt: string): Promise<{ ticked: boolean; reason: string }> {
 	const now = ctx.now ?? Date.now();
 

@@ -7,7 +7,7 @@
 	 * the gate's own reason rather than a generic one.
 	 */
 	import { FUTURES } from '$lib/game/futures';
-	import { WILDCARD } from '$lib/game/questions';
+	import { andId, WILDCARD } from '$lib/game/questions';
 	import { FLOW_QUESTIONS, FUTURE_ID, type StatusAnswer } from '$lib/state/table.svelte';
 
 	let {
@@ -49,13 +49,17 @@
 		if (id === WILDCARD.id) return answer.text?.[WILDCARD.options[0].key] ?? '';
 		const question = FLOW_QUESTIONS.find((q) => q.id === id);
 		if (!question) return answer.keys.join(', ');
-		return question.options
+		const picked = question.options
 			.filter((o) => answer.keys.includes(o.key))
 			.map((o) => {
 				const typed = answer.text?.[o.key]?.trim();
 				return typed ? `${o.label} — ${typed}` : o.label;
 			})
 			.join(' · ');
+		// The "And:" pick rides on its parent's line — it has no row of its own.
+		const andKey = answers.get(andId(id))?.keys[0];
+		const andLabel = andKey ? question.and?.options.find((o) => o.key === andKey)?.label : undefined;
+		return andLabel ? `${picked} · And: ${andLabel}` : picked;
 	}
 
 	const rows = $derived<Row[]>([

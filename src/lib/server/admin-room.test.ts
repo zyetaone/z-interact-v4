@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeD1 } from './fake-d1';
 import { setBeat, getBeat, resetTable, getResetAt, getCurrentAnswersSince, getCurrentImageSince, seedTables, countTables } from './room';
-import { saveAnswer, getTableState, finishTable, insertPrompt, insertQueuedImage, getCurrentImage, getTableFutures, getRoom } from './room';
+import { saveAnswer, getTableState, finishTable, insertPrompt, insertQueuedImage, getCurrentImage, getTableFutures, getRoom, getAdminRoomRows } from './room';
 import { grantReopen, mayReopen, grantedTables } from './gate';
 
 const EVENT = 'ev-test';
@@ -131,6 +131,19 @@ describe('getRoom currentStep', () => {
 		const room = await getRoom(d, EVENT, 3);
 		expect(room.tables.find((t) => t.table === 1)?.currentStep).toBe(4);
 		expect(room.tables.find((t) => t.table === 2)?.currentStep).toBe(0);
+	});
+});
+
+describe('getAdminRoomRows answeredCount', () => {
+	it('does not count an "And:" sub-question row as a step of its own', async () => {
+		const d = fakeD1();
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q2', keys: ['undersea'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q2:and', keys: ['human'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q3', keys: ['human-welcome'], actor: 'table', source: 'tap' });
+		await saveAnswer(d, { eventId: EVENT, table: 1, questionId: 'q3:and', keys: [], actor: 'table', source: 'tap' });
+
+		const rows = await getAdminRoomRows(d, EVENT, 2);
+		expect(rows.find((r) => r.table === 1)?.answeredCount).toBe(2);
 	});
 });
 

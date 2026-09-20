@@ -1192,6 +1192,10 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 	const answeredByTable = new Map<number, Set<string>>();
 	for (const r of answerRes.results ?? []) {
 		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
+		// An "And:" sub-question's row (`<qid>:and`, game/questions.ts's `andId`)
+		// is part of its parent's step, not a step of its own — without this a
+		// table on its third question reads "6 of 9" on the wall.
+		if (r.question_id.endsWith(':and')) continue;
 		let set = answeredByTable.get(r.table_no);
 		if (!set) answeredByTable.set(r.table_no, (set = new Set()));
 		set.add(r.question_id);

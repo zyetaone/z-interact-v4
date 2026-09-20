@@ -172,6 +172,9 @@ describe('POST /simulate', () => {
 		// Every key is under this event's prefix, which is what the projector's
 		// image route now requires.
 		for (const key of bucket.keys()) expect(key.startsWith(`${ENV_ID}/`)).toBe(true);
+		// The KEY must match the bytes too, not just the metadata: fidelity
+		// bug 7 was that every object was keyed `.webp` whatever it held.
+		for (const key of bucket.keys()) expect(key.endsWith('.png')).toBe(true);
 		// The fake image is a PNG, so the stored type must say so — not the
 		// blanket `image/webp` every object used to be written as.
 		for (const stored of bucket.values()) expect(stored.contentType).toBe('image/png');

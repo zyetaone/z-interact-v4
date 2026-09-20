@@ -14,13 +14,28 @@ import { error } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
 import { getImageById } from '$lib/server/room';
 import { getImage } from '$lib/server/r2';
+import { sniffImageType } from '$lib/server/fetch-image';
 import type { RequestHandler } from './$types';
 
-/** R2 objects are written with `image/webp` metadata; the FAL_FAKE dev branch stores a PNG. Sniff rather than trust. */
-function sniff(bytes: ArrayBuffer, fallback: string): string {
-	const head = new Uint8Array(bytes.slice(0, 4));
-	if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return 'image/png';
-	return fallback;
+/**
+ * WHAT THE BYTES ARE, NOT WHAT SOMETHING ONCE ASSUMED THEY WERE.
+ *
+ * Every object used to be written under a hardcoded `image/webp`, so this
+ * route carried a PNG-only sniffer and an `image/webp` fallback to undo
+ * that at read time. The write path now stores the sniffed type and keys
+ * the object by the matching extension, so the stored metadata is right —
+ * but objects written before that fix are still in the bucket wearing the
+ * old label, and the fallback would go on mislabelling anything that is
+ * not a PNG.
+ *
+ * So: sniff first, using the same signature table the write path uses
+ * rather than a second private copy of it; fall back to the stored
+ * metadata; and only then to a type. `image/jpeg` rather than
+ * `image/webp` as the last resort, because a browser handed the wrong
+ * label for a JPEG still renders it and a wrong `webp` label does not.
+ */
+function contentTypeFor(bytes: ArrayBuffer, stored: string | undefined): string {
+	return sniffImageType(new Uint8Array(bytes.slice(0, 12))) ?? stored ?? 'image/jpeg';
 }
 
 export const GET: RequestHandler = async ({ params, platform }) => {
@@ -37,7 +52,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const bytes = await object.arrayBuffer();
 	return new Response(bytes, {
 		headers: {
-			'content-type': sniff(bytes, object.httpMetadata?.contentType ?? 'image/webp'),
+			'content-type': contentTypeFor(bytes, object.httpMetadata?.contentType),
 			// Immutable: a regenerate is a new row and therefore a new URL.
 			'cache-control': 'public, max-age=3600, immutable'
 		}

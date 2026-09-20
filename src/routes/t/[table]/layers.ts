@@ -21,16 +21,22 @@
  *   mood             <- the fixed cinematic frame (a film still from a
  *                       workplace in <year>, anamorphic, volumetric — see
  *                       `prompt.ts`'s `houseBase`), THEN the chosen future's
- *                       `worldOutside` (the window: skyline, weather, two
- *                       materials — never its name or full mood paragraph).
+ *                       `styleDna` (its card's visual signatures, the indoor
+ *                       carrier of the lens), its `worldOutside` (the window:
+ *                       structures, density, signage, two materials — never
+ *                       its name, its mood paragraph, or an hour of the day),
+ *                       THEN its `insideCue` (one indoor 2040 tell, recipe v2),
+ *                       THEN the table's one impossible idea (`zones.ts`,
+ *                       seeded by table number so its four zones share it)
  *                       `<year>` comes from the era chip (V4 has no era
  *                       question; the chip's row still stores under `q1`),
  *                       so a nudge shows up in the frame and nowhere else.
  *   materialsAndLight<- q2's option fragment, its "And: what scale?" pick
  *                       (a lens-and-height clause), its push reply verbatim
- *                       (the two materials), then q7 (technology) and q8
- *                       (nature); all reach every zone, because the base
- *                       is prepended to all four
+ *                       (the two materials), then the room participating
+ *                       (`ROOM_PARTICIPATES`, keyed by q7) and q8 (nature);
+ *                       all reach every zone, because the base is
+ *                       prepended to all four
  *   programme        <- q3, q4w, q5c, q6r fragments, MINUS whatever a zone
  *                       already owns (all four, under the `book` set) —
  *                       plus q12 (urban edge / ground plane) ONLY when
@@ -41,7 +47,9 @@
  *   (not drawn)      <- q10's "hardest" pick and q5c's push reply: captured
  *                       for the wall and the export, see `WALL_ONLY_IDS`
  *   wildcard         <- verbatim, never rewritten
- *   negative         <- the house terms + the future's own `negativeFragment`
+ *   negative         <- the layout guard, the house terms, the 2026-office
+ *                       tells (`NO_2026`, paper kept when q7 chose it), then
+ *                       the future's own `negativeFragment`
  *
  * An "And:" sub-question's pick is stored under `<qid>:and` (`andId`) and
  * rides with its parent: `fragmentsWithAnd` is the one place that pairs
@@ -65,7 +73,7 @@ import { ACTIVE_QUESTIONS, andId, WILDCARD, type Question, type QuestionOption }
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
-import { ZONES, type Zone } from '$lib/game/zones';
+import { ZONES, impossibleIdea, type Zone } from '$lib/game/zones';
 import { FRAME_HEAD, NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
 
 /** The house base's year label per era chip value — the frame line reads the
@@ -90,7 +98,25 @@ export interface LayerBuildInput {
 	futureKey?: string | null;
 	era?: Era | null;
 	answers: readonly AnswerLike[];
+	/** Seeds the table's one impossible idea (`zones.ts`), so its four zones share it. */
+	table?: number | null;
 }
+
+/**
+ * THE ROOM PARTICIPATES (recipe v2, from the one-table loop): the winning
+ * frames had the room reacting to the people in it. One full clause per q7
+ * option — the invisible-technology answers become a visible effect on the
+ * people — composed IN PLACE of q7's option fragment (that fragment still
+ * drives the option picture).
+ */
+export const ROOM_PARTICIPATES: Record<string, string> = {
+	'nothing-to-see': 'the stone underfoot warms with light as they step, no device anywhere',
+	'light-and-sound': 'a wall brightens toward whoever walks to it and dims behind them',
+	'surfaces-wake-up': 'a bare table wakes under their hands and shows the work',
+	'screens-everywhere': 'every wall is a live screen, the data following them across the floor',
+	'has-a-body': 'a small robot carries the work between them, mid-task',
+	'paper-and-pens': 'the room stays still; paper on the walls, pinned and rewritten by hand'
+};
 
 export interface BuiltLayers extends LayerInputs {
 	/** The future's terms behind the house terms. Stored on the prompt row, sent alongside. */
@@ -99,7 +125,7 @@ export interface BuiltLayers extends LayerInputs {
 
 /** The window when a table skips the lens (game-flow §1 screen 3's failure state) — an ordinary city, moody rather than stark. */
 export const HOUSE_REGISTER =
-	'through the glass, an ordinary mid-rise city at the last warm hour, haze; moody rather than stark, pooled warm light, shadow held deliberately';
+	'through the glass, an ordinary mid-rise city; moody rather than stark, pooled light, shadow held deliberately';
 
 
 
@@ -180,11 +206,19 @@ function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
  */
 export const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => z.questionIds));
 
-/** The layout guard first, then the house terms, then the future's own; duplicates dropped, order preserved. */
-export function composeNegative(futureNegative: string | undefined): string {
+/**
+ * The 2026-office tells the first wall showed (recipe v2, §4): kept out of
+ * every render, except that paper stays when the table chose it (q7).
+ */
+export const NO_2026 = 'paper notebooks, coffee mugs, 2020s office furniture, laptops';
+const NO_2026_KEEP_PAPER = NO_2026.replace('paper notebooks, ', '');
+
+/** The layout guard first, the house terms, the 2026 tells, then the future's own; duplicates dropped, order preserved. */
+export function composeNegative(futureNegative: string | undefined, paperChosen = false): string {
 	const seen = new Set<string>();
 	const out: string[] = [];
-	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${futureNegative ?? ''}`.split(',')) {
+	const no2026 = paperChosen ? NO_2026_KEEP_PAPER : NO_2026;
+	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${no2026}, ${futureNegative ?? ''}`.split(',')) {
 		const t = term.trim();
 		if (!t || seen.has(t.toLowerCase())) continue;
 		seen.add(t.toLowerCase());
@@ -205,17 +239,31 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
 	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
 	const window = future ? future.worldOutside : HOUSE_REGISTER;
-	const mood = joinClauses([base, window, eraAnswer?.pushReply]);
+	// Recipe v2: the lens's styleDna (its card's visual signatures) right
+	// after the frame — so it lands directly after the zone's moment once
+	// composeZonePrompt splits the frame off — then the window, then one
+	// unmistakable indoor 2040 cue. None of the three names a time of day.
+	// ...then the table's ONE impossible idea, shared by all four zones.
+	const mood = joinClauses([
+		base,
+		future?.styleDna,
+		window,
+		future?.insideCue,
+		impossibleIdea(future?.key, input.table),
+		eraAnswer?.pushReply
+	]);
 
 	// --- materials & light: q2 (her tone; materials; finish) + its scale
-	// pick (the camera) + its push reply, then technology (q7) and nature
-	// (q8) — all carried into every zone through the base. q4w's "how much
+	// pick (the camera) + its push reply, then the room participating (q7's
+	// ROOM_PARTICIPATES clause) and nature (q8) — all carried into every
+	// zone through the base. q4w's "how much
 	// it knows" clause rides with the workstation in the studio's moment
 	// rather than here: at the base it cost eight words in all four zones.
+	const roomParticipates = (by.get('q7')?.keys ?? []).map((k) => ROOM_PARTICIPATES[k]).filter(Boolean);
 	const materialsAndLight = joinClauses([
 		...fragmentsWithAnd(by, 'q2'),
 		by.get('q2')?.pushReply,
-		...fragmentsFor(by.get('q7')),
+		...roomParticipates,
 		...fragmentsFor(by.get('q8'))
 	]);
 
@@ -245,7 +293,8 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const wildcardText = wildcardAnswer?.text?.[WILDCARD.options[0].key]?.trim();
 	const wildcard = wildcardText ? fragmentOf(WILDCARD.options[0], wildcardText) : undefined;
 
-	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment) };
+	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
+	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen) };
 }
 
 /**
@@ -287,7 +336,13 @@ export function composeZonePrompt(base: string, zone: ZoneRef, negative?: string
 	const head = clean.startsWith(FRAME_HEAD) ? clean.indexOf('. ') : -1;
 	const frame = head > 0 ? clean.slice(0, head) : clean;
 	const rest = head > 0 ? clean.slice(head + 2) : '';
-	return composeLayers({ mood: frame, materialsAndLight: rest, programme: '', feel: '' }, zone, negative);
+	// A phrase the base already carries (the room-participates clause and a
+	// q5c:and reply both say "no device anywhere") is dropped from the moment.
+	const moment = zone.renderSuffix
+		.split(', ')
+		.filter((seg) => !rest.includes(seg))
+		.join(', ');
+	return composeLayers({ mood: frame, materialsAndLight: rest, programme: '', feel: '' }, { ...zone, renderSuffix: moment }, negative);
 }
 
 /** Words in a submitted prompt — the recipe's 90–130 target, and the test's 160 ceiling. */

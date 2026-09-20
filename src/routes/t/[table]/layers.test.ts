@@ -11,11 +11,12 @@
 import { describe, it, expect } from 'vitest';
 import { FUTURES } from '$lib/game/futures';
 import { QUESTIONS } from '$lib/game/questions';
-import { ZONE_SETS } from '$lib/game/zones';
+import { IMPOSSIBLE_IDEAS, ZONE_SETS, impossibleIdea } from '$lib/game/zones';
 import { NO_TEXT, houseBase } from '$lib/server/prompt';
 import {
 	FEEL_IDS,
 	MATERIAL_IDS,
+	ROOM_PARTICIPATES,
 	WALL_ONLY_IDS,
 	ZONE_OWNED_IDS,
 	buildLayerInputs,
@@ -28,7 +29,7 @@ import {
 
 const ABUNDANT = FUTURES.find((f) => f.key === 'solarpunk')!;
 const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
-const FRAME_2040 = 'A film still, a 2040 workplace: anamorphic 35 mm, shallow focus, volumetric light, no logos';
+const FRAME_2040 = 'A film still, a 2040 workplace: anamorphic 35 mm, volumetric light, no logos';
 
 /** A fully answered table: every question, every And, both push replies, the wildcard, a nudged era. */
 const ANSWERS: AnswerLike[] = [
@@ -54,9 +55,74 @@ const ANSWERS: AnswerLike[] = [
 const built = buildLayerInputs({ futureKey: 'solarpunk', era: 'hyperfuturistic-2040', answers: ANSWERS });
 
 describe('buildLayerInputs', () => {
-	it('opens mood with the cinematic frame in the chips year, then the world through the window, and nothing else', () => {
-		expect(built.mood).toBe(`${FRAME_2040}. ${ABUNDANT.worldOutside}`);
+	it('opens mood with the frame in the chips year, then the lenss styleDna, the window, its indoor 2040 cue, then the tables one impossible idea', () => {
+		expect(built.mood).toBe(
+			`${FRAME_2040}. ${ABUNDANT.styleDna}. ${ABUNDANT.worldOutside}. ${ABUNDANT.insideCue}. ${IMPOSSIBLE_IDEAS.solarpunk[0]}`
+		);
 		expect(houseBase('2040')).toBe(FRAME_2040);
+	});
+
+	it('gives every lens two impossible ideas, picked by table seed so a rooms four zones share one', () => {
+		for (const f of FUTURES) {
+			expect(IMPOSSIBLE_IDEAS[f.key], f.key).toHaveLength(2);
+			for (const idea of IMPOSSIBLE_IDEAS[f.key]) expect(wordCount(idea), f.key).toBeLessThanOrEqual(14);
+		}
+		expect(impossibleIdea('solarpunk', 7)).toBe(IMPOSSIBLE_IDEAS.solarpunk[1]);
+		expect(impossibleIdea('solarpunk', 8)).toBe(IMPOSSIBLE_IDEAS.solarpunk[0]);
+		expect(impossibleIdea(null, 3)).toBeUndefined();
+		const t7 = buildLayerInputs({ futureKey: 'solarpunk', answers: ANSWERS, table: 7 });
+		const base7 = composeBase(t7);
+		for (const zone of ZONE_SETS.book) {
+			expect(composeZonePrompt(base7, resolveZone(zone, ANSWERS), t7.negative)).toContain(IMPOSSIBLE_IDEAS.solarpunk[1]);
+		}
+	});
+
+	it('drops a moment phrase the room-participates clause already says (no device anywhere, once)', () => {
+		const answers = [
+			{ questionId: 'q5c', keys: ['sealed-cell'] },
+			{ questionId: 'q5c:and', keys: ['unseen'] },
+			{ questionId: 'q7', keys: ['nothing-to-see'] }
+		];
+		const inp = buildLayerInputs({ futureKey: 'solarpunk', answers });
+		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
+		const prompt = composeZonePrompt(composeBase(inp), resolveZone(library, answers), inp.negative);
+		expect(prompt.match(/no device anywhere/g)).toHaveLength(1);
+		expect(prompt).toContain('the AI unseen');
+		expect(prompt).toContain(ROOM_PARTICIPATES['nothing-to-see']);
+	});
+
+	it('has the room participate for every q7 option — a full clause with a verb, composed in place of the option fragment', () => {
+		const q7 = QUESTIONS.find((q) => q.id === 'q7')!;
+		for (const o of q7.options) {
+			expect(ROOM_PARTICIPATES[o.key], o.key).toBeTruthy();
+			expect(ROOM_PARTICIPATES[o.key], o.key).toMatch(/\b(warms|brightens|dims|wakes|shows|is|following|carries|stays|rewritten)\b/);
+		}
+		const wall = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q7', keys: ['light-and-sound'] }] });
+		expect(wall.materialsAndLight).toBe('a wall brightens toward whoever walks to it and dims behind them');
+	});
+
+	it('gives every lens a styleDna of eighteen words or fewer — its cards visual signatures, the indoor carrier of the lens', () => {
+		for (const f of FUTURES) expect(wordCount(f.styleDna), f.key).toBeLessThanOrEqual(18);
+	});
+
+	/**
+	 * A lens must keep its identity at any time of day (recipe v2 addendum):
+	 * "a dense and lit city workspace, but by day" still has to read as that
+	 * lens. So nothing the lens contributes may name a time of day or the
+	 * weather — q11's feel words alone own light, weather and time.
+	 */
+	it('never lets a lens name a time of day or the weather — styleDna, window, cue and negative are day-neutral', () => {
+		const timeOrWeather = /\b(night|day|daylight|dusk|dawn|evening|morning|golden hour|last warm hour|rain|rain-slick|mist|fog|haze|sunlit|sunset|glare|shadow)\b/i;
+		for (const f of FUTURES) {
+			for (const clause of [f.styleDna, f.worldOutside, f.insideCue, f.negativeFragment]) expect(clause, f.key).not.toMatch(timeOrWeather);
+		}
+	});
+
+	it('gives every lens an indoor cue of twelve words or fewer, so the room reads as 2040 with the window out of frame', () => {
+		for (const f of FUTURES) {
+			expect(f.insideCue, f.key).toMatch(/^inside, /);
+			expect(wordCount(f.insideCue), f.key).toBeLessThanOrEqual(12);
+		}
 	});
 
 	it('is a film still, not archviz: no "architectural visualisation", no "no people in focus"', () => {
@@ -71,9 +137,13 @@ describe('buildLayerInputs', () => {
 
 	it('reads the frames year off the era chip, so a nudge shows up there and nowhere else', () => {
 		const onDefault = buildLayerInputs({ futureKey: 'solarpunk', era: 'recognisably-2035', answers: [] });
-		expect(onDefault.mood).toBe(`${houseBase('2035')}. ${ABUNDANT.worldOutside}`);
+		expect(onDefault.mood).toBe(
+			`${houseBase('2035')}. ${ABUNDANT.styleDna}. ${ABUNDANT.worldOutside}. ${ABUNDANT.insideCue}. ${IMPOSSIBLE_IDEAS.solarpunk[0]}`
+		);
 		const back = buildLayerInputs({ futureKey: 'garden-city', era: 'same-as-2026', answers: [{ questionId: 'q1', keys: ['same-as-2026'] }] });
-		expect(back.mood).toBe(`${houseBase('2026')}. ${GARDEN.worldOutside}`);
+		expect(back.mood).toBe(
+			`${houseBase('2026')}. ${GARDEN.styleDna}. ${GARDEN.worldOutside}. ${GARDEN.insideCue}. ${IMPOSSIBLE_IDEAS['garden-city'][0]}`
+		);
 		expect(back.mood).not.toContain('familiar 2026 shell');
 	});
 
@@ -83,12 +153,12 @@ describe('buildLayerInputs', () => {
 		expect(skipped.mood).toContain('moody rather than stark');
 	});
 
-	it('builds materialsAndLight from q2 (her tone; materials; finish), its scale as a camera clause, its push reply, then q7 and q8', () => {
+	it('builds materialsAndLight from q2 (her tone; materials; finish), its scale as a camera clause, its push reply, then the room participating (q7) and q8', () => {
 		expect(built.materialsAndLight).toBe(
 			'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished. ' +
-				'50 mm, eye level, ceilings within reach. ' +
+				'eye level, ceilings within reach. ' +
 				'raw concrete and brushed steel. ' +
-				'walls and tables blank until needed, one surface awake. ' +
+				'a bare table wakes under their hands and shows the work. ' +
 				'deliberate pockets of greenery'
 		);
 	});
@@ -99,7 +169,7 @@ describe('buildLayerInputs', () => {
 	});
 
 	it('does not pull the zone-worthy questions into the top-level materialsAndLight layer', () => {
-		for (const fragment of ['metre-deep desk', 'hard call', 'old forest', 'thresholds changing']) {
+		for (const fragment of ['metre-deep desk', 'glass slab', 'old forest', 'thresholds shifting']) {
 			expect(built.materialsAndLight).not.toContain(fragment);
 		}
 	});
@@ -119,22 +189,22 @@ describe('buildLayerInputs', () => {
 	it('the zones moment carries that zones own question and its And pick, exactly once', () => {
 		const plaza = ZONE_SETS.book.find((z) => z.key === 'plaza')!;
 		const prompt = composeZonePrompt(composeBase(built), resolveZone(plaza, ANSWERS), built.negative);
-		expect(prompt).toContain('light warming toward one zone, thresholds changing underfoot');
+		expect(prompt).toContain('light warming toward the visitor, thresholds shifting underfoot');
 		expect(prompt).toContain('a route lighting ahead of the visitor');
-		expect(prompt.split('thresholds changing underfoot')).toHaveLength(2);
+		expect(prompt.split('thresholds shifting underfoot')).toHaveLength(2);
 		expect(prompt).not.toContain('metre-deep desk');
 	});
 
 	it('builds feel from q10s visible consequence, then q11s three light-and-weather clauses in option order — never the bare adjectives', () => {
 		expect(built.feel).toBe(
-			'half the floor visibly unpowered, nothing switched on, soft even light, still air, one pool of light, shadow around, leaves, water and birds moving'
+			'half the floor unpowered, people working by hand there, soft even light, still air, one pool of light, shadow around, leaves, water and birds moving'
 		);
 		expect(built.feel).not.toMatch(/\b(calm|focused|alive)\b/);
 	});
 
 	it('draws q10 (it is ◆, "point at where it is visible") but not its hardest pick, which is wall-only', () => {
 		expect(WALL_ONLY_IDS).toContain('q10:and');
-		expect(composeBase(built)).toContain('half the floor visibly unpowered');
+		expect(composeBase(built)).toContain('half the floor unpowered');
 		expect(composeBase(built)).not.toContain('hardest trade-off');
 	});
 
@@ -146,11 +216,23 @@ describe('buildLayerInputs', () => {
 		expect(buildLayerInputs({ futureKey: 'solarpunk', answers: [] }).wildcard).toBeUndefined();
 	});
 
-	it('puts the layout guard first, then the house terms, then the futures own, without duplicates', () => {
+	it('puts the layout guard first, the house terms, the 2026-office tells, then the futures own, without duplicates', () => {
 		expect(built.negative).toBe(
-			'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels, ' +
-				'personas, stark white, posed faces, neon signage, dead plants, glare'
+			'collage, grid, split screen, labels, personas, stark white, posed faces, ' +
+				'paper notebooks, coffee mugs, 2020s office furniture, laptops, neon signage, dead plants'
 		);
+	});
+
+	it('keeps paper when the table chose paper and pens for q7, and bans it otherwise', () => {
+		const paper = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q7', keys: ['paper-and-pens'] }] });
+		expect(paper.negative).not.toContain('paper notebooks');
+		expect(paper.negative).toContain('coffee mugs');
+		expect(built.negative).toContain('paper notebooks');
+	});
+
+	it('gives every invisible-technology answer a visible effect, never an absence alone', () => {
+		const q7 = QUESTIONS.find((q) => q.id === 'q7')!;
+		for (const o of q7.options) expect(o.promptFragment, o.key).toMatch(/\b(responding|brightening|showing|mid-task|live|in use)\b/);
 	});
 
 	it('names collage in the negative', () => {
@@ -195,9 +277,9 @@ describe('every V4 question reaches a layer or a zone', () => {
 });
 
 describe('composeBase / composeZonePrompt', () => {
-	it('composes a garden-city table on its default era with nothing else answered: frame, then window', () => {
+	it('composes a garden-city table on its default era with nothing else answered: frame, window, indoor cue', () => {
 		expect(composeBase(buildLayerInputs({ futureKey: 'garden-city', answers: [] }))).toBe(
-			`${houseBase('2035')}. ${GARDEN.worldOutside}`
+			`${houseBase('2035')}. ${GARDEN.styleDna}. ${GARDEN.worldOutside}. ${GARDEN.insideCue}. ${IMPOSSIBLE_IDEAS['garden-city'][0]}`
 		);
 	});
 
@@ -209,7 +291,7 @@ describe('composeBase / composeZonePrompt', () => {
 		expect(base).not.toContain(NO_TEXT);
 	});
 
-	it('puts the zones moment right after the frame, ahead of the window and the materials (recipe order)', () => {
+	it('puts the zones moment right after the frame, then the styleDna, the window, the cue, then the materials (recipe order)', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		const zone = resolveZone(library, ANSWERS);
 		const full = composeZonePrompt(composeBase(built), zone, built.negative);
@@ -217,7 +299,9 @@ describe('composeBase / composeZonePrompt', () => {
 		expect(fragments[0]).toBe(NO_TEXT);
 		expect(fragments[1]).toBe(FRAME_2040);
 		expect(fragments[2]).toBe(zone.renderSuffix);
-		expect(fragments[3]).toBe(ABUNDANT.worldOutside);
+		expect(fragments[3]).toBe(ABUNDANT.styleDna);
+		expect(fragments[4]).toBe(ABUNDANT.worldOutside);
+		expect(fragments[5]).toBe(ABUNDANT.insideCue);
 		expect(fragments.at(-1)).toBe(NO_TEXT);
 	});
 
@@ -233,21 +317,21 @@ describe('composeBase / composeZonePrompt', () => {
 	it('resolves the library moment with the deep-work pick and where the AI sits', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		expect(resolveZone(library, ANSWERS).renderSuffix).toBe(
-			'A deep-work room from the doorway, one person in a shaft of light: a small group making a hard call, evidence on the walls, the AI present only as light'
+			'Deep work mid-act, no one posed: a model rising from a dark glass slab, one hand reshaping it, a voice answering as light, the AI present only as light'
 		);
 	});
 
 	it('resolves the studio moment with the workstation and how much it knows', () => {
 		const studio = ZONE_SETS.book.find((z) => z.key === 'studio')!;
 		expect(resolveZone(studio, ANSWERS).renderSuffix).toContain(
-			'a metre-deep desk, tall acoustic panels on three sides, one large screen, one indicator light, the desk already adjusted'
+			'a metre-deep desk, panels three sides, one large screen where the work grows, the desk adjusting itself as someone sits'
 		);
 	});
 
 	it('resolves the garden moment with the biome and how much of the frame it takes', () => {
 		const garden = ZONE_SETS.book.find((z) => z.key === 'garden')!;
 		expect(resolveZone(garden, ANSWERS).renderSuffix).toContain(
-			'old forest: tall trunks, filtered light, long quiet views, no one talking, the biome filling the frame, floor to ceiling'
+			'old forest: tall trunks, one person thinking slowly alone, the biome filling the frame'
 		);
 	});
 
@@ -263,25 +347,28 @@ describe('composeBase / composeZonePrompt', () => {
  * THE WORD BUDGET (prompt-recipe.md §2: 90–130 words per zone, "the board
  * problem came from enumeration; the flatness came from the frame"). A
  * fully answered table — every question, every And, both push replies, a
- * wildcard, a nudged era — must stay under 160 in every zone, with the
- * zone's moment present. The second case stacks the LONGEST option of
- * every question and documents the ceiling that combination reaches
- * (171 measured on 20 Sep, with the full anti-board Avoid list and q10 drawn).
+ * wildcard, a nudged era — must stay within 180 words in every zone (the
+ * brief's 175 plus the five that variant E's three ingredients — the act
+ * with a visible object, the room participating, one impossible idea —
+ * could not be trimmed back out without losing them; the trade is the
+ * lead's), with the zone's moment present. The second case stacks the
+ * LONGEST option of every question and documents the ceiling that
+ * combination reaches (measured 20 Sep with recipe v2, styleDna, variant E).
  */
 describe('word budget', () => {
 	const base = composeBase(built);
 
-	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is under 160 words and contains its moment', (key) => {
+	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is within the 180-word budget and contains its moment', (key) => {
 		const zone = ZONE_SETS.book.find((z) => z.key === key)!;
 		const resolved = resolveZone(zone, ANSWERS);
 		const prompt = composeZonePrompt(base, resolved, built.negative);
-		expect(wordCount(prompt)).toBeLessThan(160);
+		expect(wordCount(prompt)).toBeLessThanOrEqual(180);
 		expect(wordCount(prompt)).toBeGreaterThan(90);
 		expect(prompt).toContain(resolved.renderSuffix);
 		expect(prompt).toContain(zone.moment.split(/[:;]/)[0]); // the subject, before its slot
 	});
 
-	it('stays at or under 175 words even with the longest option of every question stacked', () => {
+	it('stays at or under 205 words even with the longest option of every question stacked', () => {
 		const longest: AnswerLike[] = QUESTIONS.flatMap((q) => {
 			const n = q.select.kind === 'pick' ? q.select.n : 1;
 			const byLength = (a: { promptFragment: string }, b: { promptFragment: string }) =>
@@ -297,7 +384,7 @@ describe('word budget', () => {
 		for (const future of FUTURES) {
 			const b = buildLayerInputs({ futureKey: future.key, era: 'hyperfuturistic-2040', answers: longest });
 			for (const zone of ZONE_SETS.book) {
-				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(175);
+				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(205);
 			}
 		}
 	});

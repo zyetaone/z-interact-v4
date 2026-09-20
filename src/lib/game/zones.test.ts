@@ -14,14 +14,13 @@ describe('zone moments carry the per-zone distinctness on their own', () => {
 		for (const zone of ZONES) expect(zone.renderSuffix).toBe(zone.moment);
 	});
 
-	it('gives every zone its own camera — "from" or "across" somewhere — so four fresh renders are not four of the same framing', () => {
-		for (const zone of ZONES) expect(zone.moment).toMatch(/\b(from|across)\b/);
-		const cameras = ZONES.map((z) => /^[^:;]*/.exec(z.moment)?.[0]);
-		expect(new Set(cameras).size).toBe(ZONES.length);
+	it('opens every zone on a different act, so four fresh renders are not four of the same scene (the camera comes from the scale And)', () => {
+		const acts = ZONES.map((z) => /^[^:;]*/.exec(z.moment)?.[0]);
+		expect(new Set(acts).size).toBe(ZONES.length);
 	});
 
-	it('puts one person in every moment — the owners references all have one', () => {
-		for (const zone of ZONE_SETS.book) expect(zone.moment).toMatch(/\b(person|people|visitor|occupant)\b/);
+	it('states every moment as an act in progress — people mid-action, never a room with someone posed', () => {
+		for (const zone of ZONE_SETS.book) expect(zone.moment).toMatch(/\b(mid-act|mid-task|mid-motion|arriving)\b/);
 	});
 });
 

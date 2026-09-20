@@ -321,6 +321,7 @@ export const tableStatus = query(
         futureKey: futureOf(answers),
         era: eraOf(answers),
         answers,
+        table,
       }),
     );
 
@@ -534,6 +535,7 @@ async function queueGeneration(
     futureKey: futureOf(answers),
     era: eraOf(answers),
     answers,
+    table,
   });
   // A table-edited prompt is free text that becomes the ENTIRE prompt sent
   // to fal and then shown on a public screen. It is capped and stripped

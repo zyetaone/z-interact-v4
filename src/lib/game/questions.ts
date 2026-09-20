@@ -31,6 +31,11 @@
  * drawable, lens-neutral phrase per option, written from her option text
  * in prompt-recipe.md's register — subjects and materials, never
  * instructions (Q2 is her tone; materials; finish table as she wrote it).
+ * Recipe v2 (after the first 20-table wall read as 2026 offices with
+ * plants): the zone-owned fragments (q3, q4w, q5c, q6r) are WORK ACTS —
+ * people mid-action with the arrangement the option describes — and every
+ * invisible-technology answer (q7, q4w's "how much it knows", q10) names
+ * a visible EFFECT, never an absence.
  * Three "And:" rows are CAMERA clauses rather than subjects (§2, move 4):
  * Q2 scale → lens and height, Q6 immersion → how much of the frame the
  * biome takes, Q4 how-much-it-knows → tech visibility. Q10's feel words
@@ -179,7 +184,7 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'human',
 					label: 'Human',
-					promptFragment: '50 mm, eye level, ceilings within reach'
+					promptFragment: 'eye level, ceilings within reach'
 				},
 				{
 					key: 'nested',
@@ -206,32 +211,32 @@ export const QUESTIONS: Question[] = [
 				key: 'human-welcome',
 				label: 'The human welcome — a person is waiting; they greet you, walk you in, hand you over',
 				promptFragment:
-					'a person waiting at the threshold to greet and walk visitors in'
+					'a person at the threshold greeting and walking the visitor in'
 			},
 			{
 				key: 'explains-itself',
 				label:
 					"The building that explains itself — sightlines, landmarks, distinct zones. No signage, no screens, no visual clutter — nothing to read, because there's nothing you need to be told",
 				promptFragment:
-					'long clear sightlines, landmarks, distinct zones, no signage, no screens'
+					'clear sightlines, landmarks, distinct zones, no signage, a visitor reading them'
 			},
 			{
 				key: 'guided-path',
 				label: 'The guided path — directories, dynamic screens and signage that update as you move',
-				promptFragment: 'directories, dynamic screens and signage updating as people move'
+				promptFragment: 'dynamic screens and signage updating around the visitor as they move'
 			},
 			{
 				key: 'virtual-companion',
 				label: "The virtual companion — a personal AI knows where you're headed; it speaks only when you hesitate",
 				promptFragment:
-					'no signage, a visitor with an earpiece pausing to listen'
+					'no signage, a visitor with an earpiece pausing as it speaks'
 			},
 			{
 				key: 'expected-you',
 				label:
 					'The building that expected you — light warms toward your zone, acoustics soften, thresholds change underfoot, and the room is already cooled, lit and set up',
 				promptFragment:
-					'light warming toward one zone, thresholds changing underfoot, the room already set'
+					'light warming toward the visitor, thresholds shifting underfoot'
 			}
 		],
 		and: {
@@ -273,40 +278,40 @@ export const QUESTIONS: Question[] = [
 				key: 'room-of-your-own',
 				label:
 					'A room of your own — four walls, a door you close, a window. Yours, with your things in it. The highest-performing answer in the research, and the most expensive.',
-				promptFragment: 'a private room: four walls, a door, a window, personal things'
+				promptFragment: 'a private room, door and window, one person dictating to a wall that writes'
 			},
 			{
 				key: 'deep-desk',
 				label:
 					'The deep desk — a metre-plus deep, tall acoustic panels on three sides, one large screen. Nearly a room, without the door.',
 				promptFragment:
-					'a metre-deep desk, tall acoustic panels on three sides, one large screen'
+					'a metre-deep desk, panels three sides, one large screen where the work grows'
 			},
 			{
 				key: 'cockpit',
 				label:
 					'The cockpit — a curve of screens and surfaces wrapping around you. You and your AI, fully instrumented, working at speed.',
 				promptFragment:
-					'a cockpit desk, a curve of screens and surfaces wrapping one seat'
+					'a cockpit desk, screens curving round one seat, hands moving through data'
 			},
 			{
 				key: 'pod',
 				label:
 					'The pod — a sealed acoustic booth you book and leave. Remote colleagues appear beside you. Small, glazed, temporary.',
 				promptFragment:
-					'a small glazed acoustic pod, a remote colleague appearing on its glass'
+					'a glazed pod, a remote colleague appearing on its glass mid-sentence'
 			},
 			{
 				key: 'open-bench',
 				label:
 					'The open bench — a shared surface, no panels, no ownership. Focus happens elsewhere; this is for being together.',
-				promptFragment: 'a long shared open bench, no panels, people side by side'
+				promptFragment: 'a long open bench, no panels, people side by side comparing live models'
 			},
 			{
 				key: 'no-workstation',
 				label: 'No workstation at all — you carry your work. The building offers settings, not desks.',
 				promptFragment:
-					'no desks, only settings: window seats, soft corners, high tables'
+					'no desks: window seats and soft corners, the work following onto any surface'
 			}
 		],
 		and: {
@@ -320,19 +325,19 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'your-settings',
 					label: 'Your settings',
-					promptFragment: 'one indicator light, the desk already adjusted'
+					promptFragment: 'the desk adjusting itself as someone sits'
 				},
 				{
 					key: 'your-patterns',
 					label: 'Your patterns',
 					promptFragment:
-						'a faint schedule glowing on the desk'
+						"the day's schedule surfacing on the desk when touched"
 				},
 				{
 					key: 'your-state',
 					label: 'Your state',
 					promptFragment:
-						'light and air shifting around the occupant'
+						'light and air shifting around the occupant as they work'
 				}
 			]
 		}
@@ -353,38 +358,38 @@ export const QUESTIONS: Question[] = [
 				label:
 					'The sealed cell — one person, no AI in the room. No signal, no prompts, deliberately unassisted thought.',
 				promptFragment:
-					'a sealed cell for one: no AI, no screens, a desk, paper, a window'
+					'one person alone in a sealed cell, no AI, working by hand on paper'
 			},
 			{
 				key: 'cockpit',
 				label: 'The cockpit — one person flying with full AI power; data and options surround them, they steer',
 				promptFragment:
-					'a cockpit for one, data and options on wraparound surfaces'
+					'one person steering a wraparound slab of live data, options rising as their hand moves'
 			},
 			{
 				key: 'quiet-pair',
 				label: 'The quiet pair — two people thinking together; AI listens, captures, retrieves, never interrupts',
 				promptFragment:
-					'two people thinking together, one small discreet device listening'
+					'two people thinking aloud, a small device listening and lifting answers onto the table'
 			},
 			{
 				key: 'judgement-room',
 				label:
 					'The judgement room — a small group making a hard call; AI laid out the evidence, the decision stays in the room',
 				promptFragment:
-					'a small group making a hard call, evidence on the walls'
+					'a model rising from a dark glass slab, one hand reshaping it, a voice answering as light'
 			},
 			{
 				key: 'studio',
 				label: 'The studio — a team creating with AI generating alongside them; messy, visual, fast',
 				promptFragment:
-					'a messy visual studio, a team creating, walls covered in fast iterations'
+					'a team sketching while AI variants bloom beside them on the wall'
 			},
 			{
 				key: 'thinking-walk',
 				label: 'The thinking walk — not a room; a loop through garden, water or sky, AI in the ear only when called',
 				promptFragment:
-					'a loop through garden, water or sky, one walker with an earpiece'
+					'one person walking a loop through garden and water, an earpiece answering'
 			}
 		],
 		and: {
@@ -426,27 +431,27 @@ export const QUESTIONS: Question[] = [
 				key: 'grassland',
 				label:
 					"Grassland — your body is spent — you've been still too long. Open horizon, sky, wind, room to move. You recover by walking, stretching, being outside.",
-				promptFragment: 'grassland: open horizon, sky and wind, room to walk and stretch'
+				promptFragment: 'grassland: open horizon, wind, people walking and stretching'
 			},
 			{
 				key: 'old-forest',
 				label:
 					"Old Forest — your thinking is spent — you've decided too much. Tall trunks, filtered light, long quiet views, no one talking. You recover by thinking slowly, alone.",
 				promptFragment:
-					'old forest: tall trunks, filtered light, long quiet views, no one talking'
+					'old forest: tall trunks, one person thinking slowly alone'
 			},
 			{
 				key: 'rain-forest',
 				label:
 					"Rain Forest — your patience is spent — you've given too much to other people. Warm, dense, alive with sound. You recover among people who ask nothing of you.",
-				promptFragment: 'rain forest: warm, dense, alive with sound, people nearby who ask nothing'
+				promptFragment: 'rain forest: warm, dense, alive with sound, people near, asking nothing'
 			},
 			{
 				key: 'deep-sea',
 				label:
 					"Deep Sea — your certainty is spent — you've been sharp too long and stopped trusting your gut. Blue dark, weightless, muffled, slow drift. You recover by stopping thought entirely.",
 				promptFragment:
-					'deep sea: blue dark, weightless, muffled, slow drifting light'
+					'deep sea: blue dark, weightless, someone drifting still'
 			}
 		],
 		and: {
@@ -460,12 +465,12 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'a-room-that-evokes-it',
 					label: 'A room that evokes it',
-					promptFragment: 'an interior room borrowing its light and material'
+					promptFragment: 'an interior room borrowing its material'
 				},
 				{
 					key: 'fully-immersive',
 					label: 'Fully immersive',
-					promptFragment: 'the biome filling the frame, floor to ceiling'
+					promptFragment: 'the biome filling the frame'
 				},
 				{
 					key: 'the-real-thing',
@@ -487,40 +492,40 @@ export const QUESTIONS: Question[] = [
 				key: 'nothing-to-see',
 				label: "Nothing to see — no screens, no devices, no hardware anywhere. It works, but you couldn't point at it.",
 				promptFragment:
-					'no screens, no devices, no hardware anywhere'
+					'light and a surface responding to a hand, no devices anywhere'
 			},
 			{
 				key: 'light-and-sound',
 				label:
 					'Light and sound do the talking — no screens. The room communicates by warming, dimming, quieting or cooling.',
 				promptFragment:
-					'no screens; the room warming, dimming or cooling instead'
+					'no screens; a wall brightening toward the person as it speaks'
 			},
 			{
 				key: 'surfaces-wake-up',
 				label:
 					'Surfaces wake up — walls, glass and tables are blank until needed, then become displays, then go blank again.',
 				promptFragment:
-					'walls and tables blank until needed, one surface awake'
+					"a bare table showing the work under someone's hands"
 			},
 			{
 				key: 'screens-everywhere',
 				label: 'Screens everywhere, always on — displays, dashboards and data visible across the floor at all times.',
-				promptFragment: 'screens everywhere, always on, dashboards across the floor'
+				promptFragment: 'screens everywhere, always on, live dashboards across the floor'
 			},
 			{
 				key: 'has-a-body',
 				label:
 					"It has a body — a hologram, avatar or robot with physical presence. You speak to it, and it's in the room with you.",
 				promptFragment:
-					'a hologram or robot with physical presence in the room'
+					'one small robot or hologram mid-task in the room'
 			},
 			{
 				key: 'paper-and-pens',
 				label:
 					'Paper and pens on purpose — whiteboards, pinboards, printouts. Deliberately unplugged zones where nothing is recorded.',
 				promptFragment:
-					'paper and pens on purpose: whiteboards, pinboards, printouts'
+					'paper and pens on purpose: whiteboards, pinboards, printouts in use'
 			}
 		]
 	},
@@ -570,24 +575,24 @@ export const QUESTIONS: Question[] = [
 			{
 				key: 'protects-attention',
 				label: 'It protects attention — we made it quiet and enclosed, and accepted that it feels less buzzy',
-				promptFragment: 'more small quiet rooms than open floor'
+				promptFragment: 'more small quiet rooms than open floor, doors closing'
 			},
 			{
 				key: 'supports-judgement',
 				label: 'It supports judgement — we built space for hard conversations, and gave up floor area to do it',
 				promptFragment:
-					'one oversized room built for a hard decision'
+					'one oversized room built for a hard decision, in use'
 			},
 			{
 				key: 'adapts-as-needs-change',
 				label: 'It adapts — we made everything movable, and accepted that nothing feels permanent or owned',
-				promptFragment: 'the same furniture set up two different ways in view'
+				promptFragment: 'the same furniture set up two ways in view, being moved'
 			},
 			{
 				key: 'knows-when-to-step-back',
 				label: 'It knows when to step back — we kept AI out of some places on purpose, and gave up efficiency there',
 				promptFragment:
-					'half the floor visibly unpowered, nothing switched on'
+					'half the floor unpowered, people working by hand there'
 			}
 		],
 		and: {

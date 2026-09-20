@@ -184,7 +184,7 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'human',
 					label: 'Human',
-					promptFragment: '50 mm, eye level, ceilings within reach'
+					promptFragment: 'eye level, ceilings within reach'
 				},
 				{
 					key: 'nested',
@@ -211,19 +211,19 @@ export const QUESTIONS: Question[] = [
 				key: 'human-welcome',
 				label: 'The human welcome — a person is waiting; they greet you, walk you in, hand you over',
 				promptFragment:
-					'a person at the threshold greeting and walking the arriving visitor in'
+					'a person at the threshold greeting and walking the visitor in'
 			},
 			{
 				key: 'explains-itself',
 				label:
 					"The building that explains itself — sightlines, landmarks, distinct zones. No signage, no screens, no visual clutter — nothing to read, because there's nothing you need to be told",
 				promptFragment:
-					'clear sightlines, landmarks, distinct zones, no signage, a visitor reading the space'
+					'clear sightlines, landmarks, distinct zones, no signage, a visitor reading them'
 			},
 			{
 				key: 'guided-path',
 				label: 'The guided path — directories, dynamic screens and signage that update as you move',
-				promptFragment: 'dynamic screens and signage updating around the arriving visitor as they move'
+				promptFragment: 'dynamic screens and signage updating around the visitor as they move'
 			},
 			{
 				key: 'virtual-companion',
@@ -236,7 +236,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					'The building that expected you — light warms toward your zone, acoustics soften, thresholds change underfoot, and the room is already cooled, lit and set up',
 				promptFragment:
-					"light warming toward the visitor's zone, thresholds changing underfoot as they walk in"
+					'light warming toward the visitor, thresholds shifting underfoot'
 			}
 		],
 		and: {
@@ -278,21 +278,21 @@ export const QUESTIONS: Question[] = [
 				key: 'room-of-your-own',
 				label:
 					'A room of your own — four walls, a door you close, a window. Yours, with your things in it. The highest-performing answer in the research, and the most expensive.',
-				promptFragment: 'a private room, door and window, one person dictating to a wall that writes'
+				promptFragment: 'a private room, door and window, one person dictating to a writing wall'
 			},
 			{
 				key: 'deep-desk',
 				label:
 					'The deep desk — a metre-plus deep, tall acoustic panels on three sides, one large screen. Nearly a room, without the door.',
 				promptFragment:
-					'a metre-deep desk, tall acoustic panels three sides, one large screen at work'
+					'a metre-deep desk, tall panels three sides, one large screen at work'
 			},
 			{
 				key: 'cockpit',
 				label:
 					'The cockpit — a curve of screens and surfaces wrapping around you. You and your AI, fully instrumented, working at speed.',
 				promptFragment:
-					'a cockpit desk, a curve of screens wrapping one seat, hands moving through data'
+					'a cockpit desk, a curve of screens round one seat, hands moving through data'
 			},
 			{
 				key: 'pod',
@@ -311,7 +311,7 @@ export const QUESTIONS: Question[] = [
 				key: 'no-workstation',
 				label: 'No workstation at all — you carry your work. The building offers settings, not desks.',
 				promptFragment:
-					'no desks, only settings: window seats, soft corners, work on any surface'
+					'no desks: window seats, soft corners, work on any surface'
 			}
 		],
 		and: {
@@ -370,7 +370,7 @@ export const QUESTIONS: Question[] = [
 				key: 'quiet-pair',
 				label: 'The quiet pair — two people thinking together; AI listens, captures, retrieves, never interrupts',
 				promptFragment:
-					'two people thinking aloud, a small device listening and surfacing answers'
+					'two people thinking aloud, a small device listening, surfacing answers'
 			},
 			{
 				key: 'judgement-room',
@@ -389,7 +389,7 @@ export const QUESTIONS: Question[] = [
 				key: 'thinking-walk',
 				label: 'The thinking walk — not a room; a loop through garden, water or sky, AI in the ear only when called',
 				promptFragment:
-					'one person walking a loop through garden and water, an earpiece the only device'
+					'one person walking a loop through garden and water, only an earpiece'
 			}
 		],
 		and: {
@@ -431,14 +431,14 @@ export const QUESTIONS: Question[] = [
 				key: 'grassland',
 				label:
 					"Grassland — your body is spent — you've been still too long. Open horizon, sky, wind, room to move. You recover by walking, stretching, being outside.",
-				promptFragment: 'grassland: open horizon, sky and wind, people walking and stretching'
+				promptFragment: 'grassland: open horizon, wind, people walking and stretching'
 			},
 			{
 				key: 'old-forest',
 				label:
 					"Old Forest — your thinking is spent — you've decided too much. Tall trunks, filtered light, long quiet views, no one talking. You recover by thinking slowly, alone.",
 				promptFragment:
-					'old forest: tall trunks, filtered light, one person thinking slowly alone'
+					'old forest: tall trunks, one person thinking slowly alone'
 			},
 			{
 				key: 'rain-forest',
@@ -451,7 +451,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					"Deep Sea — your certainty is spent — you've been sharp too long and stopped trusting your gut. Blue dark, weightless, muffled, slow drift. You recover by stopping thought entirely.",
 				promptFragment:
-					'deep sea: blue dark, weightless, muffled, someone drifting still'
+					'deep sea: blue dark, weightless, someone drifting still'
 			}
 		],
 		and: {
@@ -465,12 +465,12 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'a-room-that-evokes-it',
 					label: 'A room that evokes it',
-					promptFragment: 'an interior room borrowing its light and material'
+					promptFragment: 'an interior room borrowing its material'
 				},
 				{
 					key: 'fully-immersive',
 					label: 'Fully immersive',
-					promptFragment: 'the biome filling the frame, floor to ceiling'
+					promptFragment: 'the biome filling the frame'
 				},
 				{
 					key: 'the-real-thing',
@@ -592,7 +592,7 @@ export const QUESTIONS: Question[] = [
 				key: 'knows-when-to-step-back',
 				label: 'It knows when to step back — we kept AI out of some places on purpose, and gave up efficiency there',
 				promptFragment:
-					'half the floor visibly unpowered, people working by hand there'
+					'half the floor unpowered, people working by hand there'
 			}
 		],
 		and: {

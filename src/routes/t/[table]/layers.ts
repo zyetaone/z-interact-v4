@@ -21,8 +21,10 @@
  *   mood             <- the fixed cinematic frame (a film still from a
  *                       workplace in <year>, anamorphic, volumetric — see
  *                       `prompt.ts`'s `houseBase`), THEN the chosen future's
- *                       `worldOutside` (the window: skyline, weather, two
- *                       materials — never its name or full mood paragraph),
+ *                       `styleDna` (its card's visual signatures, the indoor
+ *                       carrier of the lens), its `worldOutside` (the window:
+ *                       structures, density, signage, two materials — never
+ *                       its name, its mood paragraph, or an hour of the day),
  *                       THEN its `insideCue` (one indoor 2040 tell, recipe v2).
  *                       `<year>` comes from the era chip (V4 has no era
  *                       question; the chip's row still stores under `q1`),
@@ -102,7 +104,7 @@ export interface BuiltLayers extends LayerInputs {
 
 /** The window when a table skips the lens (game-flow §1 screen 3's failure state) — an ordinary city, moody rather than stark. */
 export const HOUSE_REGISTER =
-	'through the glass, an ordinary mid-rise city at the last warm hour, haze; moody rather than stark, pooled warm light, shadow held deliberately';
+	'through the glass, an ordinary mid-rise city; moody rather than stark, pooled light, shadow held deliberately';
 
 
 
@@ -216,8 +218,11 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
 	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
 	const window = future ? future.worldOutside : HOUSE_REGISTER;
-	// Recipe v2: one unmistakable indoor 2040 cue per lens, right after the window.
-	const mood = joinClauses([base, window, future?.insideCue, eraAnswer?.pushReply]);
+	// Recipe v2: the lens's styleDna (its card's visual signatures) right
+	// after the frame — so it lands directly after the zone's moment once
+	// composeZonePrompt splits the frame off — then the window, then one
+	// unmistakable indoor 2040 cue. None of the three names a time of day.
+	const mood = joinClauses([base, future?.styleDna, window, future?.insideCue, eraAnswer?.pushReply]);
 
 	// --- materials & light: q2 (her tone; materials; finish) + its scale
 	// pick (the camera) + its push reply, then technology (q7) and nature

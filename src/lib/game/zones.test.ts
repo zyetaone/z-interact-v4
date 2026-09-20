@@ -20,7 +20,7 @@ describe('zone moments carry the per-zone distinctness on their own', () => {
 	});
 
 	it('states every moment as an act in progress — people mid-action, never a room with someone posed', () => {
-		for (const zone of ZONE_SETS.book) expect(zone.moment).toMatch(/\b(mid-act|mid-task|mid-motion|walking in)\b/);
+		for (const zone of ZONE_SETS.book) expect(zone.moment).toMatch(/\b(mid-act|mid-task|mid-motion|arriving)\b/);
 	});
 });
 

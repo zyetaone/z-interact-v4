@@ -93,12 +93,12 @@ const BOOK_ZONES: Zone[] = [
 	zone({
 		key: 'studio',
 		questionIds: ['q4w'],
-		moment: 'A working floor, two or three people mid-task at their stations: {q4w}'
+		moment: 'A working floor, three people mid-task at their stations: {q4w}'
 	}),
 	zone({
 		key: 'plaza',
 		questionIds: ['q3'],
-		moment: 'The arrival act, the building responding to the person walking in: {q3}'
+		moment: 'The arrival act, the building responding to the person arriving: {q3}'
 	}),
 	zone({
 		key: 'garden',

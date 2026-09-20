@@ -202,7 +202,7 @@ describe('buildLayerInputs', () => {
 
 	it('builds feel from q10s visible consequence, then q11s three light-and-weather clauses in option order — never the bare adjectives', () => {
 		expect(built.feel).toBe(
-			'half the floor unpowered, people working by hand there, soft even light, still air, one pool of light, shadow around, leaves, water and birds moving'
+			'half the floor unpowered, people working by hand there, soft even light, still air, a bright pool of light on the work, the room around it lit, leaves, water and birds moving'
 		);
 		expect(built.feel).not.toMatch(/\b(calm|focused|alive)\b/);
 	});
@@ -359,21 +359,30 @@ describe('composeBase / composeZonePrompt', () => {
  * lead's), with the zone's moment present. The second case stacks the
  * LONGEST option of every question and documents the ceiling that
  * combination reaches (measured 20 Sep with recipe v2, styleDna, variant E).
+ *
+ * Raised 180 -> 190 and 205 -> 225 on 21 Sep. Production measured a
+ * suppressed branch at mean luminance 80 with 27.2% of frame below 40
+ * against a bright branch's 113 / 10.7%, so the six fragments that
+ * hard-coded darkness now say what light they want instead of only how
+ * little of it there is. That costs words in the zone path too — q11's
+ * three dark feel words stack in EVERY zone prompt. Measured after the
+ * rewrite: 185 worst zone, 221 worst stack. The headroom above those is
+ * deliberate slack, not a measurement.
  */
 describe('word budget', () => {
 	const base = composeBase(built);
 
-	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is within the 180-word budget and contains its moment', (key) => {
+	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is within the 190-word budget and contains its moment', (key) => {
 		const zone = ZONE_SETS.book.find((z) => z.key === key)!;
 		const resolved = resolveZone(zone, ANSWERS);
 		const prompt = composeZonePrompt(base, resolved, built.negative);
-		expect(wordCount(prompt)).toBeLessThanOrEqual(180);
+		expect(wordCount(prompt)).toBeLessThanOrEqual(190);
 		expect(wordCount(prompt)).toBeGreaterThan(90);
 		expect(prompt).toContain(resolved.renderSuffix);
 		expect(prompt).toContain(zone.moment.split(/[:;]/)[0]); // the subject, before its slot
 	});
 
-	it('stays at or under 205 words even with the longest option of every question stacked', () => {
+	it('stays at or under 225 words even with the longest option of every question stacked', () => {
 		const longest: AnswerLike[] = QUESTIONS.flatMap((q) => {
 			const n = q.select.kind === 'pick' ? q.select.n : 1;
 			const byLength = (a: { promptFragment: string }, b: { promptFragment: string }) =>
@@ -389,7 +398,7 @@ describe('word budget', () => {
 		for (const future of FUTURES) {
 			const b = buildLayerInputs({ futureKey: future.key, era: 'hyperfuturistic-2040', answers: longest });
 			for (const zone of ZONE_SETS.book) {
-				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(205);
+				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(225);
 			}
 		}
 	});

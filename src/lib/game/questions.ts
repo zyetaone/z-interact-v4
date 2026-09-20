@@ -245,7 +245,7 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'never',
 					label: 'Never',
-					promptFragment: 'a plain unlit threshold that reacts to no one'
+					promptFragment: 'a plain threshold with no light moving ahead of them, reacting to no one'
 				},
 				{
 					key: 'at-the-door',
@@ -358,7 +358,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					'The sealed cell — one person, no AI in the room. No signal, no prompts, deliberately unassisted thought.',
 				promptFragment:
-					'one person alone in a sealed cell, no AI, working by hand on paper'
+					'one person alone in a sealed cell, daylight from one high window, no AI, working by hand on paper'
 			},
 			{
 				key: 'cockpit',
@@ -451,7 +451,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					"Deep Sea — your certainty is spent — you've been sharp too long and stopped trusting your gut. Blue dark, weightless, muffled, slow drift. You recover by stopping thought entirely.",
 				promptFragment:
-					'deep sea: blue dark, weightless, someone drifting still'
+					'deep sea: blue water, light falling through from above, weightless, someone drifting still'
 			}
 		],
 		and: {
@@ -630,12 +630,12 @@ export const QUESTIONS: Question[] = [
 		options: [
 			{ key: 'calm', label: 'Calm', promptFragment: 'soft even light, still air' },
 			{ key: 'electric', label: 'Electric', promptFragment: 'hard rim light, reflections, motion blur' },
-			{ key: 'sacred', label: 'Sacred', promptFragment: 'one high shaft of light, silence' },
+			{ key: 'sacred', label: 'Sacred', promptFragment: 'one high shaft of daylight, the room bright around it, silence' },
 			{ key: 'playful', label: 'Playful', promptFragment: 'colour accents, a tilted frame' },
-			{ key: 'focused', label: 'Focused', promptFragment: 'one pool of light, shadow around' },
+			{ key: 'focused', label: 'Focused', promptFragment: 'a bright pool of light on the work, the room around it lit' },
 			{ key: 'alive', label: 'Alive', promptFragment: 'leaves, water and birds moving' },
 			{ key: 'effortless', label: 'Effortless', promptFragment: 'nothing in the way' },
-			{ key: 'quiet', label: 'Quiet', promptFragment: 'deep shadow, an empty foreground' },
+			{ key: 'quiet', label: 'Quiet', promptFragment: 'an empty foreground, daylight deeper in the room, shadow that shows its surfaces' },
 			{ key: 'generous', label: 'Generous', promptFragment: 'wide and tall, open air' },
 			{ key: 'yours', label: 'Yours', promptFragment: 'one personal object in the foreground' }
 		]

@@ -5,7 +5,8 @@ import { ERA_SCALE, allowedEras, nudge, type Era } from './era';
  * Ports futures.md §5's block/allow table pair by pair. That table was
  * enumerated by hand over there (Garden City/Solarpunk/Broadacre allow the
  * full neighbour window; Arcology/Neo-Seoul block both 2026 and 1930s;
- * Retrofuturism and Pragmatist Retrofit are locked to their own era) —
+ * Retrofuturism is locked to its own era; the locked-2026 row survives
+ * from V3's Pragmatist Retrofit, dropped in V4, as a pure-rule fixture) —
  * `allowedEras` derives it from the ordered scale here. If these ever
  * disagree, one of us changed the palette without saying so.
  */
@@ -16,7 +17,7 @@ const ERA_RULE_FIXTURES: ReadonlyArray<[Era, boolean, Era[]]> = [
 	['hyperfuturistic-2040', false, ['recognisably-2035', 'hyperfuturistic-2040']],
 	// Retrofuturism — locked to retro-1930s
 	['retro-1930s', true, ['retro-1930s']],
-	// Pragmatist Retrofit — locked to same-as-2026
+	// a locked same-as-2026 future (V3's Pragmatist Retrofit; no V4 future uses it)
 	['same-as-2026', true, ['same-as-2026']]
 ];
 
@@ -27,7 +28,7 @@ describe('allowedEras', () => {
 });
 
 describe('ERA_SCALE', () => {
-	it('has exactly Q1s four options, in order', () => {
+	it('has exactly the four eras, in order', () => {
 		expect(ERA_SCALE).toEqual(['retro-1930s', 'same-as-2026', 'recognisably-2035', 'hyperfuturistic-2040']);
 	});
 });

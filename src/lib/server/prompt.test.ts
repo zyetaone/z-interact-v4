@@ -11,10 +11,10 @@ const inputs: LayerInputs = {
 };
 
 describe('composeLayers', () => {
-	it('orders fragments: NO_TEXT, mood, materials, programme, feel, zone suffix, [wildcard], NO_TEXT', () => {
+	it('orders fragments: NO_TEXT, mood, zone moment, materials, programme, feel, [wildcard], NO_TEXT', () => {
 		const result = composeLayers(inputs, zone);
 		const fragments = result.split('. ');
-		expect(fragments).toEqual([NO_TEXT, 'MOOD', 'MATERIALS', 'PROGRAMME', 'FEEL', 'wide shot of zone a', NO_TEXT]);
+		expect(fragments).toEqual([NO_TEXT, 'MOOD', 'wide shot of zone a', 'MATERIALS', 'PROGRAMME', 'FEEL', NO_TEXT]);
 	});
 
 	it('places NO_TEXT first and last even with a wildcard appended', () => {

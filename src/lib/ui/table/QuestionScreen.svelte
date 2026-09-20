@@ -1,12 +1,17 @@
 <script lang="ts">
 	/**
-	 * Screens 4-13 — one question per screen. The stem is verbatim; Q4 and
-	 * Q9 additionally carry a one-line `lead` shown just under the stem
-	 * before their facet options. The Push line is printed ONCE (design-
-	 * review.md fix 8): where the question captures a reply (Q2, Q10) it is
-	 * the field's label and nothing else; where it is only spoken at the
-	 * table it is a `.talk` prompt, styled apart from any field label so it
-	 * never looks like a question with nowhere to answer.
+	 * One question per screen. The stem is verbatim; V4's Q4, Q5 and Q6
+	 * carry a `lead` shown just under the stem before their options. The
+	 * Push line is printed ONCE (design-review.md fix 8): where the question
+	 * captures a reply (q2, q5c) it is the field's label and nothing else;
+	 * where it is only spoken at the table it is a `.talk` prompt, styled
+	 * apart from any field label so it never looks like a question with
+	 * nowhere to answer.
+	 *
+	 * V4's "And:" sub-question is a compact single-select chip row under
+	 * the options, in the era chip's style (`FutureScreen`). It is optional
+	 * and never blocks Next; its pick is stored as its own row under
+	 * `${id}:and` (`andId`), so the parent answer's row is untouched.
 	 *
 	 * The screen never advances on an unsaved answer: a failed save leaves
 	 * the selection on screen with a retry banner (game-flow.md §1).
@@ -19,20 +24,25 @@
 		keys,
 		texts,
 		pushReply,
+		andKey,
 		saving,
 		failed,
 		onchange,
 		onpush,
+		onand,
 		onnext
 	}: {
 		question: Question;
 		keys: string[];
 		texts: Record<string, string>;
 		pushReply: string;
+		/** The "And:" pick, or null when the table has not (or no longer) chosen one. */
+		andKey: string | null;
 		saving: boolean;
 		failed: string;
 		onchange: (keys: string[], texts: Record<string, string>) => void;
 		onpush: (text: string) => void;
+		onand: (key: string | null) => void;
 		onnext: () => void;
 	} = $props();
 
@@ -56,6 +66,25 @@
 
 <OptionList {question} {keys} {texts} {onchange} />
 
+{#if question.and}
+	<section class="chip-row" aria-label={question.and.prompt}>
+		<span class="field-label" id="and-{question.id}">And: {question.and.prompt}</span>
+		<div class="chips" role="radiogroup" aria-labelledby="and-{question.id}">
+			{#each question.and.options as option (option.key)}
+				{@const picked = option.key === andKey}
+				<button
+					type="button"
+					role="radio"
+					class="chip"
+					aria-checked={picked}
+					onclick={() => onand(picked ? null : option.key)}>{option.label}</button
+				>
+			{/each}
+		</div>
+		<p class="count note">Optional.</p>
+	</section>
+{/if}
+
 {#if question.pushCapturesReply && question.push}
 	<section class="push-field">
 		<label class="field-label" for="push">{question.push}</label>
@@ -67,7 +96,9 @@
 			value={pushReply}
 			onchange={(e) => onpush(e.currentTarget.value)}
 		></textarea>
-		<p class="count note">Optional — added to the prompt word for word.</p>
+		<p class="count note">
+			{question.pushNotDrawn ? 'Optional — kept with your answers for the wall, not drawn.' : 'Optional — added to the prompt word for word.'}
+		</p>
 	</section>
 {/if}
 
@@ -83,6 +114,38 @@
 	.lead {
 		margin: -8px 0 12px;
 		opacity: 0.85;
+	}
+
+	/* The era chip's row (FutureScreen), as a radiogroup that wraps. */
+	.chip-row {
+		border-top: 1px solid var(--line);
+		padding-top: 18px;
+		margin: 18px 0;
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+
+	.chip {
+		min-height: 44px;
+		border-radius: 999px;
+		border: 1px solid var(--line-strong);
+		background: transparent;
+		color: var(--ink);
+		padding: 0 16px;
+		font-size: 15px;
+		cursor: pointer;
+		transition:
+			border-color 0.12s ease,
+			color 0.12s ease;
+	}
+
+	.chip[aria-checked='true'] {
+		border-color: var(--gold);
+		color: var(--gold);
 	}
 	.push-field {
 		margin-bottom: 18px;

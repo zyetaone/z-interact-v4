@@ -16,6 +16,7 @@
 	import '../../../app.css';
 	import { tableStatus, saveAnswer, saveFuture, saveEra, saveWildcard, finishTable, regenerate, retryZone } from './answers.remote';
 	import { allRendersSettled, createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
+	import { andId } from '$lib/game/questions';
 	import type { Era } from '$lib/game/era';
 	import Topbar from '$lib/ui/table/Topbar.svelte';
 	import LandingScreen from '$lib/ui/table/LandingScreen.svelte';
@@ -67,6 +68,8 @@
 	let draftKeys = $state<Record<string, string[]>>({});
 	let draftTexts = $state<Record<string, Record<string, string>>>({});
 	let draftPush = $state<Record<string, string>>({});
+	/** The "And:" pick per question id — `null` once the table un-picks it. */
+	let draftAnd = $state<Record<string, string | null>>({});
 	let draftWildcard = $state<string | null>(null);
 	let draftPrompt = $state<string | null>(null);
 
@@ -78,6 +81,27 @@
 	}
 	function pushOf(id: string): string {
 		return draftPush[id] ?? flow.answer(id)?.pushReply ?? '';
+	}
+	function andOf(id: string): string | null {
+		return id in draftAnd ? draftAnd[id] : (flow.answer(andId(id))?.keys[0] ?? null);
+	}
+
+	/**
+	 * The question's own row, then its "And:" row when the question has one.
+	 * The sub-question is optional, so an empty pick still writes `[]` — that
+	 * is how an un-pick clears an earlier row (latest row wins, `room.ts`).
+	 */
+	async function saveQuestion(id: string) {
+		const saved = await saveAnswer({
+			table,
+			questionId: id,
+			keys: keysOf(id),
+			text: textsOf(id),
+			pushReply: pushOf(id)
+		});
+		if (!saved.ok || !question?.and) return saved;
+		const key = andOf(id);
+		return saveAnswer({ table, questionId: andId(id), keys: key ? [key] : [] });
 	}
 
 	/** One shape for every write: block, report, and only advance on success. */
@@ -129,13 +153,8 @@
 		<FutureScreen
 			futureKey={flow.status.future}
 			era={flow.status.era}
-			protectReply={pushOf('q1')}
 			onpick={(key) => run(() => saveFuture({ table, futureKey: key }), false)}
-			onera={(era: Era) => run(() => saveEra({ table, era, pushReply: pushOf('q1') }), false)}
-			onprotect={(text) => {
-				draftPush = { ...draftPush, q1: text };
-				if (flow.status.era) void run(() => saveEra({ table, era: flow.status.era!, pushReply: text }), false);
-			}}
+			onera={(era: Era) => run(() => saveEra({ table, era }), false)}
 			onskip={() => run(() => saveFuture({ table, futureKey: null }))}
 			onnext={() => flow.next()}
 		/>
@@ -145,6 +164,7 @@
 			keys={keysOf(question.id)}
 			texts={textsOf(question.id)}
 			pushReply={pushOf(question.id)}
+			andKey={andOf(question.id)}
 			{saving}
 			{failed}
 			onchange={(keys, texts) => {
@@ -152,16 +172,8 @@
 				draftTexts = { ...draftTexts, [question.id]: texts };
 			}}
 			onpush={(text) => (draftPush = { ...draftPush, [question.id]: text })}
-			onnext={() =>
-				run(() =>
-					saveAnswer({
-						table,
-						questionId: question.id,
-						keys: keysOf(question.id),
-						text: textsOf(question.id),
-						pushReply: pushOf(question.id)
-					})
-				)}
+			onand={(key) => (draftAnd = { ...draftAnd, [question.id]: key })}
+			onnext={() => run(() => saveQuestion(question.id))}
 		/>
 	{:else if current.kind === 'wildcard'}
 		<WildcardScreen

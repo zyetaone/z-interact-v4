@@ -443,10 +443,11 @@ export const saveEra = command(
 
 const SaveAnswerInput = v.object({
   table: tableNo,
+  /** A question id, or `<qid>:and` for a V4 "And:" sub-question's own row (game/questions.ts's `andId`). */
   questionId: v.string(),
   keys: v.array(v.string()),
   text: v.optional(v.record(v.string(), v.string())),
-  /** The ◆ questions' Push line doubles as a typed capture field (Q2, Q5, Q9). */
+  /** Where the Push line doubles as a typed capture field (V4: q2, q5c). */
   pushReply: v.optional(v.string()),
 });
 

@@ -1,5 +1,13 @@
 /**
- * ERA SCALE — the ordered window Q1's four options sit on (futures.md §5).
+ * ERA SCALE — the ordered window the era chip sits on (futures.md §5).
+ *
+ * VERSION 4 of the questions (BRIEF.md, the question owner's 19 Sep 17:58
+ * send) drops the era question: "Era (2035/2040) is now a PUSH cue, not a
+ * question". The chip on the lens screen keeps the future's default and
+ * the one-step nudge; what a nudge changes in the prompt is the year in the
+ * cinematic frame (`layers.ts`'s `ERA_YEAR`), nothing more. The stored row
+ * keeps its V3 id (`q1`) — an answer id is never renumbered — it is simply
+ * no longer a question.
  *
  * "One step earlier or later" is a slice of this array, so every block/allow
  * rule in futures.md §5 falls out of `allowedEras` rather than being

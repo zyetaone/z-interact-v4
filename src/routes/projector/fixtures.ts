@@ -18,7 +18,7 @@ import type { ProjectorRoom, TableBeatState, TableView, ZoneImageState } from '$
 
 const TOTAL_STEPS = QUESTIONS.length;
 
-/** Round-robins the 20 tables across the 7 futures, cycling the 6 beat states so every state has multiple examples. */
+/** Round-robins the 20 tables across the six futures, cycling the 6 beat states so every state has multiple examples. */
 const STATE_CYCLE: TableBeatState[] = ['not-started', 'choosing', 'answering', 'answering', 'reviewing', 'drawing', 'drawing', 'done'];
 
 /**
@@ -29,7 +29,7 @@ const STATE_CYCLE: TableBeatState[] = ['not-started', 'choosing', 'answering', '
  * crossfade both look broken in a capture when they are not — the first
  * 5760x1080 focus capture showed the same photograph three times. So a
  * fixture zone borrows a NEIGHBOURING future's lens still: obviously fake
- * on inspection, honest about the layout, and still only the seven images
+ * on inspection, honest about the layout, and still only the six images
  * already in `static/visuals/lens/`.
  */
 function zoneLens(futureIndex: number, zoneIndex: number): string {

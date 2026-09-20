@@ -4,10 +4,13 @@
  * iterates in `fal.ts`/`prompt.ts`, and each `key` is also the R2/D1 key
  * component (`r2.ts`'s `imageKey`).
  *
- * Re-derived for VERSION 3 of the questions (`game/questions.ts`): Q4
- * (hardest thinking) and Q9 (centaurs) are new; Q7 absorbed the old
- * sensing content that used to live on Q9; Q3 now covers both arrival and
- * wayfinding. Every zone below cites the V3 question ids it actually reads.
+ * Re-derived for VERSION 4 of the questions (`game/questions.ts`): the
+ * workstation (q4w) reaches the studio, centaur deep work
+ * (q5c) the library, the recharge biome (q6r) the garden, arrival (q3) the
+ * plaza. Nature (q8) and technology (q7) reach every zone through the
+ * table-level materials layer, and brilliant-at-one (q10) through the feel
+ * layer — neither is zone-owned (`layers.ts`). Every zone below cites the
+ * V4 question ids it actually reads.
  *
  * Two candidate sets, both implemented behind one export so the lead's call
  * (still pending) is a one-line change:
@@ -43,82 +46,66 @@ export function zoneLabel(key: string): string {
 export interface Zone extends ZoneRef {
 	/** Question ids (from game/questions.ts) whose answers fill this zone's `{...}` placeholders. */
 	questionIds: string[];
+	/** The zone's MOMENT (prompt-recipe.md §2, move 2): one subject, one viewpoint, one person
+	 *  doing something, with a `{qN}` slot for the answer that owns the zone. `renderSuffix` is
+	 *  this same string — `ZoneRef`'s name for it, kept so `server/prompt.ts` stays content-free. */
+	moment: string;
+}
+
+/** A zone whose `renderSuffix` is its `moment` — one string, two names. */
+function zone(z: { key: string; questionIds: string[]; moment: string }): Zone {
+	return { ...z, renderSuffix: z.moment };
 }
 
 /**
  * The book's four functions (futures.md §6). `renderSuffix` fragments here are authored from
  * the chapter's own "engineered for" definitions — the source gives the zone names and their
- * question mapping, not literal prompt text (that's only worked out for the `questions` set
- * below, in zones-and-video.md §1(b)). V3 mapping: library <- q4+q5 (hardest thinking, what
- * else restores); studio <- q6+q7+q9 (furniture, tech, centaurs); plaza <- q3+q10 (arrival,
- * agility); garden <- q8+q5 (nature, restoration — q5 shared with library, single-select so
- * only the table's one pick renders in each).
+ * question mapping, not literal prompt text. V4 mapping, one slot per zone (prompt-recipe.md
+ * §4): library <- q5c (centaur deep work); studio <- q4w (the workstation); plaza <- q3
+ * (arrival); garden <- q6r (the recharge biome). A `{qN}` placeholder resolves to the question's fragment AND its
+ * "And:" sub-question's fragment, when the table picked one (`layers.ts`'s `resolveZone`).
  */
 /**
- * WHY EACH SUFFIX NAMES A ROOM AND A VIEWPOINT.
+ * WHY EACH MOMENT NAMES A ROOM, A VIEWPOINT AND A PERSON.
  *
  * With `REFERENCE_MODE` at its default `none` (`server/reference.ts`) a
  * table's four zones are four independent text-to-image renders. Nothing but
  * the words stops the model handing back the same room four times: the
- * table-level base — mood line, palette, materials, era — is identical
- * across the four prompts, and only this suffix differs.
- *
- * So each one states its own ROOM TYPE and its own CAMERA, and each says
- * "the same building" to carry the continuity the reference image used to
- * carry. The mood still matches the chosen lens picture, because the lens
- * mood line and the table's palette sit in every zone's base; what is no
- * longer shared is the FRAMING, which is precisely what made the anchored
- * run read as one picture edited four times.
+ * table-level base — window, materials, feel — is identical across the four
+ * prompts, and only this moment differs. So each one states its own ROOM,
+ * its own CAMERA and one small anonymous figure doing something (the
+ * owner's references all have one), and the shared world through the
+ * window carries the continuity across the set.
  */
 const BOOK_ZONES: Zone[] = [
-	{
+	zone({
 		key: 'library',
-		questionIds: ['q4', 'q5'],
-		renderSuffix:
-			'a quiet reading room in the same building, one wide view looking along the shelves: engineered for the hardest thinking ({q4}), with what protects and restores attention afterward ({q5})'
-	},
-	{
+		questionIds: ['q5c'],
+		moment: 'A deep-work room from the doorway, one person in a shaft of light: {q5c}'
+	}),
+	zone({
 		key: 'studio',
-		questionIds: ['q6', 'q7', 'q9'],
-		renderSuffix:
-			'a making and workshop floor in the same building, one wide view across the benches: engineered for creativity, furniture and gathering ({q6}), technology that is {q7}, and the bench where humans and AI work together ({q9})'
-	},
-	{
+		questionIds: ['q4w'],
+		moment: 'A making floor across long benches, two people mid-task, dust in the light; at each bench, {q4w}'
+	}),
+	zone({
 		key: 'plaza',
-		questionIds: ['q3', 'q10'],
-		renderSuffix:
-			'the arrival hall and social floor of the same building, one wide view from the entrance looking in: engineered for collaboration, arrival ({q3}), and the agility of the workplace itself ({q10})'
-	},
-	{
+		questionIds: ['q3'],
+		moment: 'The arrival hall from the entrance, a visitor at the threshold: {q3}'
+	}),
+	zone({
 		key: 'garden',
-		questionIds: ['q8', 'q5'],
-		renderSuffix:
-			'an outdoor garden court or glasshouse attached to the same building, one wide view from the path: engineered for restoration, nature ({q8}), a place for recovering and protecting attention ({q5})'
-	}
+		questionIds: ['q6r'],
+		moment: 'A garden court from the path, one person walking slowly: {q6r}'
+	})
 ];
 
-/** Zones derived directly from the V3 question set (zones-and-video.md §1, set (b)). */
+/** Zones derived directly from the V4 question set — one zone-worthy question each, none orphaned. */
 const QUESTION_ZONES: Zone[] = [
-	{
-		key: 'arrival',
-		questionIds: ['q3', 'q8'],
-		renderSuffix: 'the entrance and circulation of the office: {q3}, greenery: {q8}'
-	},
-	{
-		key: 'focus',
-		questionIds: ['q4', 'q5'],
-		renderSuffix: 'a space that protects and restores attention: {q4}, {q5}'
-	},
-	{
-		key: 'meeting',
-		questionIds: ['q6', 'q9'],
-		renderSuffix: 'a meeting or gathering space, including where the centaurs work: {q6}; {q9}'
-	},
-	{
-		key: 'agile',
-		questionIds: ['q7', 'q10'],
-		renderSuffix: 'an environment where the technology is {q7}, and the workplace shows its agility as {q10}'
-	}
+	zone({ key: 'arrival', questionIds: ['q3'], moment: 'The entrance from the door, one visitor mid-step: {q3}' }),
+	zone({ key: 'workstation', questionIds: ['q4w'], moment: 'One desk seen from the aisle, its occupant at work: {q4w}' }),
+	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'The quietest room from its doorway, one person still: {q5c}' }),
+	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge landscape from its edge, one person walking: {q6r}' })
 ];
 
 export const ZONE_SETS = {

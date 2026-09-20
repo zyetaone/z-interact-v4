@@ -15,7 +15,7 @@
  * The randomness is SEEDED. A rehearsal that cannot be repeated cannot be
  * used to confirm a fix, and "it worked the second time" is not an answer.
  */
-import { ACTIVE_QUESTIONS, WILDCARD, type Question } from '$lib/game/questions';
+import { ACTIVE_QUESTIONS, WILDCARD, andId, type Question } from '$lib/game/questions';
 import { FUTURES } from '$lib/game/futures';
 import { allowedEras, type Era } from '$lib/game/era';
 
@@ -102,8 +102,9 @@ export function planTable(table: number, seed: number): PlannedTable {
 	const era = (eras.length ? pick(next, eras) : future.eraDefault) as Era;
 
 	const answers: PlannedAnswer[] = [];
+	// The era chip is written by saveEra, never as a planned answer; V4's
+	// QUESTIONS opens at q2 so nothing here needs skipping.
 	for (const q of ACTIVE_QUESTIONS) {
-		if (q.id === 'q1') continue; // the era chip, written by saveEra
 		const keys = keysFor(next, q);
 		const text: Record<string, string> = {};
 		for (const key of keys) {
@@ -117,6 +118,11 @@ export function planTable(table: number, seed: number): PlannedTable {
 			// Only the ◆ questions capture a typed push reply; the rest are spoken.
 			pushReply: q.pushCapturesReply && next() > 0.35 ? pick(next, FILLER) : undefined
 		});
+		// V4's "And:" sub-question is optional on the phone, so most tables
+		// pick one and some leave it — its row goes through the same saveAnswer.
+		if (q.and && next() > 0.25) {
+			answers.push({ questionId: andId(q.id), keys: [pick(next, q.and.options.map((o) => o.key))] });
+		}
 	}
 
 	return {

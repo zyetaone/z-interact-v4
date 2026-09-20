@@ -1,7 +1,7 @@
 /**
  * FIXTURES — 20 fake table rows in mixed states, behind `?fixtures=1`, so
  * the mission-control screen renders with no D1 at all. Mirrors
- * `projector/fixtures.ts`'s approach: round-robin the 7 futures, cycle a
+ * `projector/fixtures.ts`'s approach: round-robin the six futures, cycle a
  * handful of representative states so every state has multiple examples.
  */
 import { FUTURES } from '$lib/game/futures';

@@ -22,14 +22,30 @@ export const LENS_IMAGE: Record<Future['key'], string> = Object.fromEntries(
 	FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`])
 ) as Record<Future['key'], string>;
 
+/**
+ * What is actually on disk. Vite's glob (not `node:fs`, so this module stays
+ * importable on the client and in the Worker) — a picture the generator has
+ * not produced yet is simply absent, and `OptionList` falls back to its
+ * text row rather than an `<img>` with a 404 source. V4 shipped with 36 of
+ * its 53 option pictures pending on a fal balance; this is what makes that
+ * a plain list rather than a wall of blank tiles.
+ */
+const ON_DISK: ReadonlySet<string> = new Set(
+	Object.keys(import.meta.glob('/static/visuals/opt/*.jpg')).map((p) => p.replace(/^\/static/, ''))
+);
+
+/** Every non-open option's picture path, for the ones that exist on disk. */
 export const OPTION_IMAGE: Record<string, string> = Object.fromEntries(
 	QUESTIONS.flatMap((q) =>
-		q.options.filter((o) => !o.open).map((o) => [optionImageKey(q.id, o.key), `/visuals/opt/${q.id}-${o.key}.jpg`])
+		q.options
+			.filter((o) => !o.open)
+			.map((o) => [optionImageKey(q.id, o.key), `/visuals/opt/${q.id}-${o.key}.jpg`] as const)
+			.filter(([, path]) => ON_DISK.has(path))
 	)
 );
 
-/** Whether this question/option pair has a generated image (false for `open`
- *  options and the wildcard question, which were never in scope to render). */
+/** Whether this question/option pair has a generated image on disk (false for
+ *  `open` options, the wildcard, and any option whose picture is still pending). */
 export function hasOptionImage(questionId: string, optionId: string): boolean {
 	return optionImageKey(questionId, optionId) in OPTION_IMAGE;
 }

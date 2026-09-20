@@ -19,7 +19,7 @@
 </script>
 
 <!-- Lobby beat (game-flow.md §4, tag C): title, thesis, no QR — tent cards carry the QR.
-     The seven futures are a lens each table picks on its own phone, not a headline the
+     The six futures are a lens each table picks on its own phone, not a headline the
      room reads here — kept off the lobby by design. -->
 <section class="lobby" class:wide>
 	{#if picked.length}

@@ -68,8 +68,8 @@ src/lib/server/
   secret.ts    # constant-time secret compare, hand-written (no Cloudflare-only API)
   simulate.ts  # the PURE rehearsal plan (seeded); the route drives it through the real commands
 src/lib/game/
-  questions.ts # the 11 questions + wildcard (content landed — futures-palette/game-flow workstreams)
-  futures.ts   # the seven named futures + era fields
+  questions.ts # VERSION 4's nine questions (q2..q11, with "And:" sub-questions) + wildcard
+  futures.ts   # the six named futures (V4's Q1, "Choose your lens") + era fields
   zones.ts     # both candidate zone sets behind ZONE_SETS, defaulting to `book`
   era.ts       # the era scale + allowedEras/nudge rules
 src/lib/

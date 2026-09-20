@@ -216,6 +216,7 @@
 			prompt={flow.status.prompt}
 			images={flow.status.images}
 			regenerating={saving}
+			narrative={flow.status.narrative}
 			{failed}
 			{refresh}
 			onregenerate={() => run(() => regenerate({ table }), false)}

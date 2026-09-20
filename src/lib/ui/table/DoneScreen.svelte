@@ -31,7 +31,7 @@
 </script>
 
 <h1 class="stem">You're in. Watch the screen.</h1>
-<p class="hint">Your four rooms are with the rest of them now.</p>
+<p class="hint">{images.length === 1 ? 'Your workspace is with the rest of them now.' : 'Your four rooms are with the rest of them now.'}</p>
 
 {#if narrative}
 	<p class="narrative">{narrative}</p>
@@ -42,7 +42,7 @@
 {/if}
 
 {#if images.length > 0}
-	<ul class="thumbs" aria-label="Your four rooms">
+	<ul class="thumbs" class:single={images.length === 1} aria-label={images.length === 1 ? 'Your workspace' : 'Your four rooms'}>
 		{#each images as image (image.zoneKey)}
 			<li>
 				<div class="frame">
@@ -86,6 +86,16 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 10px;
+	}
+
+	/* One image is the table's answer, not a thumbnail of it — full width, and
+	   16:9 because that is the aspect it was drawn at. */
+	.thumbs.single {
+		grid-template-columns: 1fr;
+	}
+
+	.thumbs.single .frame {
+		aspect-ratio: 16 / 9;
 	}
 
 	.frame {

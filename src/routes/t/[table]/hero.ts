@@ -32,9 +32,12 @@
 import { NO_TEXT } from '$lib/server/prompt';
 import { impossibleIdea } from '$lib/game/zones';
 import type { Era } from '$lib/game/era';
+import type { Zone } from '$lib/game/zones';
 import {
 	answerMap,
 	composeNegative,
+	composeZonePrompt,
+	resolveZone,
 	ERA_YEAR,
 	fragmentsFor,
 	fragmentsWithAnd,
@@ -183,4 +186,42 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}`;
 
 	return sentences([frame, world, programme, dressing, avoid, NO_TEXT]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* THE ONE CHOOSER every submit path calls                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface ZonePromptContext {
+	/** The stored `prompt` row's composed base — the table-level text screen 15 edits. */
+	composed: string;
+	negative: string;
+	answers: readonly AnswerLike[];
+	futureKey?: string | null;
+	era?: Era | null;
+	table: number;
+}
+
+/**
+ * Which composer a zone gets. There are five submit paths — the phone's
+ * queue, its poll ticker, its per-zone retry, the desk's tick slice and the
+ * desk's regenerate — and every one of them has to make the same choice, or
+ * a row drawn by one is drawn from a different prompt than the same row
+ * drawn by another. That bug is already in this repo's history
+ * (`admin.remote.ts`'s note: the desk submitted `prompt.composed` bare).
+ * So the choice lives here, once.
+ *
+ * KNOWN, AND NOT A SLIP: the hero composes from the ANSWERS, so a table
+ * that rewrote the prompt on screen 15 does not change its hero render.
+ * Under `ZONE_SET=four`/`all` the edit still governs the four zones. The
+ * hero is a design brief built from what was chosen, not a text field, and
+ * splicing a free-text rewrite into it would mean the model reading two
+ * briefs at once. Whether screen 15 should still offer the textarea in a
+ * hero-only room is a product call, flagged rather than taken here.
+ */
+export function composePromptFor(zone: Zone, ctx: ZonePromptContext): string {
+	if (zone.hero) {
+		return composeHeroPrompt({ futureKey: ctx.futureKey, era: ctx.era, answers: ctx.answers, table: ctx.table });
+	}
+	return composeZonePrompt(ctx.composed, resolveZone(zone, ctx.answers), ctx.negative);
 }

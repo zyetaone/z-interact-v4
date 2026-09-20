@@ -16,6 +16,8 @@ const ENV_ID = 'sim-test-event';
 const ADMIN_TOKEN = 'rehearsal-token';
 
 let db: D1Database;
+/** Which zone set the run under test uses. Reset per test; the hero default has its own case. */
+let zoneSet: string | undefined = 'four';
 const waited: Promise<unknown>[] = [];
 const bucket = new Map<string, { bytes: ArrayBuffer; contentType: string }>();
 
@@ -71,6 +73,9 @@ vi.mock('$app/server', () => {
 					ADMIN_TOKEN,
 					SIMULATE_ENABLED: 'true',
 					FAL_KEY: 'test-key',
+					// The rehearsal covers the FOUR-zone path end to end (16 renders
+					// for 4 tables); the hero default has its own case below.
+					ZONE_SET: zoneSet,
 					// The done screen's narrative, deterministic and binding-free.
 					AI_FAKE: '1'
 				},
@@ -101,6 +106,7 @@ function simulateRequest(body: Record<string, unknown>) {
 				ADMIN_TOKEN,
 				SIMULATE_ENABLED: 'true',
 				FAL_KEY: 'test-key',
+				ZONE_SET: zoneSet,
 				AI_FAKE: '1'
 			}
 		}
@@ -109,6 +115,7 @@ function simulateRequest(body: Record<string, unknown>) {
 
 beforeEach(() => {
 	db = fakeD1();
+	zoneSet = 'four';
 	waited.length = 0;
 	bucket.clear();
 	(globalThis as { process?: { env: Record<string, string | undefined> } }).process!.env.FAL_FAKE = '1';
@@ -202,6 +209,41 @@ describe('POST /simulate', () => {
 		// One row per table, not one per poll.
 		const { results } = await db.prepare(`SELECT id FROM narrative WHERE event_id = ?`).bind(ENV_ID).all();
 		expect(results).toHaveLength(3);
+	});
+
+	it('queues ONE workspace render per table under the hero default, from the hero prompt', async () => {
+		// No ZONE_SET at all — the state a deploy is in unless someone sets it.
+		zoneSet = undefined;
+		const { POST } = await import('./+server');
+		const res = await POST(simulateRequest({ token: ADMIN_TOKEN, tables: 3, seed: 5, staggerMs: 0 }) as never);
+		const out = (await res.json()) as { submitted: number; rendersQueued: number; disagreements: number[] };
+
+		expect(out.submitted).toBe(3);
+		// Three tables, ONE render each — not twelve.
+		expect(out.rendersQueued).toBe(3);
+		expect(out.disagreements).toEqual([]);
+
+		// `FAL_FAKE=1` means nothing reaches the provider, so the evidence of
+		// WHICH prompt was submitted is the `image_detail` sidecar — the exact
+		// text the ticker handed over, recorded per attempt.
+		await Promise.all(waited);
+		const { results } = await db
+			.prepare(
+				`SELECT i.zone_key AS zone_key, d.prompt AS prompt
+				 FROM image i JOIN image_detail d ON d.image_id = i.id
+				 WHERE i.event_id = ?`
+			)
+			.bind(ENV_ID)
+			.all<{ zone_key: string; prompt: string }>();
+		expect(results).toHaveLength(3);
+		expect(new Set(results.map((r) => r.zone_key))).toEqual(new Set(['workspace']));
+		for (const row of results) {
+			expect(row.prompt.startsWith('Design a workplace')).toBe(true);
+			expect(row.prompt).toContain('one elevated three-quarter view');
+			// The labels that came back painted on the building.
+			expect(row.prompt).not.toMatch(/\b(Arrival|Deep work|Stations|Recharge):/);
+			expect(row.prompt.endsWith('no text')).toBe(true);
+		}
 	});
 
 	it('is repeatable: the same seed plans the same room', async () => {

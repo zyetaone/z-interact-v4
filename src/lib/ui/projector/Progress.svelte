@@ -77,21 +77,29 @@
 		margin: 0;
 		font-weight: 600;
 	}
+	/* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, so a
+	   row refuses to shrink below its own content: with twenty tiles the
+	   grid grew past the frame, the fourth row was cut off and the summary
+	   line printed over it. Both axes take a zero minimum so the frame, not
+	   the content, decides the size. */
 	.grid {
 		flex: 1;
 		min-height: 0;
 		display: grid;
-		grid-template-columns: repeat(5, 1fr);
-		grid-template-rows: repeat(4, 1fr);
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		grid-template-rows: repeat(4, minmax(0, 1fr));
 		gap: 1rem;
 	}
 	/* Twenty tiles across a 5.3:1 wall: two rows of ten, so a tile stays
 	   close to 16:9 instead of becoming a tall sliver. */
 	.progress.wide .grid {
-		grid-template-columns: repeat(10, 1fr);
-		grid-template-rows: repeat(2, 1fr);
+		grid-template-columns: repeat(10, minmax(0, 1fr));
+		grid-template-rows: repeat(2, minmax(0, 1fr));
 	}
 	.cell {
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
 		border: 1px solid var(--accent);
 		border-radius: 0.5rem;
 		background: var(--card-alpha);
@@ -110,16 +118,24 @@
 	}
 	.table-no {
 		font-family: 'Playfair Display', Georgia, serif;
-		font-size: var(--type-table-no);
+		font-size: var(--type-table-no-grid);
 		line-height: 1;
 	}
+	/* Wraps to a second line rather than truncating: "answering 6 of 11"
+	   clipped to "answering ..." throws away the only number on the tile,
+	   which is the thing a table looks for. Two lines fit now that the row
+	   is sized by the frame; `overflow: hidden` on the cell is the backstop
+	   if a longer label ever appears. */
 	.state {
 		font-size: var(--type-caption);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--ink-muted);
+		text-align: center;
+		max-width: 100%;
 	}
 	.summary {
+		flex: 0 0 auto;
 		margin: 0;
 		text-align: center;
 		color: var(--ink-muted);

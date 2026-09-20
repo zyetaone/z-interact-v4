@@ -43,6 +43,12 @@
 		/* The table number is the loudest element: it is the only thing a
 		   delegate needs to find their own table's picture from 20 m. */
 		--type-table-no: 11vh;
+		/* The twenty-tile grid is not a hero tile: at 11vh a cell's number
+		   plus its two-line state caption is taller than a quarter of the
+		   frame, the row cannot shrink below its content, and the grid
+		   pushes past the bottom of the screen. Still 75px at 1080, well
+		   over the 48px floor. */
+		--type-table-no-grid: 7vh;
 
 		position: fixed;
 		inset: 0;

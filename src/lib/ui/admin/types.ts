@@ -20,9 +20,9 @@ export interface AdminTableRow {
 	step: number;
 	totalSteps: number;
 	submittedAt: number | null;
-	/** Per-zone image state, in `ZONES` order. */
+	/** Per-zone image state, in the room's own `zoneKeys` order. */
 	images: ZoneImageState[];
-	/** Per-zone provider error, in `ZONES` order; null unless that zone is `failed`. */
+	/** Per-zone provider error, in the room's own `zoneKeys` order; null unless that zone is `failed`. */
 	imageErrors: (string | null)[];
 	/** `images.filter(stored or done).length` — precomputed so the row component doesn't recount every poll. */
 	imagesStored: number;
@@ -37,6 +37,13 @@ export interface AdminRoom {
 	beat: Beat;
 	focusTable: number | null;
 	tables: AdminTableRow[];
+	/**
+	 * Which zones this room renders (`ZONE_SET`), in the order every row's
+	 * `images`/`imageErrors` arrays use. The desk reads it from the payload
+	 * rather than importing `ZONES`: the variable lives on the server, and a
+	 * client that assumed four would mislabel a one-image room.
+	 */
+	zoneKeys: string[];
 	/** True once any `event_table` row exists — gates the "seed 20 tables" button (only shown when empty). */
 	seeded: boolean;
 }

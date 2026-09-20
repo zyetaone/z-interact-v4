@@ -12,7 +12,7 @@
 	import { page } from '$app/state';
 	import { poll } from '$lib/poll.svelte';
 	import { getProjectorRoom } from './gallery.remote';
-	import { FIXTURE_ROOM } from './fixtures';
+	import { FIXTURE_ROOM, FIXTURE_ROOM_FOUR } from './fixtures';
 	import Lobby from '$lib/ui/projector/Lobby.svelte';
 	import Progress from '$lib/ui/projector/Progress.svelte';
 	import Reveal from '$lib/ui/projector/Reveal.svelte';
@@ -28,11 +28,14 @@
 
 	// Read once, not $derived — this gates which data source `room` is
 	// initialised from below, a decision that only makes sense at mount.
-	const fixturesMode = page.url.searchParams.get('fixtures') === '1';
+	// `?fixtures=1` is the ZONE_SET default (one workspace image per table);
+	// `?fixtures=four` is the four-zone geometry, for a room that set it.
+	const fixturesParam = page.url.searchParams.get('fixtures');
+	const fixturesMode = fixturesParam === '1' || fixturesParam === 'four';
 
 	// Top-level `await` (svelte.config.js's `compilerOptions.experimental.async`) —
 	// first paint doesn't wait for the first poll tick.
-	let room = $state.raw<ProjectorRoom>(fixturesMode ? FIXTURE_ROOM : await getProjectorRoom());
+	let room = $state.raw<ProjectorRoom>(fixturesMode ? (fixturesParam === 'four' ? FIXTURE_ROOM_FOUR : FIXTURE_ROOM) : await getProjectorRoom());
 
 	const { stale } = poll(3000, async () => {
 		if (fixturesMode) return; // fixtures never touch the network — no poll, no staleness

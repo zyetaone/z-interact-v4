@@ -40,6 +40,7 @@ reads exactly like a dead one.
 | `FAL_RESOLUTION` | var | falls back to **1K**. Anything unrecognised falls back too, rather than being passed through to the provider |
 | `ADMIN_TICK_BUDGET` | var | falls back to **8** — how many pending rows one admin poll advances after it has answered. Never unbounded |
 | `AI_FAKE` | var | unset means the real Workers AI binding writes the done screen's paragraph. `1` writes a deterministic stand-in and never calls the binding — set it locally, never in production |
+| `ZONE_SET` | var | falls back to **`hero`** — ONE main workspace image per table, which is what the wall and the phones show. `four` renders the four functional zones instead, `all` renders five. Anything unrecognised falls back to `hero` rather than to "everything", so a typo cannot quintuple what the room spends |
 | `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
 - [ ] `FAL_KEY` set and confirmed live/billable
@@ -48,6 +49,8 @@ reads exactly like a dead one.
 - [ ] `EVENT_ID` set to `<app>-<YYYY-MM>`
 - [ ] `MAX_RENDERS_PER_TABLE` reviewed against the budget (see below)
 - [ ] `SIMULATE_ENABLED` unset (or anything but `true`) **before the doors open**
+- [ ] `ZONE_SET` left unset unless the room deliberately wants the four zones
+      back. Unset means one image per table — see *One image per table* below
 - [ ] `REFERENCE_MODE` left unset unless the mood match has been judged on a real table
 - [ ] `ADMIN_TICK_BUDGET` left unset unless the desk is deliberately carrying more of the room
 - [ ] `FAL_RESOLUTION` reviewed — it multiplies the per-render cost
@@ -58,6 +61,28 @@ reads exactly like a dead one.
 There is no `PUBLIC_ORIGIN`. The app derives its origin from the request, so
 the fal webhook URL is correct on whatever domain the deploy answers on, and
 there is nothing to set or to get wrong.
+
+## One image per table
+
+The wall shows **one main workspace image per table**, not four. Each render
+is an elevated three-quarter view of that table's whole workplace, composed
+from their own selections (`routes/t/[table]/hero.ts`), and the phone shows
+it with the narrative paragraph underneath — the text that says how the
+picture follows from what they chose.
+
+What this changes on the night:
+
+- **The reveal beat** pages one tile per table, five across the LED band.
+- **The focus beat** shows that one image full frame, with no words on it —
+  not even the table number. The lens is a colour, as in every beat.
+- **The desk** shows one image column per table and one Redraw per table;
+  the per-zone Redraw appears only when `ZONE_SET` is `four` or `all`.
+- **Spend.** One render per submit instead of four, so
+  `MAX_RENDERS_PER_TABLE` (default 12) is now roughly twelve attempts per
+  table rather than three. It is a cap on renders, not on submits, and it
+  was not lowered — review it against the budget rather than assuming the
+  old arithmetic.
+- `?fixtures=1` shows this layout; `?fixtures=four` shows the four-zone one.
 
 ## How much the lens picture decides the render
 

@@ -39,13 +39,29 @@ import type { ZoneRef } from '$lib/server/prompt';
  * -> `Library`). Every caption — phone gallery, alt text — reads this, so
  * no screen title-cases one tile and lower-cases the next.
  */
+const ZONE_LABELS: Record<string, string> = {
+	// The hero is not a room in the building, so sentence-casing its key
+	// ("Workspace") reads as a fifth zone. It is the whole thing.
+	workspace: 'Your workspace'
+};
+
 export function zoneLabel(key: string): string {
+	if (ZONE_LABELS[key]) return ZONE_LABELS[key];
 	return key ? key.charAt(0).toUpperCase() + key.slice(1).toLowerCase() : key;
 }
 
 export interface Zone extends ZoneRef {
 	/** Question ids (from game/questions.ts) whose answers fill this zone's `{...}` placeholders. */
 	questionIds: string[];
+	/**
+	 * THE ONE MAIN IMAGE, not a fifth room. A hero zone's prompt is built by
+	 * `routes/t/[table]/hero.ts`'s `composeHeroPrompt`, not by
+	 * `composeZonePrompt` — it asks for the whole workplace in one elevated
+	 * three-quarter view rather than one room, one camera, one act. Its
+	 * `moment` below is therefore documentation of the frame, not a template
+	 * anything splices answers into.
+	 */
+	hero?: boolean;
 	/** The zone's MOMENT (prompt-recipe.md §2, move 2): one subject, one viewpoint, one person
 	 *  doing something, with a `{qN}` slot for the answer that owns the zone. `renderSuffix` is
 	 *  this same string — `ZoneRef`'s name for it, kept so `server/prompt.ts` stays content-free. */
@@ -53,7 +69,7 @@ export interface Zone extends ZoneRef {
 }
 
 /** A zone whose `renderSuffix` is its `moment` — one string, two names. */
-function zone(z: { key: string; questionIds: string[]; moment: string }): Zone {
+function zone(z: { key: string; questionIds: string[]; moment: string; hero?: boolean }): Zone {
 	return { ...z, renderSuffix: z.moment };
 }
 
@@ -137,6 +153,25 @@ export function impossibleIdea(futureKey: string | null | undefined, table: numb
 	return pair ? pair[Math.abs(table ?? 0) % 2] : undefined;
 }
 
+/**
+ * THE HERO — one main workspace design per table (owner decision, 20 Sep):
+ * four pictures per table read as four unrelated ideas, one picture reads
+ * as the table's answer. The four zones stay in the code and are off by
+ * default; Phase 2's `ZONE_SET` decides which of the three sets renders.
+ *
+ * Its `questionIds` name every zone-worthy question because the hero frame
+ * carries all four acts at once — which is also what keeps `ZONE_OWNED_IDS`
+ * honest if a hero-only run ever composes a table-level base.
+ */
+export const HERO_ZONE: Zone = zone({
+	key: 'workspace',
+	questionIds: ['q3', 'q4w', 'q5c', 'q6r'],
+	hero: true,
+	moment: 'The whole workspace in one elevated three-quarter view, one continuous building, people small and mid-task'
+});
+
+export const HERO_ZONES: Zone[] = [HERO_ZONE];
+
 export const ZONE_SETS = {
 	book: BOOK_ZONES,
 	questions: QUESTION_ZONES
@@ -145,7 +180,67 @@ export const ZONE_SETS = {
 /** Default set — the lead's call between `book`/`questions` is still pending. Switching is this one line. */
 export const ZONES: Zone[] = ZONE_SETS.book;
 
+
+/* -------------------------------------------------------------------------- */
+/* WHICH ZONES RENDER — `ZONE_SET`                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `hero` (the default) renders the one main workspace image per table;
+ * `four` renders the four functional zones; `all` renders five.
+ *
+ * The default is the owner's decision of 20 Sep: four pictures per table
+ * read as four unrelated ideas, one picture reads as the table's answer.
+ * The four zones are not deleted — a room that wants them is one variable
+ * away — and `all` exists for a rehearsal that wants to compare the two
+ * side by side, not for the night.
+ *
+ * An unrecognised value falls back to `hero` rather than to "everything",
+ * on the same rule `FAL_RESOLUTION` and `REFERENCE_MODE` already follow: a
+ * typo must not quintuple what a room spends.
+ */
+export type ZoneSetName = 'hero' | 'four' | 'all';
+
+export function zoneSetFrom(raw: string | undefined): ZoneSetName {
+	return raw === 'four' || raw === 'all' ? raw : 'hero';
+}
+
+/** The zones a render/read path should enumerate, given the raw `ZONE_SET` value. */
+export function activeZones(raw: string | undefined): Zone[] {
+	switch (zoneSetFrom(raw)) {
+		case 'four':
+			return [...ZONES];
+		case 'all':
+			return [...HERO_ZONES, ...ZONES];
+		default:
+			return [...HERO_ZONES];
+	}
+}
+
+/**
+ * EVERY zone this app has ever rendered, whatever `ZONE_SET` says today.
+ *
+ * A row in D1 outlives the variable that queued it: a table rendered under
+ * `four` and then read under `hero` still has four `image` rows, and a
+ * lookup restricted to the active set would fail to find the zone
+ * definition for a row that plainly exists — which is how a retry or a
+ * ticker silently stops advancing a row. Lookups use this; enumeration
+ * (what to queue, what to show) uses `activeZones`.
+ */
+const ALL_KNOWN_ZONES: Zone[] = [...HERO_ZONES, ...ZONE_SETS.book, ...ZONE_SETS.questions];
+
+export function zoneByKey(key: string): Zone | undefined {
+	return ALL_KNOWN_ZONES.find((z) => z.key === key);
+}
+
+/** True when this key is the one main workspace image — its prompt is composed differently (`hero.ts`). */
+export function isHeroZone(key: string): boolean {
+	return zoneByKey(key)?.hero === true;
+}
+
 // --- Shape guards ------------------------------------------------------------
+// The four-zone sets only: `HERO_ZONES` is deliberately one zone, and its
+// guard is below.
 for (const [name, zones] of Object.entries(ZONE_SETS)) {
 	if (zones.length !== 4) {
 		throw new Error(`ZONE_SETS.${name} must have exactly 4 zones, got ${zones.length}`);
@@ -153,4 +248,11 @@ for (const [name, zones] of Object.entries(ZONE_SETS)) {
 	if (new Set(zones.map((z) => z.key)).size !== zones.length) {
 		throw new Error(`ZONE_SETS.${name} has duplicate zone keys`);
 	}
+}
+
+if (!HERO_ZONE.hero) {
+	throw new Error('HERO_ZONE must be flagged hero: true — composeHeroPrompt is chosen by that flag');
+}
+if (ZONE_SETS.book.some((z) => z.key === HERO_ZONE.key) || ZONE_SETS.questions.some((z) => z.key === HERO_ZONE.key)) {
+	throw new Error('HERO_ZONE.key collides with a four-zone set key — the R2 key and the D1 zone_key are the same string');
 }

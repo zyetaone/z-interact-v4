@@ -42,8 +42,9 @@ import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
-import { ZONES } from '$lib/game/zones';
+import { activeZones, zoneByKey } from '$lib/game/zones';
 import { composeZonePrompt, resolveZone, type AnswerLike } from '../t/[table]/layers';
+import { composePromptFor } from '../t/[table]/hero';
 import type { AdminRoom } from '$lib/ui/admin/types';
 
 const tableNo = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TABLE_COUNT));
@@ -85,7 +86,10 @@ function checkToken(env: Env, token: string): boolean {
 }
 
 function emptyRoom(): AdminRoom {
-	return { closed: false, beat: 'lobby', focusTable: null, seeded: false, tables: [] };
+	// A refused read shows no zone columns either — there is no room to
+	// describe, and guessing four would be a claim about a deploy this call
+	// just failed to authenticate against.
+	return { closed: false, beat: 'lobby', focusTable: null, seeded: false, zoneKeys: [], tables: [] };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -139,7 +143,9 @@ async function tickSlice(env: Env, event: string): Promise<void> {
 				rows.map((r) => ({ questionId: r.questionId, keys: r.keys, text: r.text, pushReply: r.pushReply }))
 			);
 		}
-		const zone = ZONES.find((z) => z.key === row.zoneKey);
+		// Every set, not the active one — a row queued under a different
+		// ZONE_SET still has to be carried to `stored`.
+		const zone = zoneByKey(row.zoneKey);
 		const prompt = await getPromptRowById(env.DB, row.promptId);
 		if (!zone || !prompt) continue;
 		// One row's throw must not end the slice: the rows behind it would
@@ -161,7 +167,14 @@ async function tickSlice(env: Env, event: string): Promise<void> {
 				table: row.table,
 				zoneKey: row.zoneKey
 			},
-			composeZonePrompt(prompt.composed, resolveZone(zone, answersByTable.get(row.table) ?? []), prompt.negative)
+			composePromptFor(zone, {
+				composed: prompt.composed,
+				negative: prompt.negative,
+				answers: answersByTable.get(row.table) ?? [],
+				futureKey: futuresForTick.get(row.table) ?? null,
+				era: null,
+				table: row.table
+			})
 		);
 	}
 }
@@ -196,14 +209,16 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 		countTables(env.DB, event)
 	]);
 
+	const zones = activeZones(env.ZONE_SET);
 	const room: AdminRoom = {
 		closed: !!closed,
 		beat: beatState.beat,
 		focusTable: beatState.focusTable,
 		seeded: tableCount > 0,
+		zoneKeys: zones.map((z) => z.key),
 		tables: rows.map((r) => {
 			const imagesByZone = new Map(r.images.map((i) => [i.zoneKey, i]));
-			const images = ZONES.map((z) => imagesByZone.get(z.key)?.state ?? ('none' as const));
+			const images = zones.map((z) => imagesByZone.get(z.key)?.state ?? ('none' as const));
 			return {
 				table: r.table,
 				futureKey: futures.get(r.table) ?? null,
@@ -213,7 +228,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				totalSteps: TOTAL_STEPS,
 				submittedAt: r.submittedAt,
 				images,
-				imageErrors: ZONES.map((z) => imagesByZone.get(z.key)?.error ?? null),
+				imageErrors: zones.map((z) => imagesByZone.get(z.key)?.error ?? null),
 				imagesStored: images.filter((s) => s === 'stored' || s === 'done').length,
 				lastActivityAt: r.lastSeenAt,
 				granted: granted.has(r.table)
@@ -302,7 +317,10 @@ export const regenerateTable = command(
 	// tables; redrawing all four to recover one spends four of that table's
 	// twelve. With `zone` the desk repairs exactly the tile that failed,
 	// and the cap counts one render rather than four.
-	const zones = zone ? ZONES.filter((z) => z.key === zone) : ZONES;
+	// An explicit zone is looked up across EVERY set (a row queued under a
+	// different ZONE_SET is still repairable); an unqualified redraw covers
+	// whatever this room renders — one image under the hero default.
+	const zones = zone ? [zoneByKey(zone)].filter((z) => !!z) : activeZones(env.ZONE_SET);
 	if (zones.length === 0) return { ok: false as const, reason: `unknown zone ${zone}` };
 	if (!throttle.acquire(table)) return { ok: false as const, reason: 'This table is already drawing — hang tight.' };
 	try {
@@ -437,6 +455,9 @@ export const exportRoom = query(v.object({ token: tokenField }), async ({ token 
 	if (!env) return { ok: false as const, reason: 'no environment' };
 	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
 	const event = eventId(env);
-	const tables = await exportRoomRows(env.DB, event, TABLE_COUNT, ZONES.map((z) => z.key));
+	// What this room renders. A row from a previous ZONE_SET is not in this
+	// view; `wrangler d1 export` (NEW-EVENT.md's archive step) is the
+	// complete record and always was.
+	const tables = await exportRoomRows(env.DB, event, TABLE_COUNT, activeZones(env.ZONE_SET).map((z) => z.key));
 	return { ok: true as const, exportedAt: Date.now(), tables };
 });

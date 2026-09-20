@@ -1,15 +1,23 @@
 <script lang="ts">
 	/**
-	 * Screen 17 — the four zone images as they arrive, the prompt beneath,
+	 * Screen 17 — the table's images as they arrive, the prompt beneath,
 	 * and *Draw again*. Zero images is not a blank screen: the prompt is
 	 * shown with the line game-flow.md §1 specifies.
+	 *
+	 * Under `ZONE_SET=hero` (the default) there is ONE image, rendered 16:9
+	 * because that is the aspect it was drawn at, with the table's narrative
+	 * under it — the paragraph that says how the picture follows from what
+	 * they chose. Under `four`/`all` the same markup stacks the tiles as it
+	 * always did; nothing here enumerates zones itself, it renders whatever
+	 * the server sent.
 	 */
 	import { poll } from '$lib/poll.svelte';
-	import { zoneLabel } from '$lib/game/zones';
+	import { isHeroZone, zoneLabel } from '$lib/game/zones';
 
 	let {
 		prompt,
 		images,
+		narrative = null,
 		regenerating,
 		failed,
 		refresh,
@@ -19,6 +27,8 @@
 	}: {
 		prompt: string;
 		images: { zoneKey: string; state: string; url: string | null; error: string | null }[];
+		/** How this picture follows from the table's selections. Null until it has been written; it arrives on a later poll. */
+		narrative?: string | null;
 		regenerating: boolean;
 		/** Why the last *Draw again* was refused — the throttle's own words, not a generic line. */
 		failed: string;
@@ -58,7 +68,7 @@
 {#if images.length > 0}
 	<ul class="gallery">
 		{#each images as image (image.zoneKey)}
-			<li>
+			<li class:hero={isHeroZone(image.zoneKey)}>
 				<!-- Every tile sits in the same 3:2 navy frame whether its image has
 				     arrived, is still decoding, or never came — a tile mid-load reads
 				     as a placeholder, never as a hole in the gallery. -->
@@ -82,6 +92,10 @@
 			</li>
 		{/each}
 	</ul>
+{/if}
+
+{#if narrative}
+	<p class="narrative">{narrative}</p>
 {/if}
 
 <section class="ours">
@@ -120,6 +134,21 @@
 		width: 100%;
 		aspect-ratio: 3 / 2;
 		background: var(--card-solid);
+	}
+
+	/* The hero is drawn 16:9 (fal.ts's DEFAULT_ASPECT_RATIO). A 3:2 frame
+	   would crop the ends off the one picture the table gets. */
+	.gallery li.hero .frame {
+		aspect-ratio: 16 / 9;
+	}
+
+	.narrative {
+		margin: 0 0 20px;
+		padding-left: 12px;
+		border-left: 2px solid var(--gold);
+		font-family: var(--display);
+		font-size: 17px;
+		line-height: 1.5;
 	}
 
 	/* The same caption scrim the lens cards use — white serif straight

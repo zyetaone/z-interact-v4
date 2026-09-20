@@ -59,7 +59,9 @@ vi.mock('$app/server', () => {
 			url: new URL('https://example.test/t/4'),
 			request: new Request('https://example.test/t/4'),
 			platform: {
-				env: { DB: db, EVENT_ID: EVENT, FAL_KEY: 'test-key' },
+				// This suite is about the FOUR-zone path (per-zone retry), so it pins
+				// ZONE_SET rather than riding the new `hero` default.
+				env: { DB: db, EVENT_ID: EVENT, FAL_KEY: 'test-key', ZONE_SET: 'four' },
 				context: { waitUntil: (p: Promise<unknown>) => void waited.push(p.catch(() => {})) }
 			}
 		})

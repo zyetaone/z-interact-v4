@@ -14,7 +14,7 @@
 	import { poll } from '$lib/poll.svelte';
 	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, seedRoom, exportRoom } from './admin.remote';
 	import { FIXTURE_ROOM } from '$lib/ui/admin/fixtures';
-	import { ZONES, zoneLabel } from '$lib/game/zones';
+	import { zoneLabel } from '$lib/game/zones';
 	import { FUTURES } from '$lib/game/futures';
 	import type { AdminRoom, AdminTableRow, Beat } from '$lib/ui/admin/types';
 
@@ -120,10 +120,20 @@
 		}
 		return run(`regenerate table ${table}`, () => regenerateTable({ token, table }));
 	}
-	/** The zones a row lost, with the provider's words — the desk fixes one tile, not four. */
+	/**
+	 * The zones a row lost, with the provider's words — the desk fixes one
+	 * tile, not four. Read from the room's own `zoneKeys` (the server's
+	 * `ZONE_SET`), never from an imported `ZONES`: a desk that assumed four
+	 * would label a one-image room wrong.
+	 *
+	 * A one-image room gets NO per-zone button: the table's own Redraw is
+	 * the same action, and two controls that do one thing is how a desk
+	 * double-spends under pressure.
+	 */
 	function failedZones(row: AdminTableRow) {
-		return ZONES.flatMap((z, i) =>
-			row.images[i] === 'failed' ? [{ key: z.key, label: zoneLabel(z.key), error: row.imageErrors[i] ?? 'failed' }] : []
+		if (room.zoneKeys.length <= 1) return [];
+		return room.zoneKeys.flatMap((key, i) =>
+			row.images[i] === 'failed' ? [{ key, label: zoneLabel(key), error: row.imageErrors[i] ?? 'failed' }] : []
 		);
 	}
 
@@ -213,7 +223,7 @@
 					<td>{futureName(row.futureKey)}</td>
 					<td>{row.step}/{row.totalSteps}</td>
 					<td class="images">
-						{row.imagesStored}/{ZONES.length}
+						{row.imagesStored}/{room.zoneKeys.length}
 						{#each failedZones(row) as z (z.key)}
 							<span class="failed-zone" title={z.error}>
 								<button

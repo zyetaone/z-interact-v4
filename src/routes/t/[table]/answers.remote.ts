@@ -39,7 +39,7 @@ import {
   requestOrigin,
 } from "$lib/server/env";
 import { TABLE_COUNT, WILDCARD } from "$lib/game/questions";
-import { ZONES } from "$lib/game/zones";
+import { activeZones, zoneByKey } from "$lib/game/zones";
 import { ERA_SCALE, eraVerdict, type Era } from "$lib/game/era";
 import { FUTURES } from "$lib/game/futures";
 import {
@@ -73,6 +73,7 @@ import {
 import { createThrottle } from "$lib/server/throttle";
 import { tickImageRow, tickRowSafely, type TickContext } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
+import { composePromptFor } from "./hero";
 import { ensureNarrative, getNarrative } from "./narrative";
 import { sanitizeComposed } from "$lib/server/prompt";
 import {
@@ -269,7 +270,9 @@ export const tableStatus = query(
     // step, each submitting its OWN row's composed prompt.
     for (const row of await getPendingImagesForTable(env.DB, event, table)) {
       if (row.createdAt <= since) continue; // pre-reset attempt — not resumed
-      const zone = ZONES.find((z) => z.key === row.zoneKey);
+      // EVERY set, not the active one: a row queued under a different
+      // ZONE_SET still has to be carried to `stored`.
+      const zone = zoneByKey(row.zoneKey);
       const stored = await getPromptById(env.DB, row.promptId);
       if (!zone || !stored) continue;
       // Safely: a throw here used to reject the whole poll, so the phone
@@ -284,11 +287,14 @@ export const tableStatus = query(
           table,
           zoneKey: row.zoneKey,
         },
-        composeZonePrompt(
-          stored.composed,
-          resolveZone(zone, answers),
-          stored.negative,
-        ),
+        composePromptFor(zone, {
+          composed: stored.composed,
+          negative: stored.negative,
+          answers,
+          futureKey: futureOf(answers),
+          era: eraOf(answers),
+          table,
+        }),
       );
     }
 
@@ -299,7 +305,7 @@ export const tableStatus = query(
     // a reason, which is also what makes the per-zone retry reachable.
     const submittedSinceReset = !!state.submittedAt && state.submittedAt > since;
     const images = [];
-    for (const zone of ZONES) {
+    for (const zone of activeZones(env.ZONE_SET)) {
       const row = await getCurrentImageSince(env.DB, event, table, zone.key, since);
       const arrived = row?.state === "stored" || row?.state === "done";
       const missing = !row && submittedSinceReset;
@@ -564,7 +570,7 @@ async function queueGeneration(
 
   let queued = 0;
   let inFlight = 0;
-  for (const zone of ZONES) {
+  for (const zone of activeZones(env.ZONE_SET)) {
     // SINCE THE RESET, not ever. `getCurrentImage` ignores the reset
     // watermark, and image rows are append-only, so after a desk Reset a
     // zone's pre-reset `stored` row still read as current and this skipped
@@ -585,11 +591,16 @@ async function queueGeneration(
     // attempt. Neither case may start a second attempt while one is live.
     if (!opts.regenerate && existing && existing.state !== "failed") continue;
 
-    const zonePrompt = composeZonePrompt(
+    // The hero gets its own composer (`hero.ts`); a functional zone gets the
+    // base plus its moment. One chooser, so every submit path agrees.
+    const zonePrompt = composePromptFor(zone, {
       composed,
-      resolveZone(zone, answers),
-      layers.negative,
-    );
+      negative: layers.negative,
+      answers,
+      futureKey: futureOf(answers),
+      era: eraOf(answers),
+      table,
+    });
     // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
     // The read-then-write above is per-isolate and two isolates can both
     // pass it — that is the double-tap that queued two full sets per table.
@@ -660,7 +671,7 @@ export const finishTable = command(
       const budget = await getRenderBudget(env.DB, event, table, since);
       const cap = checkRenderCap({
         used: budget.used,
-        about: ZONES.length,
+        about: activeZones(env.ZONE_SET).length,
         max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
@@ -742,7 +753,7 @@ export const regenerate = command(
         return { ok: false as const, reason: cooldown.reason };
       const cap = checkRenderCap({
         used: budget.used,
-        about: ZONES.length,
+        about: activeZones(env.ZONE_SET).length,
         max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
@@ -801,7 +812,7 @@ export const retryZone = command(
           reason: "The room is closed — the screen has moved on.",
         };
       }
-      const zoneDef = ZONES.find((z) => z.key === zone);
+      const zoneDef = zoneByKey(zone);
       if (!zoneDef) return { ok: false as const, reason: "unknown zone" };
 
       const since = await getResetAt(env.DB, event, table);
@@ -856,11 +867,14 @@ export const retryZone = command(
         const answers = answersOf(
           await getCurrentAnswersSince(env.DB, event, table, since),
         );
-        zonePrompt = composeZonePrompt(
-          promptRow.composed,
-          resolveZone(zoneDef, answers),
-          promptRow.negative,
-        );
+        zonePrompt = composePromptFor(zoneDef, {
+          composed: promptRow.composed,
+          negative: promptRow.negative,
+          answers,
+          futureKey: futureOf(answers),
+          era: eraOf(answers),
+          table,
+        });
       }
       if (!promptRow) {
         return { ok: false as const, reason: "Nothing to try again yet." };

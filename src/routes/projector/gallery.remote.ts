@@ -25,7 +25,7 @@ import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
 import { getAdminRoomRows, getBeat, getTableFutures, type AdminImageState } from '$lib/server/room';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
-import { ZONES } from '$lib/game/zones';
+import { activeZones } from '$lib/game/zones';
 import type { ProjectorRoom, TableBeatState, TableView, ZoneImageState } from '$lib/ui/projector/types';
 
 const TOTAL_STEPS = QUESTIONS.length;
@@ -76,12 +76,16 @@ export const getProjectorRoom = query(async (): Promise<ProjectorRoom> => {
 		getTableFutures(env.DB, event)
 	]);
 
+	const zones = activeZones(env.ZONE_SET);
 	const tables: TableView[] = rows.map((r) => {
 		const byZone = new Map(r.images.map((i) => [i.zoneKey, i]));
 		// An unsubmitted table provably has no image rows — `insertQueuedImage*`
 		// only ever runs after `finishTable` — so this stays empty rather than
 		// rendering four "none" placeholders per table.
-		const images = r.submittedAt ? ZONES.map((z) => toZoneView(z.key, byZone.get(z.key))) : [];
+		// Whatever this room renders — one workspace image by default. A row
+		// from a previous ZONE_SET is simply not enumerated here; it still
+		// exists, and the export still carries it.
+		const images = r.submittedAt ? zones.map((z) => toZoneView(z.key, byZone.get(z.key))) : [];
 		return {
 			table: r.table,
 			beatState: beatStateFor(r.submittedAt, r.answeredCount, images),

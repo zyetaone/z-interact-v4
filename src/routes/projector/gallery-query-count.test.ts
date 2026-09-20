@@ -53,7 +53,10 @@ vi.mock('$app/server', () => {
 		getRequestEvent: () => ({
 			url: new URL('https://example.test/projector'),
 			request: new Request('https://example.test/projector'),
-			platform: { env: { DB: db, EVENT_ID: EVENT }, context: { waitUntil: () => {} } }
+			// Pinned to the FOUR-zone set deliberately: it is the worst case for
+			// a read that might grow per table per zone, which is what this
+			// measures. The hero default would make the test easier to pass.
+			platform: { env: { DB: db, EVENT_ID: EVENT, ZONE_SET: 'four' }, context: { waitUntil: () => {} } }
 		})
 	};
 });

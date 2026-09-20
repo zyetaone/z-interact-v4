@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isHeroZone } from '$lib/game/zones';
 	import { accentForFuture, ZONE_STEP_SECONDS } from './tokens';
 	import { futureIndexOf } from './grouping';
 	import type { TableView } from './types';
@@ -20,6 +21,17 @@
 	const loopSeconds = $derived(Math.max(shown.length, 1) * STEP_SECONDS);
 
 	/**
+	 * THE HERO FOCUS: one picture, the whole frame, and no words on it.
+	 *
+	 * With a single image the triptych below would repeat the same render
+	 * three times across the LED band, which reads as a fault rather than a
+	 * composition, so a hero table gets one panel however wide the wall is.
+	 * The footer's "Table n" goes with it — the beat is the picture. The
+	 * lens stays a colour, as it is in every other beat.
+	 */
+	const heroOnly = $derived(shown.length === 1 && isHeroZone(shown[0].zone));
+
+	/**
 	 * ONE PANEL PER 16:9 THE FRAME HOLDS.
 	 *
 	 * A zone render is 16:9. Stretching one across a 5.3:1 stage and
@@ -29,7 +41,7 @@
 	 * out of step with its neighbour, so the room sees three of this
 	 * table's four zones at once and the set still turns over.
 	 */
-	const panelOffsets = $derived(Array.from({ length: Math.max(1, panels) }, (_, k) => k));
+	const panelOffsets = $derived(heroOnly ? [0] : Array.from({ length: Math.max(1, panels) }, (_, k) => k));
 </script>
 
 <!-- Per-table sequence (zones-and-video.md §3(a)): client-side Ken Burns
@@ -58,7 +70,9 @@
 	     the number rides a bottom gradient. A header band pushed the image
 	     down and read as a dim strip of navy across the top of the wall. -->
 	<footer>
-		<span class="table-no">Table {table.table}</span>
+		{#if !heroOnly}
+			<span class="table-no">Table {table.table}</span>
+		{/if}
 		<span class="lens-band" aria-hidden="true"></span>
 	</footer>
 </section>

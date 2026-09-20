@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FUTURES } from './futures';
-import { QUESTIONS } from './questions';
+import { QUESTIONS, WILDCARD } from './questions';
 import { LENS_IMAGE, OPTION_IMAGE, hasOptionImage } from './visuals';
 
 // Vite's own glob, not node:fs — keeps this test free of a node type-defs
@@ -33,10 +33,13 @@ describe('OPTION_IMAGE coverage', () => {
 	});
 
 	it('open options and the wildcard have no mapping (nothing to render)', () => {
+		// V4 has no `open` options left, so the wildcard is the one live case;
+		// the loop still guards any open option a later set brings back.
 		const openOptions = QUESTIONS.flatMap((q) => q.options.filter((o) => o.open).map((o) => ({ q, o })));
 		for (const { q, o } of openOptions) {
 			expect(hasOptionImage(q.id, o.key)).toBe(false);
 		}
+		expect(hasOptionImage(WILDCARD.id, WILDCARD.options[0].key)).toBe(false);
 	});
 
 	// Not a hard fail: report coverage rather than block on generation still in

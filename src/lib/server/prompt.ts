@@ -35,7 +35,7 @@ export const NO_TEXT = 'no text';
  * rendering guard, the same family as `NO_TEXT` above, not content — and
  * `futures.ts` belongs to another workstream.
  */
-export const NO_COLLAGE = 'collage, grid, split screen, multiple views, labels';
+export const NO_COLLAGE = 'collage, grid, split screen, labels';
 
 /**
  * The ceiling on the table-editable prompt. Screen 15's textarea is free
@@ -95,7 +95,7 @@ export function negativeClause(negative: string | undefined): string {
 export const FRAME_HEAD = 'A film still, a';
 
 export function houseBase(year: string): string {
-	return `${FRAME_HEAD} ${year} workplace: anamorphic 35 mm, shallow focus, volumetric light, no logos`;
+	return `${FRAME_HEAD} ${year} workplace: anamorphic 35 mm, volumetric light, no logos`;
 }
 
 export interface LayerInputs {

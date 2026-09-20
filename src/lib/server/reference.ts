@@ -45,6 +45,12 @@ import { ZONES } from '$lib/game/zones';
  *           register, three free.
  *   chain — zone 1 anchored to the lens, zones 2-4 anchored to zone 1.
  *           Strongest continuity, and the composition lock described above.
+ *
+ * Confirmed 20 Sep on a one-table loop: the lens card through the edit
+ * endpoint with the instruction "use the reference only for palette,
+ * materials and signage style; compose a completely new scene" DID
+ * recompose into a different room. That is a viable instruction for
+ * `lens` mode if the lead switches it on; the default stays `none`.
  */
 export type ReferenceMode = 'none' | 'lens' | 'chain';
 

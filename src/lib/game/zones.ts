@@ -93,7 +93,7 @@ const BOOK_ZONES: Zone[] = [
 	zone({
 		key: 'studio',
 		questionIds: ['q4w'],
-		moment: 'A working floor, three people mid-task at their stations: {q4w}'
+		moment: 'Three people mid-task at their stations: {q4w}'
 	}),
 	zone({
 		key: 'plaza',
@@ -114,6 +114,28 @@ const QUESTION_ZONES: Zone[] = [
 	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'Deep work mid-act in the quietest room: {q5c}' }),
 	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge act at the landscape\'s edge, people mid-motion: {q6r}' })
 ];
+
+/**
+ * ONE IMPOSSIBLE IDEA PER FRAME (recipe v2, from the one-table loop and the
+ * owner's garden-office video — planters floating untethered, a glass wall
+ * that is an aquarium, blossom drifting indoors). Two per lens; a table's
+ * seed picks one so its four zones share it (`layers.ts` composes it into
+ * the base). Full clauses with verbs, never noun lists.
+ */
+export const IMPOSSIBLE_IDEAS: Record<string, readonly [string, string]> = {
+	'garden-city': ['a stream runs under the glass floor, fish passing beneath their feet', 'trees grow up through the desks, their canopy indoors'],
+	arcology: ['a waterfall drops the full height of the void beside them', 'gardens hang from the bridges, roots trailing in mid-air'],
+	solarpunk: ['planters float untethered overhead, roots trailing in the air', 'blossom drifts indoors through the shafts of light'],
+	'neo-seoul': ['one glass wall is an aquarium, fish crossing the signage', 'holographic koi swim through the air between the desks'],
+	'broadacre-city': ['the glass wall dissolves into open grassland as someone walks through it', 'a flock of drones settles in the field like birds'],
+	retrofuturism: ['brass instruments project living charts into the air', 'a bakelite dial opens the window onto the sea']
+};
+
+/** The impossible idea a table carries in all four zones — seeded by table number so a room never mixes two. */
+export function impossibleIdea(futureKey: string | null | undefined, table: number | null | undefined): string | undefined {
+	const pair = futureKey ? IMPOSSIBLE_IDEAS[futureKey] : undefined;
+	return pair ? pair[Math.abs(table ?? 0) % 2] : undefined;
+}
 
 export const ZONE_SETS = {
 	book: BOOK_ZONES,

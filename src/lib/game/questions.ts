@@ -278,28 +278,28 @@ export const QUESTIONS: Question[] = [
 				key: 'room-of-your-own',
 				label:
 					'A room of your own — four walls, a door you close, a window. Yours, with your things in it. The highest-performing answer in the research, and the most expensive.',
-				promptFragment: 'a private room, door and window, one person dictating to a writing wall'
+				promptFragment: 'a private room, door and window, one person dictating to a wall that writes'
 			},
 			{
 				key: 'deep-desk',
 				label:
 					'The deep desk — a metre-plus deep, tall acoustic panels on three sides, one large screen. Nearly a room, without the door.',
 				promptFragment:
-					'a metre-deep desk, tall panels three sides, one large screen at work'
+					'a metre-deep desk, panels three sides, one large screen where the work grows'
 			},
 			{
 				key: 'cockpit',
 				label:
 					'The cockpit — a curve of screens and surfaces wrapping around you. You and your AI, fully instrumented, working at speed.',
 				promptFragment:
-					'a cockpit desk, a curve of screens round one seat, hands moving through data'
+					'a cockpit desk, screens curving round one seat, hands moving through data'
 			},
 			{
 				key: 'pod',
 				label:
 					'The pod — a sealed acoustic booth you book and leave. Remote colleagues appear beside you. Small, glazed, temporary.',
 				promptFragment:
-					'a small glazed pod, a remote colleague on its glass mid-conversation'
+					'a glazed pod, a remote colleague appearing on its glass mid-sentence'
 			},
 			{
 				key: 'open-bench',
@@ -311,7 +311,7 @@ export const QUESTIONS: Question[] = [
 				key: 'no-workstation',
 				label: 'No workstation at all — you carry your work. The building offers settings, not desks.',
 				promptFragment:
-					'no desks: window seats, soft corners, work on any surface'
+					'no desks: window seats and soft corners, the work following onto any surface'
 			}
 		],
 		and: {
@@ -358,38 +358,38 @@ export const QUESTIONS: Question[] = [
 				label:
 					'The sealed cell — one person, no AI in the room. No signal, no prompts, deliberately unassisted thought.',
 				promptFragment:
-					'one person alone in a sealed cell, no AI, no screens, working by hand'
+					'one person alone in a sealed cell, no AI, working by hand on paper'
 			},
 			{
 				key: 'cockpit',
 				label: 'The cockpit — one person flying with full AI power; data and options surround them, they steer',
 				promptFragment:
-					'one person steering a wraparound surface of live data and options'
+					'one person steering a wraparound slab of live data, options rising as their hand moves'
 			},
 			{
 				key: 'quiet-pair',
 				label: 'The quiet pair — two people thinking together; AI listens, captures, retrieves, never interrupts',
 				promptFragment:
-					'two people thinking aloud, a small device listening, surfacing answers'
+					'two people thinking aloud, a small device listening and lifting answers onto the table'
 			},
 			{
 				key: 'judgement-room',
 				label:
 					'The judgement room — a small group making a hard call; AI laid out the evidence, the decision stays in the room',
 				promptFragment:
-					'three people arguing over a projected model, AI evidence on the walls'
+					'a model rising from a dark glass slab, one hand reshaping it, a voice answering as light'
 			},
 			{
 				key: 'studio',
 				label: 'The studio — a team creating with AI generating alongside them; messy, visual, fast',
 				promptFragment:
-					'a team sketching while AI variants appear beside them on the wall'
+					'a team sketching while AI variants bloom beside them on the wall'
 			},
 			{
 				key: 'thinking-walk',
 				label: 'The thinking walk — not a room; a loop through garden, water or sky, AI in the ear only when called',
 				promptFragment:
-					'one person walking a loop through garden and water, only an earpiece'
+					'one person walking a loop through garden and water, an earpiece answering'
 			}
 		],
 		and: {

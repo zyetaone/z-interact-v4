@@ -1,15 +1,18 @@
 <script lang="ts">
 	/**
-	 * Screen 3 + 3b + 3c on one card, per game-flow.md §0's fourth
-	 * reconciliation: the future pick derives an era chip the table may
-	 * nudge one step and no further, and Q1's push line becomes a real
-	 * field only when the era lands on 2026.
+	 * VERSION 4's Q1, "Choose your lens" (BRIEF.md, the question owner's
+	 * 19 Sep 17:58 send): six plain-named futures, her PUSH line ("what do
+	 * you see through the window?") spoken at the table, and the era as a
+	 * chip default only — "Era (2035/2040) is now a PUSH cue, not a
+	 * question". The chip keeps the future's default and the one-step nudge
+	 * from game-flow.md §0; V3's 2026 "what are you protecting?" field is
+	 * gone with the question it belonged to.
 	 *
 	 * A blocked nudge is greyed **with its reason shown**, never silently
 	 * refused — the reason comes from `era.ts`'s rules, not from prose
 	 * written here.
 	 *
-	 * The seven lenses are image cards (design-review.md §3): one column of
+	 * The six lenses are image cards (design-review.md §3): one column of
 	 * 3:2 bands, name and one-line blurb over the shared `--scrim`, and a
 	 * selection state that is not colour-only — unselected cards sit at 75%
 	 * brightness, the chosen one at 100% with a gold border and a check.
@@ -22,22 +25,21 @@
 	let {
 		futureKey,
 		era,
-		protectReply,
 		onpick,
 		onera,
-		onprotect,
 		onskip,
 		onnext
 	}: {
 		futureKey: string | null;
 		era: Era | null;
-		protectReply: string;
 		onpick: (key: string) => void;
 		onera: (era: Era) => void;
-		onprotect: (text: string) => void;
 		onskip: () => void;
 		onnext: () => void;
 	} = $props();
+
+	/** Her PUSH line for Q1, verbatim — spoken at the table, never typed. */
+	const PUSH = 'what do you see through the window?';
 
 	const ERA_LABEL: Record<Era, string> = {
 		'retro-1930s': '1930s reborn',
@@ -61,8 +63,9 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem" id="lens-stem">Choose your lens.</h1>
-<p class="hint">A worldview, not a character. It sets the light, the materials and the skyline.</p>
+<h1 class="stem" id="lens-stem">Choose your lens</h1>
+<p class="hint">A worldview, not a character. It sets what surrounds you: the building, the skyline, the light.</p>
+<p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 
 <ul class="futures" role="radiogroup" aria-labelledby="lens-stem">
 	{#each FUTURES as future (future.key)}
@@ -89,7 +92,7 @@
 
 {#if chosen && current}
 	<section class="chip-row" aria-label="Era">
-		<span class="field-label">What year is your office living in?</span>
+		<span class="field-label">Era</span>
 		<div class="chips">
 			<button
 				type="button"
@@ -120,20 +123,6 @@
 		{/if}
 	</section>
 
-	{#if current === 'same-as-2026'}
-		<section class="protect">
-			<label class="field-label" for="protect">If the office stays the same, what are you protecting?</label>
-			<textarea
-				id="protect"
-				class="field"
-				rows="3"
-				placeholder="Say what refusing to change is defending"
-				value={protectReply}
-				onchange={(e) => onprotect(e.currentTarget.value)}
-			></textarea>
-			<p class="count">Optional — added to the prompt word for word.</p>
-		</section>
-	{/if}
 {/if}
 
 <div class="grow"></div>
@@ -305,11 +294,4 @@
 		color: var(--warn);
 	}
 
-	.protect {
-		margin-bottom: 18px;
-	}
-
-	.protect .count {
-		text-align: left;
-	}
 </style>

@@ -63,8 +63,9 @@ export function allRendersSettled(status: Pick<TableStatus, "images">): boolean 
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
 export const FUTURE_ID = "future";
 
-/** Q2..Q11 (plus q12 when `ENABLE_PROPOSED_QUESTIONS` is on) — Q1 is folded
- *  into the future card as the era chip (game-flow.md §0/§1). */
+/** Every question after the lens screen (plus q12 when
+ *  `ENABLE_PROPOSED_QUESTIONS` is on). The era is a chip on the lens screen,
+ *  stored under `q1`, never a question in V4 — so `q1` is never a step. */
 export const FLOW_QUESTIONS = ACTIVE_QUESTIONS.filter((q) => q.id !== "q1");
 
 export type Step =

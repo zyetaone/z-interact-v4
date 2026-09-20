@@ -1,6 +1,13 @@
 /**
- * FUTURE / TONE PALETTE — the "choose your future" first screen (futures.md
- * §1/§3/§5). A future is a worldview a table argues from, never a persona.
+ * FUTURE / TONE PALETTE — VERSION 4's Q1, "Choose your lens" (BRIEF.md
+ * §"The questions — VERSION 4", the question owner's 19 Sep 17:58 send).
+ * Six futures, plain-named: `name` and `blurb` are her own words verbatim
+ * (the blurb's first letter capitalised, since it opens a line on the card).
+ * The seventh V3 future, Pragmatist Retrofit, is dropped per V4 — its lens
+ * JPEG stays on disk, unreferenced. `key`, `moodLine`, `negativeFragment`
+ * and the `LENS_IMAGE` filenames are unchanged from V3 (futures.md
+ * §1/§3/§5), so the generated lens pictures still line up. A future is a
+ * worldview a table argues from, never a persona.
  *
  * Fixed interface: `FUTURES` is an ordered list; each entry's `moodLine`
  * feeds `prompt.ts`'s `LayerInputs.mood`.
@@ -55,9 +62,9 @@ function future(f: Omit<Future, 'eraAllowed'>): Future {
 export const FUTURES: Future[] = [
 	future({
 		key: 'garden-city',
-		name: 'Garden City',
+		name: 'The garden city',
 		provenance: 'Ebenezer Howard, To-morrow, 1898',
-		blurb: 'Work inside the park. Low, green, walkable; the office dissolves into landscape.',
+		blurb: "Low and walkable. The office dissolves into parkland; you can't tell where the building ends and the park begins.",
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: ['same-as-2026'],
@@ -68,9 +75,9 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'arcology',
-		name: 'Arcology',
+		name: 'The vertical city',
 		provenance: 'Paolo Soleri, Arcology: The City in the Image of Man, 1969',
-		blurb: 'One structure holds the whole city. Live, work, grow, and never leave.',
+		blurb: 'One enormous structure holds everything: work, homes, food, transit. You need never go outside.',
 		eraDefault: 'hyperfuturistic-2040',
 		eraLocked: false,
 		eraWarn: [],
@@ -81,9 +88,9 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'solarpunk',
-		name: 'Solarpunk',
+		name: 'The abundant city',
 		provenance: '"From Steampunk to Solarpunk", 2008 — a design movement, not a film',
-		blurb: 'Abundance without extraction. Visible energy, edible facades, repair as a civic craft.',
+		blurb: 'Energy is visible and free. Solar skins, edible facades, water and power on show. Repair is a civic ritual.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],
@@ -94,9 +101,9 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'neo-seoul',
-		name: 'Neo-Seoul / Cyberpunk',
+		name: 'The dense and lit city',
 		provenance: 'Gibson, Neuromancer, 1984; Neo Seoul 2144 in Cloud Atlas, 2012',
-		blurb: 'Vertical, lit, watched. The corporation is the only weather you work inside.',
+		blurb: 'Vertical, neon, always awake. The corporation is the weather. You work inside the machine.',
 		eraDefault: 'hyperfuturistic-2040',
 		eraLocked: false,
 		eraWarn: [],
@@ -107,9 +114,9 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'broadacre-city',
-		name: 'Broadacre City',
+		name: 'The dispersed city',
 		provenance: 'Frank Lloyd Wright, The Disappearing City, 1932',
-		blurb: 'No centre at all. An acre each, work wherever the network reaches.',
+		blurb: 'No centre at all. An acre each, work wherever the network reaches. The office comes to you.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],
@@ -120,9 +127,9 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'retrofuturism',
-		name: 'Retrofuturism',
-		provenance: "The lead's own Q1 option; Deco and Streamline Moderne, c. 1925-1939",
-		blurb: 'Warmth, craft and brass return. The future remembers how rooms once felt.',
+		name: 'The warm machine age',
+		provenance: 'Deco and Streamline Moderne, c. 1925-1939',
+		blurb: 'The future as the 1930s imagined it. Deco geometry, brass, streamlined curves. Rooms remember how they once felt.',
 		eraDefault: 'retro-1930s',
 		eraLocked: true,
 		eraWarn: [],
@@ -130,25 +137,12 @@ export const FUTURES: Future[] = [
 			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
 		negativeFragment: 'stark white, visible screens, minimalism, posed faces, text, watermark, chrome, neon, plastic, glare',
 		shadowFace: 'Ornament as a screen over the same machine'
-	}),
-	future({
-		key: 'pragmatist-retrofit',
-		name: 'Pragmatist Retrofit',
-		provenance: 'No manifesto; the lead\'s Q1 option "deliberately the same as 2026", protected',
-		blurb: 'Nothing new. Fix the floor you already have and defend what works.',
-		eraDefault: 'same-as-2026',
-		eraLocked: true,
-		eraWarn: [],
-		moodLine:
-			'A real 2026 office floor, late afternoon, lights not yet on. Existing grey carpet tile, plasterboard, standard glazing, familiar task chairs, a few added acoustic baffles and plywood phone booths. Light is honest daylight going amber through blinds, long shadows across desks, warm lamps at two occupied workstations. Palette: greige, birch ply, dusty rose, muted olive. Ordinary mid-rise city view. Nothing futuristic. Careful, worn-in, quietly competent.',
-		negativeFragment: 'futurism, holograms, stark white, posed faces, text, watermark, robots, neon, atrium, glare',
-		shadowFace: 'Severance: the unchanged floor as a sealed one'
 	})
 ];
 
 // --- Shape guards ------------------------------------------------------------
-if (FUTURES.length !== 7) {
-	throw new Error(`expected exactly 7 futures per futures.md §1, got ${FUTURES.length}`);
+if (FUTURES.length !== 6) {
+	throw new Error(`expected exactly 6 futures per V4's Q1, got ${FUTURES.length}`);
 }
 if (new Set(FUTURES.map((f) => f.key)).size !== FUTURES.length) {
 	throw new Error('future keys must be unique');

@@ -17,11 +17,11 @@
  *                       <year>, photoreal, wide establishing view — see
  *                       `prompt.ts`'s `houseBase`), THEN the chosen future
  *                       as "seen through the lens of <future>: <moodLine>",
- *                       plus Q1's era fragment when the table nudged the
- *                       chip off the future's default, plus Q1's push
- *                       reply verbatim. `<year>` comes from the era chip
- *                       (the q1 answer), not a hardcoded 2035, so a nudge
- *                       shows up in the house base too.
+ *                       plus `era.ts`'s fragment when the table nudged the
+ *                       chip off the future's default (V4 has no era
+ *                       question; the chip's row still stores under `q1`).
+ *                       `<year>` comes from the era chip, not a hardcoded
+ *                       2035, so a nudge shows up in the house base too.
  *   materialsAndLight<- q2's option fragment + its push reply verbatim,
  *                       then q7's material-adjacent option fragments (walls
  *                       that become screens, writable glass, ambient light,
@@ -49,7 +49,7 @@
  */
 import { QUESTIONS, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
-import { ERA_SCALE, type Era } from '$lib/game/era';
+import { ERA_FRAGMENT, ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import { ZONES, type Zone } from '$lib/game/zones';
 import { NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
@@ -161,17 +161,13 @@ export function composeNegative(futureNegative: string | undefined): string {
 export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const by = answerMap(input.answers);
 	const future = futureByKey(input.futureKey);
-	const q1 = QUESTION_BY_ID.get('q1');
 
 	// --- mood: the fixed house base, THEN the future seen through its
 	// lens, the era only when it was nudged, then 3c.
 	const eraAnswer = by.get('q1');
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
 	const eraNudged = !!era && !!future && era !== future.eraDefault;
-	const eraFragment =
-		era && (eraNudged || !future)
-			? q1?.options.find((o) => o.key === era)?.promptFragment
-			: undefined;
+	const eraFragment = era && (eraNudged || !future) ? ERA_FRAGMENT[era] : undefined;
 	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
 	const lens = future
 		? `seen through the lens of ${future.name}: ${future.moodLine.replace(/\.$/, '')}`

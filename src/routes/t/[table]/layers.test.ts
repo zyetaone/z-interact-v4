@@ -14,7 +14,7 @@ import { NO_TEXT, houseBase } from '$lib/server/prompt';
 import { buildLayerInputs, composeBase, composeZonePrompt, resolveZone, type AnswerLike } from './layers';
 
 const SOLARPUNK = FUTURES.find((f) => f.key === 'solarpunk')!;
-const PRAGMATIST = FUTURES.find((f) => f.key === 'pragmatist-retrofit')!;
+const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
 const ERA_2040 =
 	'set in a hyper-futuristic 2040, technology fully integrated and visible throughout the architecture';
 const LENS_SOLARPUNK = `seen through the lens of ${SOLARPUNK.name}: ${SOLARPUNK.moodLine.replace(/\.$/, '')}`;
@@ -72,14 +72,14 @@ describe('buildLayerInputs', () => {
 		expect(skipped.mood).toContain('moody rather than stark');
 	});
 
-	it('appends Q1s push reply verbatim when the era landed on 2026, after the house base and lens', () => {
-		const protecting = buildLayerInputs({
-			futureKey: 'pragmatist-retrofit',
+	it('appends the era fragment from era.ts when the chip is nudged back to 2026', () => {
+		const nudged = buildLayerInputs({
+			futureKey: 'garden-city',
 			era: 'same-as-2026',
-			answers: [{ questionId: 'q1', keys: ['same-as-2026'], pushReply: 'the window seat everyone fights over' }]
+			answers: [{ questionId: 'q1', keys: ['same-as-2026'] }]
 		});
-		expect(protecting.mood).toBe(
-			`${houseBase('2026')}. seen through the lens of ${PRAGMATIST.name}: ${PRAGMATIST.moodLine.replace(/\.$/, '')}. the window seat everyone fights over`
+		expect(nudged.mood).toBe(
+			`${houseBase('2026')}. seen through the lens of ${GARDEN.name}: ${GARDEN.moodLine.replace(/\.$/, '')}. the same familiar 2026 shell, deliberately unchanged at a glance, while newer intelligence works quietly out of sight`
 		);
 	});
 

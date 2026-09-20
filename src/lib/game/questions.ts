@@ -83,39 +83,6 @@ export interface Question {
 
 export const QUESTIONS: Question[] = [
 	{
-		id: 'q1',
-		prompt: 'What year is your office living in?',
-		layer: 'mood',
-		select: { kind: 'one' },
-		diamond: false,
-		push: 'if the shell looks familiar, what has changed that you cannot see?',
-		options: [
-			{
-				key: 'hyperfuturistic-2040',
-				label: 'Hyper-futuristic 2040',
-				promptFragment: 'set in a hyper-futuristic 2040, technology fully integrated and visible throughout the architecture'
-			},
-			{
-				key: 'recognisably-2035',
-				label: 'Recognisably 2035',
-				promptFragment:
-					'set in a recognisably near-future 2035, familiar building bones with a decade of quiet technological refinement'
-			},
-			{
-				key: 'same-as-2026',
-				label: '2026 as we know it, but far smarter underneath',
-				promptFragment:
-					'the same familiar 2026 shell, deliberately unchanged at a glance, while newer intelligence works quietly out of sight'
-			},
-			{
-				key: 'retro-1930s',
-				label: 'Retro, 1930s warmth reborn with 2035 intelligence',
-				promptFragment:
-					'retro-futurist, 1930s warmth reborn with 2035 intelligence tucked out of sight — brass fittings, walnut and leather, deco geometry, warm incandescent light, the technology hidden inside the cabinetry'
-			}
-		]
-	},
-	{
 		id: 'q2',
 		prompt: 'What is your material world?',
 		layer: 'materialsAndLight',
@@ -577,14 +544,16 @@ export interface TableAnswers {
 // so its length and order are not literal types the compiler can pin.
 // Mirrors the guards in the architecture doc's `questions.draft.ts`.
 
-if (QUESTIONS.length !== 11) {
-	throw new Error(`expected exactly 11 questions, got ${QUESTIONS.length}`);
+// V4 folds the era question into the lens screen's chip (`era.ts`), so the
+// set opens at q2. `q1` survives only as the chip's stored row id.
+if (QUESTIONS.length !== 10) {
+	throw new Error(`expected exactly 10 questions (q2..q11), got ${QUESTIONS.length}`);
 }
-if (!QUESTIONS.every((q, i) => q.id === `q${i + 1}`)) {
-	throw new Error('questions are not in brief order q1..q11');
+if (!QUESTIONS.every((q, i) => q.id === `q${i + 2}`)) {
+	throw new Error('questions are not in brief order q2..q11');
 }
 
-const q11 = QUESTIONS[10];
+const q11 = QUESTIONS[9];
 if (q11.options.length !== 8) {
 	throw new Error(`Q11 must have exactly 8 options per the brief, got ${q11.options.length}`);
 }
@@ -612,6 +581,6 @@ if (PROPOSED_QUESTIONS.length !== 1) {
 if (!(PROPOSED_QUESTIONS[0].id === 'q12' && PROPOSED_QUESTIONS[0].proposed === true)) {
 	throw new Error('the one proposed question must be q12, marked proposed: true');
 }
-if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 12 : 11)) {
+if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 11 : 10)) {
 	throw new Error(`ACTIVE_QUESTIONS length does not match ENABLE_PROPOSED_QUESTIONS (got ${ACTIVE_QUESTIONS.length})`);
 }

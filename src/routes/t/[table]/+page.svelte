@@ -129,13 +129,8 @@
 		<FutureScreen
 			futureKey={flow.status.future}
 			era={flow.status.era}
-			protectReply={pushOf('q1')}
 			onpick={(key) => run(() => saveFuture({ table, futureKey: key }), false)}
-			onera={(era: Era) => run(() => saveEra({ table, era, pushReply: pushOf('q1') }), false)}
-			onprotect={(text) => {
-				draftPush = { ...draftPush, q1: text };
-				if (flow.status.era) void run(() => saveEra({ table, era: flow.status.era!, pushReply: text }), false);
-			}}
+			onera={(era: Era) => run(() => saveEra({ table, era }), false)}
 			onskip={() => run(() => saveFuture({ table, futureKey: null }))}
 			onnext={() => flow.next()}
 		/>

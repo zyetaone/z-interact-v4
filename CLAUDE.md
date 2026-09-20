@@ -39,7 +39,9 @@ npm run build         # vite build -> .svelte-kit/cloudflare
 
 Deploy (manual, not wired to CI yet):
 ```bash
-wrangler pages deploy .svelte-kit/cloudflare --project-name <project>
+wrangler pages deploy .svelte-kit/cloudflare --project-name <project> --branch main
+# --branch main is not optional: from a detached-HEAD checkout wrangler names the branch "head"
+# and the upload lands on a preview URL while production keeps serving the old build (seen 20 Sep).
 wrangler pages secret put FAL_KEY --project-name <project>
 wrangler pages secret put FAL_WEBHOOK_SECRET --project-name <project>
 wrangler pages secret put ADMIN_TOKEN --project-name <project>

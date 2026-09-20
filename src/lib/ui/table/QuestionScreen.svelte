@@ -126,12 +126,19 @@
 	}
 
 	.and-cue {
-		font-size: 13px;
-		letter-spacing: 0.04em;
 		margin: 0 0 12px;
 	}
 
+	/* Tapped on a passed phone in a dim room: a full-width 44px target,
+	   not a 13px inline run of text. */
 	.and-cue a {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 2px;
+		font-size: 14px;
+		letter-spacing: 0.04em;
 		color: var(--gold);
 	}
 
@@ -140,8 +147,12 @@
 		border-top: 1px solid var(--line);
 		padding-top: 18px;
 		margin: 18px 0;
-		/* The anchor lands on the label, not flush against the viewport edge. */
-		scroll-margin-top: 16px;
+	}
+
+	/* scroll-margin applies to the element the fragment NAMES, which is the
+	   label (id="and-<q>") inside this section, not the section. */
+	.chip-row .field-label {
+		scroll-margin-top: 24px;
 	}
 
 	.chips {

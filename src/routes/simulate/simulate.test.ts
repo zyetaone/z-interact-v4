@@ -70,7 +70,9 @@ vi.mock('$app/server', () => {
 					EVENT_ID: ENV_ID,
 					ADMIN_TOKEN,
 					SIMULATE_ENABLED: 'true',
-					FAL_KEY: 'test-key'
+					FAL_KEY: 'test-key',
+					// The done screen's narrative, deterministic and binding-free.
+					AI_FAKE: '1'
 				},
 				context: {
 					waitUntil: (p: Promise<unknown>) => {
@@ -98,7 +100,8 @@ function simulateRequest(body: Record<string, unknown>) {
 				EVENT_ID: ENV_ID,
 				ADMIN_TOKEN,
 				SIMULATE_ENABLED: 'true',
-				FAL_KEY: 'test-key'
+				FAL_KEY: 'test-key',
+				AI_FAKE: '1'
 			}
 		}
 	};
@@ -178,6 +181,27 @@ describe('POST /simulate', () => {
 		// The fake image is a PNG, so the stored type must say so — not the
 		// blanket `image/webp` every object used to be written as.
 		for (const stored of bucket.values()) expect(stored.contentType).toBe('image/png');
+	});
+
+	it('leaves every submitted table with a done-screen narrative, written through the real commands', async () => {
+		const { POST } = await import('./+server');
+		const res = await POST(simulateRequest({ token: ADMIN_TOKEN, tables: 3, seed: 11, staggerMs: 0 }) as never);
+		const out = (await res.json()) as { submitted: number; readBack: { table: number }[] };
+		expect(out.submitted).toBe(3);
+
+		// `finishTable` writes it in `waitUntil`, so it exists only once those
+		// have run — the same deferral the first generation tick uses.
+		await Promise.all(waited);
+
+		const { tableStatus } = await import('../t/[table]/answers.remote');
+		for (const row of out.readBack) {
+			const status = (await tableStatus({ table: row.table })) as { narrative: string | null };
+			expect(status.narrative).toBeTruthy();
+			expect(status.narrative!.split(/\s+/).length).toBeLessThanOrEqual(60);
+		}
+		// One row per table, not one per poll.
+		const { results } = await db.prepare(`SELECT id FROM narrative WHERE event_id = ?`).bind(ENV_ID).all();
+		expect(results).toHaveLength(3);
 	});
 
 	it('is repeatable: the same seed plans the same room', async () => {

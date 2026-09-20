@@ -24,6 +24,7 @@ function status(
 		prompt: 'a prompt',
 		promptEdited: false,
 		images,
+		narrative: null,
 		submittedAt: submitted ? 1 : null,
 		closed: false,
 		granted: false,

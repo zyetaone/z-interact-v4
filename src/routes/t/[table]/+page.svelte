@@ -227,6 +227,7 @@
 			closed={flow.status.closed}
 			gateReason={flow.status.gateReason}
 			images={flow.status.images}
+			narrative={flow.status.narrative}
 			onedit={() => flow.go('future')}
 			onimages={() => flow.go('images')}
 		/>

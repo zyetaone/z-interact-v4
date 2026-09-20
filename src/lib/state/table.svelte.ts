@@ -37,6 +37,8 @@ export interface TableStatus {
     url: string | null;
     error: string | null;
   }[];
+  /** The done screen's read-back paragraph, or null until one has been written (it arrives on a later poll). */
+  narrative: string | null;
   submittedAt: number | null;
   closed: boolean;
   granted: boolean;

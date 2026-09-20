@@ -73,6 +73,7 @@ import {
 import { createThrottle } from "$lib/server/throttle";
 import { tickImageRow, tickRowSafely, type TickContext } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
+import { ensureNarrative, getNarrative } from "./narrative";
 import { sanitizeComposed } from "$lib/server/prompt";
 import {
   buildLayerInputs,
@@ -247,6 +248,7 @@ export const tableStatus = query(
         closed: false,
         granted: false,
         canSubmit: false,
+        narrative: null as string | null,
         gateReason:
           "We could not reach the room, so nothing was sent — your answer is still on this phone. Try again.",
       };
@@ -322,6 +324,17 @@ export const tableStatus = query(
       }),
     );
 
+    // THE DONE SCREEN'S PARAGRAPH. Read only — a poll never waits on a
+    // model, the same rule that took the admin read off the fal path. If
+    // `finishTable`'s own `waitUntil` never landed (dead phone, recycled
+    // isolate) the kick below writes one for the next poll to find.
+    const narrative = submittedSinceReset
+      ? await getNarrative(env.DB, event, table, since)
+      : null;
+    if (submittedSinceReset && !narrative) {
+      requestWaitUntil(ensureNarrative(env, event, table, answers, since));
+    }
+
     const alreadyAnswered = !!state.submittedAt;
     const [locked, granted] = await Promise.all([
       lockedAt(env.DB, event),
@@ -344,6 +357,7 @@ export const tableStatus = query(
       prompt: stored?.composed ?? preview,
       promptEdited: stored?.editedByTable ?? false,
       images,
+      narrative,
       submittedAt: state.submittedAt,
       closed: !!locked,
       granted,
@@ -650,6 +664,17 @@ export const finishTable = command(
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
       await finishTableRow(env.DB, event, table);
+      // Written after the response, like the first generation tick: the
+      // table is submitted whether or not a model answers, and the read of
+      // its answers happens off the response path too.
+      requestWaitUntil(
+        (async () => {
+          const current = answersOf(
+            await getCurrentAnswersSince(env.DB, event, table, since),
+          );
+          await ensureNarrative(env, event, table, current, since);
+        })(),
+      );
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: false,

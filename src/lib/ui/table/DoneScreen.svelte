@@ -11,12 +11,20 @@
 		closed,
 		gateReason,
 		images = [],
+		narrative = null,
 		onedit,
 		onimages
 	}: {
 		closed: boolean;
 		gateReason: string;
 		images?: { zoneKey: string; state: string; url: string | null }[];
+		/**
+		 * The table's own answers written back as a short paragraph
+		 * (`routes/t/[table]/narrative.ts`). Null until it has been written —
+		 * it arrives on a later poll, and its absence is not an error state,
+		 * so nothing is shown in its place.
+		 */
+		narrative?: string | null;
 		onedit: () => void;
 		onimages: () => void;
 	} = $props();
@@ -24,6 +32,10 @@
 
 <h1 class="stem">You're in. Watch the screen.</h1>
 <p class="hint">Your four rooms are with the rest of them now.</p>
+
+{#if narrative}
+	<p class="narrative">{narrative}</p>
+{/if}
 
 {#if closed}
 	<p class="banner calm">{gateReason || 'Answers are closed — the screen has moved on.'}</p>
@@ -56,6 +68,17 @@
 </div>
 
 <style>
+	/* The read-back sits between the hint and the four frames, quieter than
+	   the heading and warmer than the hint. */
+	.narrative {
+		margin: 0 0 20px;
+		padding-left: 12px;
+		border-left: 2px solid var(--gold);
+		font-family: var(--display);
+		font-size: 17px;
+		line-height: 1.5;
+	}
+
 	.thumbs {
 		list-style: none;
 		margin: 0 0 22px;

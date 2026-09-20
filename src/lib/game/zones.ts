@@ -134,23 +134,133 @@ const QUESTION_ZONES: Zone[] = [
 /**
  * ONE IMPOSSIBLE IDEA PER FRAME (recipe v2, from the one-table loop and the
  * owner's garden-office video — planters floating untethered, a glass wall
- * that is an aquarium, blossom drifting indoors). Two per lens; a table's
- * seed picks one so its four zones share it (`layers.ts` composes it into
- * the base). Full clauses with verbs, never noun lists.
+ * that is an aquarium, blossom drifting indoors). A table's seed picks one
+ * so its four zones share it (`layers.ts` composes it into the base). Full
+ * clauses with verbs, never noun lists.
+ *
+ * FIVE PER LENS, not two, since 20 Sep. With one image per table the judge
+ * has to be able to tell two tables apart, and two ideas meant every
+ * odd-numbered table on a lens got the same one — tables 3 and 7 on
+ * solarpunk composed character-for-character identical prompts when their
+ * answers matched. Five does not make twenty tables unique on its own
+ * (see `VANTAGES`, which does); it makes a collision rare instead of
+ * routine.
+ *
+ * The three added per lens are this repo's words, in the register of the
+ * first two, and have NOT been through the question owner. They are the
+ * first thing to replace if the voice is wrong.
  */
-export const IMPOSSIBLE_IDEAS: Record<string, readonly [string, string]> = {
-	'garden-city': ['a stream runs under the glass floor, fish passing beneath their feet', 'trees grow up through the desks, their canopy indoors'],
-	arcology: ['a waterfall drops the full height of the void beside them', 'gardens hang from the bridges, roots trailing in mid-air'],
-	solarpunk: ['planters float untethered overhead, roots trailing in the air', 'blossom drifts indoors through the shafts of light'],
-	'neo-seoul': ['one glass wall is an aquarium, fish crossing the signage', 'holographic koi swim through the air between the desks'],
-	'broadacre-city': ['the glass wall dissolves into open grassland as someone walks through it', 'a flock of drones settles in the field like birds'],
-	retrofuturism: ['brass instruments project living charts into the air', 'a bakelite dial opens the window onto the sea']
+export const IMPOSSIBLE_IDEAS: Record<string, readonly string[]> = {
+	'garden-city': [
+		'a stream runs under the glass floor, fish passing beneath their feet',
+		'trees grow up through the desks, their canopy indoors',
+		'a hedge wall opens itself where someone walks toward it',
+		'the ceiling is a meadow seen from below, grass against the glass',
+		'beehives hang in the stairwell, the bees moving between floors'
+	],
+	arcology: [
+		'a waterfall drops the full height of the void beside them',
+		'gardens hang from the bridges, roots trailing in mid-air',
+		'a lift car climbs the outside of the void with no shaft around it',
+		'terraces step down the void, each one a different weather',
+		'cable bridges thread the void, carrying people between terraces'
+	],
+	solarpunk: [
+		'planters float untethered overhead, roots trailing in the air',
+		'blossom drifts indoors through the shafts of light',
+		'the roof panels turn slowly to follow the light, like leaves',
+		'a wall of moss breathes, brightening where people gather',
+		'vines carry the power, glowing faintly along their length'
+	],
+	'neo-seoul': [
+		'one glass wall is an aquarium, fish crossing the signage',
+		'holographic koi swim through the air between the desks',
+		'rain falls upward past the window, lit from below',
+		'a second city hangs mirrored above the ceiling line',
+		'the floor is a map of the city, moving under their feet'
+	],
+	'broadacre-city': [
+		'the glass wall dissolves into open grassland as someone walks through it',
+		'a flock of drones settles in the field like birds',
+		'a room detaches and drifts to the next field, still occupied',
+		'the horizon is visible through the building, wall to wall',
+		'a dirt track runs straight through the floor plate and out again'
+	],
+	retrofuturism: [
+		'brass instruments project living charts into the air',
+		'a bakelite dial opens the window onto the sea',
+		'pneumatic tubes carry drawings overhead between the desks',
+		'a clockwork orrery turns slowly through the full height of the room',
+		'the walls unfold like a cabinet, revealing the room behind'
+	]
 };
 
-/** The impossible idea a table carries in all four zones — seeded by table number so a room never mixes two. */
+/** The impossible idea a table carries in all of its renders — seeded by table number so a room never mixes two. */
 export function impossibleIdea(futureKey: string | null | undefined, table: number | null | undefined): string | undefined {
-	const pair = futureKey ? IMPOSSIBLE_IDEAS[futureKey] : undefined;
-	return pair ? pair[Math.abs(table ?? 0) % 2] : undefined;
+	const pool = futureKey ? IMPOSSIBLE_IDEAS[futureKey] : undefined;
+	if (!pool || pool.length === 0) return undefined;
+	// `table - 1` so table 1 takes the first idea and consecutive tables walk
+	// the pool in order; `% pool.length` over the old `% 2`, which handed
+	// every odd table on a lens the same clause.
+	return pool[Math.abs((table ?? 1) - 1) % pool.length];
+}
+
+/* -------------------------------------------------------------------------- */
+/* WHERE THE CAMERA STANDS — one per table, never repeated in a room          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE JUDGE HAS TO BE ABLE TO TELL TWO TABLES APART.
+ *
+ * With four zones per table, two tables that answered identically still
+ * produced eight different pictures and nobody compared them directly. With
+ * ONE image per table they produce one picture each, and two tables with the
+ * same lens and the same answers composed the same prompt to the character —
+ * so the wall showed the same building twice and there was nothing to judge.
+ *
+ * The vantage is the fix that does not touch a single answer: every table
+ * looks at its own building from somewhere else. It stays an ELEVATED
+ * THREE-QUARTER view in every case — that is the frame the brief fixed, and
+ * varying it into plans and street views would be varying the format rather
+ * than the design — but the corner, the height and what is in the near
+ * foreground move.
+ *
+ * There are as many vantages as the room has tables, so within one room no
+ * two tables share one. That is the hard guarantee; the impossible idea
+ * above is the softer one (five per lens against twenty tables, so a
+ * collision is possible and the vantage is what separates that pair).
+ */
+export const VANTAGES: readonly string[] = [
+	'from the north-west corner, two floors up',
+	'from a footbridge crossing the main volume',
+	'from the top of the entrance stair, looking back in',
+	'from a gallery balcony on the far side',
+	'from above the atrium, near the roof glazing',
+	'from the corner of an upper terrace, planting in the near foreground',
+	'from a mezzanine over the busiest floor',
+	'from the head of a light well, looking down its length',
+	'from an upper landing where two wings meet',
+	'from outside the glass, high, looking in through it',
+	'from the quiet end, the length of the building running away',
+	'from a stair half-landing, the handrail in the near foreground',
+	'from the roof edge, looking back across the roofscape',
+	'from a bridge between two blocks, both visible',
+	'from over the entrance, the approach below and the floors beyond',
+	'from a high corner window, the building folding around it',
+	'from the top of the void, the floors stacked below',
+	'from an upper walkway on the shaded side',
+	'from the gallery above the arrival hall',
+	'from the highest floor, looking down through the section'
+];
+
+/**
+ * This table's vantage. Seeded by table number alone — not by lens, not by
+ * answers — so it is stable across a redraw and a reset (the table gets the
+ * same viewpoint every time, which is what makes a redraw read as the same
+ * building drawn again) and unique within a room of `VANTAGES.length`.
+ */
+export function vantageFor(table: number | null | undefined): string {
+	return VANTAGES[Math.abs((table ?? 1) - 1) % VANTAGES.length];
 }
 
 /**

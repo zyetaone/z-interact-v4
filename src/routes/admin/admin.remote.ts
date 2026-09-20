@@ -36,7 +36,7 @@ import {
 	exportRoomRows,
 	type Beat
 } from '$lib/server/room';
-import { tickImageRow } from '$lib/server/ticker';
+import { tickImageRow, tickRowSafely } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
@@ -141,7 +141,9 @@ async function tickSlice(env: Env, event: string): Promise<void> {
 		const zone = ZONES.find((z) => z.key === row.zoneKey);
 		const prompt = await getPromptRowById(env.DB, row.promptId);
 		if (!zone || !prompt) continue;
-		await tickImageRow(
+		// One row's throw must not end the slice: the rows behind it would
+		// wait for a later poll to reach them, oldest-first, for ever.
+		await tickRowSafely(
 			{
 				db: env.DB,
 				env,

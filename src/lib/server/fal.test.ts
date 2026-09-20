@@ -177,3 +177,26 @@ describe('isRetryableFailure', () => {
 		expect(isRetryableFailure('fal result had no image')).toBe(false);
 	});
 });
+
+describe('isRetryableFailure — what deserves a second submit', () => {
+	it('retries the wobbles: the fidelity run\'s 422, a rate limit, a provider 5xx', () => {
+		expect(isRetryableFailure('fal submit failed: 422')).toBe(true);
+		expect(isRetryableFailure('fal submit failed: 429 slow down')).toBe(true);
+		expect(isRetryableFailure('fal submit failed: 500')).toBe(true);
+		expect(isRetryableFailure('fal submit failed: 503')).toBe(true);
+	});
+
+	it('does NOT retry an account refusal — a second identical submit cannot fix it', () => {
+		// Live: the balance ran out and every submit returned this. Retrying
+		// meant each zone discovered it twice while a table watched.
+		expect(isRetryableFailure('fal submit failed: 403 User is locked. Please top up your balance.')).toBe(false);
+		expect(isRetryableFailure('fal submit failed: 401')).toBe(false);
+		expect(isRetryableFailure('fal submit failed: 402 payment required')).toBe(false);
+		expect(isRetryableFailure('fal submit failed: 404')).toBe(false);
+	});
+
+	it('is false for anything without an HTTP status, so a thrown TypeError is not retried for ever', () => {
+		expect(isRetryableFailure('TypeError: fetch failed')).toBe(false);
+		expect(isRetryableFailure('')).toBe(false);
+	});
+});

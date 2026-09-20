@@ -36,6 +36,14 @@ export type GenerationState = 'queued' | 'requested' | 'stored' | 'done' | 'fail
  */
 export const STALE_CLAIM_MS = 2 * 60 * 1000;
 
+/**
+ * The most ticks a row may take to reach a terminal state once the
+ * provider is answering with a refusal. One claim, one submit, one write:
+ * anything more means a row is going round the retry loop, and a phone is
+ * showing "being drawn" for something that is never coming.
+ */
+export const MAX_TICKS_TO_TERMINAL = 2;
+
 export interface GenerationRow {
 	id: string;
 	state: GenerationState;

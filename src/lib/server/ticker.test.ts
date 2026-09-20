@@ -11,7 +11,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fakeD1 } from './fake-d1';
 import { insertQueuedImage, getImageById, getImageDetail, insertQueuedImageIfIdle } from './room';
-import { tickAndPersist, tickImageRow, type TickableImageRow } from './ticker';
+import { MAX_TICKS_TO_TERMINAL } from './generate';
+import { tickAndPersist, tickImageRow, tickRowSafely, type TickableImageRow } from './ticker';
 import { STALE_CLAIM_MS } from './generate';
 import { FAL_MODEL } from './fal';
 import { ZONES } from '$lib/game/zones';
@@ -289,5 +290,168 @@ describe('tickImageRow — REFERENCE_MODE at the fal boundary', () => {
 		const other = await submitFor('lens', ZONES[1].key);
 		expect(other[0].url).toBe(`https://queue.fal.run/${FAL_MODEL}`);
 		expect(other[0].body.image_urls).toBeUndefined();
+	});
+});
+
+
+/**
+ * A REFUSED SUBMIT HAS TO REACH `failed`.
+ *
+ * Live, ~10:30 UTC: the fal account's balance ran out and every submit came
+ * back `403 User is locked`. Table 20's three unsubmitted zones sat on the
+ * phone showing "being drawn" with no error, indefinitely; only the desk's
+ * 1/4 count hinted at it. A refused submit is an ANSWER, and a locked
+ * account is not a wobble that a second attempt clears.
+ */
+describe('a submit refused with 403', () => {
+	function stub403() {
+		vi.stubGlobal('fetch', async () => new Response('User is locked. Please top up your balance.', { status: 403 }));
+	}
+
+	async function tickUntilTerminal(db: D1Database, id: string, rounds: number) {
+		for (let i = 0; i < rounds; i++) {
+			const row = await getImageById(db, id);
+			if (!row || row.state === 'failed' || row.state === 'stored') return { row, ticks: i };
+			await tickImageRow(
+				{
+					db,
+					env: { FAL_KEY: 'k' } as never,
+					event: EVENT,
+					origin: 'https://event.test',
+					futureKey: 'solarpunk'
+				},
+				{
+					id: row.id,
+					state: row.state,
+					falRequestId: row.falRequestId,
+					createdAt: row.createdAt,
+					table: row.table,
+					zoneKey: row.zoneKey
+				},
+				'a prompt'
+			);
+		}
+		return { row: await getImageById(db, id), ticks: rounds };
+	}
+
+	it('reaches failed within a bounded number of ticks, not "being drawn" for ever', async () => {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, {
+			eventId: EVENT,
+			table: 20,
+			zoneKey: 'library',
+			promptId: 'p-1',
+			prompt: 'a prompt',
+			model: 'test-model'
+		});
+		stub403();
+		try {
+			const out = await tickUntilTerminal(db, row!.id, 8);
+			expect(out.row?.state).toBe('failed');
+			expect(out.ticks).toBeLessThanOrEqual(MAX_TICKS_TO_TERMINAL);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('keeps the provider\'s own words, so the desk can say why', async () => {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, {
+			eventId: EVENT,
+			table: 20,
+			zoneKey: 'studio',
+			promptId: 'p-1',
+			prompt: 'a prompt',
+			model: 'test-model'
+		});
+		stub403();
+		try {
+			await tickUntilTerminal(db, row!.id, 8);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+		const failed = await getImageById(db, row!.id);
+		expect(failed?.error).toContain('403');
+		expect(failed?.error).toContain('User is locked');
+	});
+
+	it('does not spend a second submit on it — a locked account is not a wobble', async () => {
+		const db = fakeD1();
+		const row = await insertQueuedImageIfIdle(db, {
+			eventId: EVENT,
+			table: 20,
+			zoneKey: 'plaza',
+			promptId: 'p-1',
+			prompt: 'a prompt',
+			model: 'test-model'
+		});
+		let calls = 0;
+		vi.stubGlobal('fetch', async () => {
+			calls++;
+			return new Response('User is locked. Please top up your balance.', { status: 403 });
+		});
+		try {
+			await tickUntilTerminal(db, row!.id, 8);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+		expect(calls).toBe(1);
+	});
+});
+
+
+describe('tickRowSafely', () => {
+	/**
+	 * A context whose database throws something the D1 layer does NOT treat
+	 * as a transient wobble — the shape of any failure that lands outside
+	 * `tickAndPersist`'s own catch. A `D1_ERROR:` message is deliberately
+	 * not used here: `room.ts` swallows those by design, which is correct
+	 * and is why this test had to reach for a different throw to mean
+	 * anything.
+	 */
+	function explodingCtx() {
+		return {
+			db: {
+				prepare() {
+					throw new TypeError('bucket handle is not a function');
+				}
+			} as unknown as D1Database,
+			env: { FAL_KEY: 'k' } as never,
+			event: EVENT,
+			origin: 'https://event.test',
+			futureKey: 'solarpunk'
+		};
+	}
+
+	const row: TickableImageRow = {
+		id: 'img-1',
+		state: 'queued',
+		falRequestId: null,
+		createdAt: 1,
+		table: 20,
+		zoneKey: 'library'
+	};
+
+	it('reports a thrown tick as a reason instead of throwing', async () => {
+		const out = await tickRowSafely(explodingCtx() as never, row, 'a prompt');
+		expect(out.ticked).toBe(false);
+		expect(out.reason).toContain('tick threw');
+	});
+
+	it('keeps the provider or database text, so the reason is diagnosable', async () => {
+		const out = await tickRowSafely(explodingCtx() as never, row, 'a prompt');
+		expect(out.reason).toContain('bucket handle is not a function');
+	});
+
+	it('lets the caller keep going — the rows behind a bad one still get their turn', async () => {
+		// The live symptom: one row's throw ended the loop, and for the phone
+		// the loop is inside the poll, so the whole query rejected and the
+		// screen kept showing "being drawn" with no error.
+		const reasons: string[] = [];
+		for (const zone of ['library', 'studio', 'plaza', 'garden']) {
+			const out = await tickRowSafely(explodingCtx() as never, { ...row, zoneKey: zone }, 'a prompt');
+			reasons.push(out.reason);
+		}
+		expect(reasons).toHaveLength(4);
 	});
 });

@@ -1153,6 +1153,51 @@ export async function countTables(d: D1Database, eventId: string): Promise<numbe
 	return row?.n ?? 0;
 }
 
+export interface HealthCounts {
+	/** Rows a ticker still owes work on — `queued` or `requested`. */
+	pending: number;
+	/**
+	 * Rows that failed recently. Counted on `created_at` (there is no
+	 * `updated_at` column), so this is "a row queued in the window that has
+	 * since failed" — a render that sat for longer than the window before
+	 * failing ages out of it. Good enough for "is the room failing right
+	 * now"; not an audit of every failure.
+	 */
+	failedRecent: number;
+	/** Tables past `finishTable` and not since reset. */
+	submitted: number;
+}
+
+/** Two counts for `/health` — aggregate in SQL rather than pulling the rows back to count them. */
+export async function getHealthCounts(d: D1Database, eventId: string, failedSince: number): Promise<HealthCounts> {
+	const imageDb = await dbWith(d, 'image', IMAGE_SCHEMA);
+	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
+	const [images, tables] = await Promise.all([
+		imageDb
+			? imageDb
+					.prepare(
+						`SELECT
+							SUM(CASE WHEN state IN ('queued', 'requested') THEN 1 ELSE 0 END) AS pending,
+							SUM(CASE WHEN state = 'failed' AND created_at >= ? THEN 1 ELSE 0 END) AS failed_recent
+						 FROM image WHERE event_id = ?`
+					)
+					.bind(failedSince, eventId)
+					.first<{ pending: number | null; failed_recent: number | null }>()
+			: Promise.resolve(null),
+		etDb
+			? etDb
+					.prepare(`SELECT COUNT(*) AS n FROM event_table WHERE event_id = ? AND submitted_at IS NOT NULL`)
+					.bind(eventId)
+					.first<{ n: number }>()
+			: Promise.resolve(null)
+	]);
+	return {
+		pending: images?.pending ?? 0,
+		failedRecent: images?.failed_recent ?? 0,
+		submitted: tables?.n ?? 0
+	};
+}
+
 export async function getAdminRoomRows(d: D1Database, eventId: string, tableCount: number): Promise<AdminRoomRow[]> {
 	const etDb = await dbWith(d, 'event_table', EVENT_TABLE_SCHEMA);
 	const answerDb = await dbWith(d, 'answer', ANSWER_SCHEMA);

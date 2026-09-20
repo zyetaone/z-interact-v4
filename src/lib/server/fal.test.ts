@@ -92,7 +92,7 @@ describe('submitZoneImage request body', () => {
 		expect(calls[0].body.prompt).toContain('Avoid: collage, grid, panels');
 		expect(calls[0].body.aspect_ratio).toBe(DEFAULT_ASPECT_RATIO);
 		expect(calls[0].body.resolution).toBe('1K');
-		expect(calls[0].body.output_format).toBe('png');
+		expect(calls[0].body.output_format).toBe('jpeg');
 		// No negative_prompt field exists on this model — sending one would be
 		// accepted and silently dropped, which is worse than not sending it.
 		expect(calls[0].body.negative_prompt).toBeUndefined();

@@ -64,6 +64,15 @@
 	<p class="banner">{failed}</p>
 {/if}
 
+{#if question.and}
+	<!-- The cue, not the row. On a phone the "And:" chips sit under a full
+	     screen of options and a table that never scrolls past Next simply
+	     never sees them. A plain in-page anchor (no JS, no scroll handler)
+	     jumps to the row that is already there; the row itself, its
+	     placement and its optionality are unchanged. -->
+	<p class="and-cue"><a href="#and-{question.id}"><span aria-hidden="true">&#8595;</span> And: {question.and.prompt}</a></p>
+{/if}
+
 <OptionList {question} {keys} {texts} {onchange} />
 
 {#if question.and}
@@ -116,11 +125,23 @@
 		opacity: 0.85;
 	}
 
+	.and-cue {
+		font-size: 13px;
+		letter-spacing: 0.04em;
+		margin: 0 0 12px;
+	}
+
+	.and-cue a {
+		color: var(--gold);
+	}
+
 	/* The era chip's row (FutureScreen), as a radiogroup that wraps. */
 	.chip-row {
 		border-top: 1px solid var(--line);
 		padding-top: 18px;
 		margin: 18px 0;
+		/* The anchor lands on the label, not flush against the viewport edge. */
+		scroll-margin-top: 16px;
 	}
 
 	.chips {

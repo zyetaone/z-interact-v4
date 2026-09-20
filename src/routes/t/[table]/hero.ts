@@ -50,15 +50,18 @@ import {
 
 /**
  * THE BRIEF ASKED FOR 150–190 WORDS AND THIS TEMPLATE CANNOT REACH IT.
- * Measured, not estimated: a fully answered table composes 279–292 words
- * across the six lenses and all twenty tables (the scratch sample is 287).
- * The arithmetic, so the next reader does not re-derive it:
+ * Measured, not estimated: a fully answered table composes 288–301 words
+ * across the six lenses and all twenty tables (the scratch sample is 296).
+ * A table whose feel words asked for the dark is ~9 shorter, since it does
+ * not carry the exposure clause. The arithmetic, so the next reader does
+ * not re-derive it:
  *
  *   ~137 words are ANSWER FRAGMENTS, arriving verbatim from `layers.ts` —
  *   the four acts with their "And:" picks, q7's room-participates clause,
  *   q8, q10, q2 with its scale pick, q11's three feel words.
- *   ~143 words are the template's own scaffolding — the design brief
- *   sentence, the three-quarter-view frame with this table's own vantage,
+ *   ~152 words are the template's own scaffolding — the design brief
+ *   sentence, the three-quarter-view frame with this table's own vantage
+ *   and its exposure,
  *   styleDna + insideCue + the impossible idea, the four verb lead-ins, the
  *   people line, and the Avoid list including the no-signage terms the first
  *   render earned.
@@ -74,7 +77,7 @@ import {
  * unnoticed — not evidence the 150–190 target was met. It was not. Raising
  * it silently would have hidden that; this is the lead's call to make.
  */
-export const HERO_WORD_TARGET = { min: 150, max: 300, briefAsked: { min: 150, max: 190 } } as const;
+export const HERO_WORD_TARGET = { min: 150, max: 310, briefAsked: { min: 150, max: 190 } } as const;
 
 /**
  * What an elevated view of a whole building invites that one room does not:
@@ -82,6 +85,41 @@ export const HERO_WORD_TARGET = { min: 150, max: 300, briefAsked: { min: 150, ma
  * prompt's own section labels painted on the walls.
  */
 export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no captions';
+
+/**
+ * THE ROOM CAME BACK DARK.
+ *
+ * Every lens contributes surfaces rather than light — neo-seoul's "dark
+ * surfaces", the house window's "moody rather than stark, pooled light,
+ * shadow held deliberately" — and the model reads a stack of those as a
+ * night interior. The frame already says "volumetric daylight"; on its own
+ * that lost to the rest of the prompt. This says it as an EXPOSURE, which
+ * is the word a model reads as a camera setting rather than as weather.
+ */
+export const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
+
+/**
+ * The feel words that ASK for darkness, and are therefore allowed to have
+ * it. Each one's own fragment (`questions.ts` q11) is why it is here:
+ *
+ *   quiet   — "deep shadow, an empty foreground"
+ *   focused — "one pool of light, shadow around"
+ *   sacred  — "one high shaft of light, silence" (a shaft needs a dark room)
+ *
+ * `electric` ("hard rim light, reflections, motion blur") is deliberately
+ * NOT here: rim light is a bright-scene technique, and a table that asked
+ * for electric asked for hard light, not for night.
+ *
+ * A table that picked none of these gets the exposure clause. A table that
+ * picked one asked for the dark and keeps it — overriding a table's own
+ * answer to brighten a wall would be the app arguing with the room.
+ */
+export const DARK_FEEL_KEYS: readonly string[] = ['quiet', 'focused', 'sacred'];
+
+/** True when nothing the table chose asks for night or deep shadow. */
+export function wantsBrightExposure(feelKeys: readonly string[]): boolean {
+	return !feelKeys.some((k) => DARK_FEEL_KEYS.includes(k));
+}
 
 /** Drops empties, trims trailing punctuation, joins as sentences — `layers.ts`'s `joinClauses`, which is private there. */
 function sentences(parts: readonly (string | undefined)[]): string {
@@ -142,9 +180,14 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// Still an elevated three-quarter view every time — the frame the brief
 	// fixed — but each table looks at its own building from its own corner.
 	const vantage = vantageFor(input.table);
+	// The exposure rides in the frame, next to the other camera terms, rather
+	// than at the end with the feel words: a model weights the opening of a
+	// prompt, and "volumetric daylight" alone was losing to a stack of dark
+	// surfaces further down.
+	const exposure = wantsBrightExposure(by.get('q11')?.keys ?? []) ? `, ${EXPOSURE}` : '';
 	const frame = sentences([
 		`Design a workplace that is relevant in ${year}${lens ? ` ${lens}` : ''}: ${window}`,
-		`Show the whole workspace in one elevated three-quarter view ${vantage}, one continuous building, as a film still: anamorphic, volumetric daylight, haze, no logos, ${NO_TEXT}`
+		`Show the whole workspace in one elevated three-quarter view ${vantage}, one continuous building, as a film still: anamorphic, volumetric daylight, haze${exposure}, no logos, ${NO_TEXT}`
 	]);
 
 	// The lens's own signatures, its indoor cue, and the table's one

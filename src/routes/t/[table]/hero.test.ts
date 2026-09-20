@@ -11,10 +11,10 @@
  * answered.
  */
 import { describe, expect, it } from 'vitest';
-import { composeHeroPrompt, HERO_WORD_TARGET, NO_SIGNAGE_TEXT } from './hero';
+import { composeHeroPrompt, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
 import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
-import { TABLE_COUNT } from '$lib/game/questions';
+import { QUESTIONS, TABLE_COUNT } from '$lib/game/questions';
 import { IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
 import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
@@ -174,6 +174,58 @@ describe('the judge has to be able to tell two tables apart', () => {
 			const prompts = Array.from({ length: TABLE_COUNT }, (_, i) => sameLens(i + 1, future.key));
 			expect(new Set(prompts).size, future.key).toBe(TABLE_COUNT);
 		}
+	});
+});
+
+
+describe('the room came back dark', () => {
+	const withFeel = (keys: string[], table = 3) =>
+		composeHeroPrompt({
+			futureKey: 'neo-seoul',
+			answers: T10.map((a) => (a.questionId === 'q11' ? { ...a, keys } : a)),
+			table
+		});
+
+	it('states the exposure whenever no feel word asks for night or deep shadow', () => {
+		// The table-10 set is alive/effortless/yours — none of them dark.
+		expect(t10()).toContain(EXPOSURE);
+		for (const keys of [['alive', 'effortless', 'yours'], ['calm', 'generous', 'playful'], ['electric', 'yours', 'alive'], []]) {
+			expect(withFeel(keys), keys.join('+')).toContain(EXPOSURE);
+		}
+		// Every lens, not just the dark one.
+		for (const future of FUTURES) {
+			expect(composeHeroPrompt({ futureKey: future.key, answers: T10, table: 5 }), future.key).toContain(EXPOSURE);
+		}
+		// And with no lens at all, where the house window is its own source of murk.
+		expect(composeHeroPrompt({ answers: T10, table: 5 })).toContain(EXPOSURE);
+	});
+
+	it('leaves the dark alone when the table asked for it', () => {
+		// Overriding a table's own answer to brighten a wall would be the app
+		// arguing with the room.
+		for (const key of DARK_FEEL_KEYS) {
+			const p = withFeel([key, 'yours', 'alive']);
+			expect(p, key).not.toContain(EXPOSURE);
+			// The feel words themselves still arrive.
+			expect(p, key).toContain('one personal object in the foreground');
+		}
+	});
+
+	it('keeps electric bright — hard rim light is a lit scene, not a night one', () => {
+		expect(withFeel(['electric', 'alive', 'yours'])).toContain(EXPOSURE);
+		expect(DARK_FEEL_KEYS).not.toContain('electric');
+	});
+
+	it('names only feel words that actually exist, so a renamed option fails here', () => {
+		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
+		const keys = new Set(q11.options.map((o) => o.key));
+		for (const key of DARK_FEEL_KEYS) expect(keys.has(key), key).toBe(true);
+	});
+
+	it('decides from the keys alone, so the rule can be read without composing a prompt', () => {
+		expect(wantsBrightExposure([])).toBe(true);
+		expect(wantsBrightExposure(['alive', 'effortless', 'yours'])).toBe(true);
+		expect(wantsBrightExposure(['alive', 'quiet'])).toBe(false);
 	});
 });
 

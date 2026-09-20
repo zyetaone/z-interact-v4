@@ -30,7 +30,7 @@
  * thing the model reads.
  */
 import { NO_TEXT } from '$lib/server/prompt';
-import { impossibleIdea } from '$lib/game/zones';
+import { impossibleIdea, vantageFor } from '$lib/game/zones';
 import type { Era } from '$lib/game/era';
 import type { Zone } from '$lib/game/zones';
 import {
@@ -50,17 +50,18 @@ import {
 
 /**
  * THE BRIEF ASKED FOR 150–190 WORDS AND THIS TEMPLATE CANNOT REACH IT.
- * Measured, not estimated: a fully answered table composes 273–278 words
- * across the six lenses (the scratch sample is 276). The arithmetic, so the
- * next reader does not re-derive it:
+ * Measured, not estimated: a fully answered table composes 279–292 words
+ * across the six lenses and all twenty tables (the scratch sample is 287).
+ * The arithmetic, so the next reader does not re-derive it:
  *
  *   ~137 words are ANSWER FRAGMENTS, arriving verbatim from `layers.ts` —
  *   the four acts with their "And:" picks, q7's room-participates clause,
  *   q8, q10, q2 with its scale pick, q11's three feel words.
- *   ~136 words are the template's own scaffolding — the design brief
- *   sentence, the three-quarter-view frame, styleDna + insideCue + the
- *   impossible idea, the four verb lead-ins, the people line, and the Avoid
- *   list including the no-signage terms the first render earned.
+ *   ~143 words are the template's own scaffolding — the design brief
+ *   sentence, the three-quarter-view frame with this table's own vantage,
+ *   styleDna + insideCue + the impossible idea, the four verb lead-ins, the
+ *   people line, and the Avoid list including the no-signage terms the first
+ *   render earned.
  *
  * Getting to 190 means cutting ~70, and there is nothing to cut that is not
  * either an answer (the brief requires every answer key to reach the
@@ -73,7 +74,7 @@ import {
  * unnoticed — not evidence the 150–190 target was met. It was not. Raising
  * it silently would have hidden that; this is the lead's call to make.
  */
-export const HERO_WORD_TARGET = { min: 150, max: 285, briefAsked: { min: 150, max: 190 } } as const;
+export const HERO_WORD_TARGET = { min: 150, max: 300, briefAsked: { min: 150, max: 190 } } as const;
 
 /**
  * What an elevated view of a whole building invites that one room does not:
@@ -135,9 +136,15 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	const lens = future ? `for a team that chose ${future.name.replace(/^The /, 'the ')}` : '';
 	const window = future ? future.worldOutside : HOUSE_REGISTER;
 
+	// THE VANTAGE IS PER TABLE. Two tables with the same lens and the same
+	// answers used to compose the same prompt to the character, so the wall
+	// showed one building twice and there was nothing for a judge to weigh.
+	// Still an elevated three-quarter view every time — the frame the brief
+	// fixed — but each table looks at its own building from its own corner.
+	const vantage = vantageFor(input.table);
 	const frame = sentences([
 		`Design a workplace that is relevant in ${year}${lens ? ` ${lens}` : ''}: ${window}`,
-		`Show the whole workspace in one elevated three-quarter view, one continuous building, as a film still: anamorphic, volumetric daylight, haze, no logos, ${NO_TEXT}`
+		`Show the whole workspace in one elevated three-quarter view ${vantage}, one continuous building, as a film still: anamorphic, volumetric daylight, haze, no logos, ${NO_TEXT}`
 	]);
 
 	// The lens's own signatures, its indoor cue, and the table's one

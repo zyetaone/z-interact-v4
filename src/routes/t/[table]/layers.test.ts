@@ -62,13 +62,18 @@ describe('buildLayerInputs', () => {
 		expect(houseBase('2040')).toBe(FRAME_2040);
 	});
 
-	it('gives every lens two impossible ideas, picked by table seed so a rooms four zones share one', () => {
+	it('gives every lens five impossible ideas, picked by table seed so a rooms four zones share one', () => {
 		for (const f of FUTURES) {
-			expect(IMPOSSIBLE_IDEAS[f.key], f.key).toHaveLength(2);
+			// Five since 20 Sep, not two: with one image per table, two ideas
+			// handed every odd table on a lens the same clause.
+			expect(IMPOSSIBLE_IDEAS[f.key], f.key).toHaveLength(5);
 			for (const idea of IMPOSSIBLE_IDEAS[f.key]) expect(wordCount(idea), f.key).toBeLessThanOrEqual(14);
 		}
+		// Seeded on `table - 1`, so table 1 takes the first and consecutive
+		// tables walk the pool.
+		expect(impossibleIdea('solarpunk', 1)).toBe(IMPOSSIBLE_IDEAS.solarpunk[0]);
 		expect(impossibleIdea('solarpunk', 7)).toBe(IMPOSSIBLE_IDEAS.solarpunk[1]);
-		expect(impossibleIdea('solarpunk', 8)).toBe(IMPOSSIBLE_IDEAS.solarpunk[0]);
+		expect(impossibleIdea('solarpunk', 8)).toBe(IMPOSSIBLE_IDEAS.solarpunk[2]);
 		expect(impossibleIdea(null, 3)).toBeUndefined();
 		const t7 = buildLayerInputs({ futureKey: 'solarpunk', answers: ANSWERS, table: 7 });
 		const base7 = composeBase(t7);

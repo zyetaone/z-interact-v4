@@ -14,7 +14,8 @@ import { describe, expect, it } from 'vitest';
 import { composeHeroPrompt, HERO_WORD_TARGET, NO_SIGNAGE_TEXT } from './hero';
 import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
-import { IMPOSSIBLE_IDEAS } from '$lib/game/zones';
+import { TABLE_COUNT } from '$lib/game/questions';
+import { IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
 import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
 
@@ -71,8 +72,7 @@ describe('every answer reaches the hero prompt', () => {
 		expect(p).toContain(neoSeoul.worldOutside);
 		expect(p).toContain(neoSeoul.styleDna);
 		expect(p).toContain(neoSeoul.insideCue);
-		expect(IMPOSSIBLE_IDEAS['neo-seoul']).toContain(IMPOSSIBLE_IDEAS['neo-seoul'][10 % 2]);
-		expect(p).toContain(IMPOSSIBLE_IDEAS['neo-seoul'][10 % 2]);
+		expect(p).toContain(impossibleIdea('neo-seoul', 10)!);
 		expect(p).toContain('relevant in 2040');
 	});
 
@@ -87,6 +87,93 @@ describe('every answer reaches the hero prompt', () => {
 		// q10:and 'a' is "the hardest trade-off was ..." — a sentence about the
 		// table, which has nothing to paint.
 		expect(t10()).not.toMatch(/hardest trade-off/);
+	});
+});
+
+
+describe('the judge has to be able to tell two tables apart', () => {
+	/** Twenty tables, ONE lens, IDENTICAL answers — the worst case the room can produce. */
+	const sameLens = (table: number, futureKey = 'solarpunk') =>
+		composeHeroPrompt({ futureKey, answers: T10, table });
+
+	it('composes a different prompt for every table in the room, on one lens with identical answers', () => {
+		// This is the defect the question owner reported: with four zones, two
+		// such tables still made eight different pictures; with one image each
+		// they made the SAME picture, and there was nothing to judge.
+		const prompts = Array.from({ length: TABLE_COUNT }, (_, i) => sameLens(i + 1));
+		expect(new Set(prompts).size).toBe(TABLE_COUNT);
+	});
+
+	it('gives every table in the room its own vantage, and never repeats one', () => {
+		expect(VANTAGES.length).toBeGreaterThanOrEqual(TABLE_COUNT);
+		expect(new Set(VANTAGES).size).toBe(VANTAGES.length);
+		const used = Array.from({ length: TABLE_COUNT }, (_, i) => vantageFor(i + 1));
+		expect(new Set(used).size).toBe(TABLE_COUNT);
+		// And the vantage is IN the prompt, not merely computed.
+		for (let t = 1; t <= TABLE_COUNT; t++) expect(sameLens(t)).toContain(vantageFor(t));
+	});
+
+	it('tables 3 and 7 differ in BOTH the vantage and the impossible idea', () => {
+		// The owner's own example: same lens, same answers, two tables.
+		const three = sameLens(3);
+		const seven = sameLens(7);
+		expect(three).not.toBe(seven);
+		expect(vantageFor(3)).not.toBe(vantageFor(7));
+		expect(impossibleIdea('solarpunk', 3)).not.toBe(impossibleIdea('solarpunk', 7));
+		expect(three).toContain(vantageFor(3));
+		expect(three).toContain(impossibleIdea('solarpunk', 3)!);
+		expect(seven).toContain(vantageFor(7));
+		expect(seven).toContain(impossibleIdea('solarpunk', 7)!);
+	});
+
+	it('names the limit rather than hiding it: five ideas cannot make twenty tables unique', () => {
+		// Pigeonhole, stated as a test so nobody reads the suite as a promise
+		// it does not make. Tables five apart on one lens SHARE an impossible
+		// idea; the vantage is what separates them, and the prompts still
+		// differ. If the pool ever grows past the room, this test fails and
+		// the claim above it should be strengthened.
+		expect(IMPOSSIBLE_IDEAS.solarpunk.length).toBeLessThan(TABLE_COUNT);
+		expect(impossibleIdea('solarpunk', 3)).toBe(impossibleIdea('solarpunk', 8));
+		expect(vantageFor(3)).not.toBe(vantageFor(8));
+		expect(sameLens(3)).not.toBe(sameLens(8));
+	});
+
+	it('keeps a table on the same vantage across a redraw, so a redraw reads as the same building again', () => {
+		// Seeded by table number alone — not by answers, not by attempt — so
+		// *Draw again* is the same viewpoint, which is what makes it read as a
+		// second attempt at one building rather than a different table's.
+		expect(vantageFor(4)).toBe(vantageFor(4));
+		const first = sameLens(4);
+		const afterAnEdit = composeHeroPrompt({
+			futureKey: 'solarpunk',
+			answers: [...T10, { questionId: 'q11', keys: ['calm', 'quiet', 'sacred'] }],
+			table: 4
+		});
+		expect(afterAnEdit).toContain(vantageFor(4));
+		expect(first).toContain(vantageFor(4));
+	});
+
+	it('keeps the six lenses apart: distinct style DNA, each in its own prompt and no other', () => {
+		const dna = FUTURES.map((f) => f.styleDna);
+		expect(new Set(dna).size).toBe(FUTURES.length);
+
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({ futureKey: future.key, answers: T10, table: 5 });
+			expect(p).toContain(future.styleDna);
+			// No other lens's signatures leak into this one.
+			for (const other of FUTURES) {
+				if (other.key === future.key) continue;
+				expect(p).not.toContain(other.styleDna);
+				expect(p).not.toContain(other.insideCue);
+			}
+		}
+	});
+
+	it('still differs table to table across every lens, not just solarpunk', () => {
+		for (const future of FUTURES) {
+			const prompts = Array.from({ length: TABLE_COUNT }, (_, i) => sameLens(i + 1, future.key));
+			expect(new Set(prompts).size, future.key).toBe(TABLE_COUNT);
+		}
 	});
 });
 

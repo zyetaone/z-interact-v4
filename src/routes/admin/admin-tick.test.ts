@@ -23,6 +23,8 @@ const FAL_LATENCY_MS = 40;
 const BUDGET = 8;
 
 let db: D1Database;
+/** Which zone set the case under test runs with; reset to `four` per test. */
+let zoneSetForTest: string | undefined = 'four';
 const waited: Promise<unknown>[] = [];
 let falCalls = 0;
 
@@ -49,7 +51,10 @@ vi.mock('$app/server', () => {
 			url: new URL('https://example.test/admin'),
 			request: new Request('https://example.test/admin'),
 			platform: {
-				env: { DB: db, EVENT_ID: EVENT, ADMIN_TOKEN, FAL_KEY: 'test-key' },
+				// Seeds four-zone rows, so it pins the four-zone set rather than
+				// riding the `hero` default; the desk's one-image shape is
+				// asserted separately below.
+				env: { DB: db, EVENT_ID: EVENT, ADMIN_TOKEN, FAL_KEY: 'test-key', ZONE_SET: zoneSetForTest },
 				// Captured rather than run, which is what Cloudflare does: the
 				// response goes out first and this runs after it.
 				context: { waitUntil: (p: Promise<unknown>) => void waited.push(p.catch(() => {})) }
@@ -111,6 +116,7 @@ async function backdatePending(ms: number) {
 describe('adminRoom with a room full of pending rows', () => {
 	beforeEach(async () => {
 		db = fakeD1();
+		zoneSetForTest = 'four';
 		waited.length = 0;
 		falCalls = 0;
 		vi.unstubAllGlobals();
@@ -175,5 +181,23 @@ describe('adminRoom with a room full of pending rows', () => {
 		expect(room.tables).toHaveLength(0);
 		expect(waited).toHaveLength(0);
 		expect(falCalls).toBe(0);
+	});
+
+	it('reports ONE zone column under the hero default, and the tick still carries the row', async () => {
+		// The desk reads `zoneKeys` from the payload rather than importing
+		// ZONES: a desk that assumed four would label a one-image room wrong,
+		// and its per-zone Redraw would offer a control for zones that do not
+		// exist in this room.
+		zoneSetForTest = undefined;
+		await seedPending(2);
+		stubFal();
+		const { adminRoom } = await import('./admin.remote');
+
+		const room = await adminRoom({ token: ADMIN_TOKEN });
+		expect(room.zoneKeys).toEqual(['workspace']);
+		for (const row of room.tables) {
+			expect(row.images).toHaveLength(1);
+			expect(row.imageErrors).toHaveLength(1);
+		}
 	});
 });

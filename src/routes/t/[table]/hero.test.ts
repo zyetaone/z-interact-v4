@@ -11,7 +11,7 @@
  * answered.
  */
 import { describe, expect, it } from 'vitest';
-import { composeHeroPrompt, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
+import { composeHeroPrompt, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
 import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
 import { QUESTIONS, TABLE_COUNT } from '$lib/game/questions';
@@ -371,5 +371,28 @@ describe('a half-answered table', () => {
 		expect(p).not.toMatch(/for a team that chose/);
 		// Unanswered era falls back to the same default the zone path uses.
 		expect(p).toContain('relevant in 2035');
+	});
+});
+
+describe('the exposure negatives', () => {
+	const feel = (keys: string[]) =>
+		composeHeroPrompt({
+			futureKey: 'neo-seoul',
+			answers: T10.map((a) => (a.questionId === 'q11' ? { ...a, keys } : a)),
+			table: 3
+		});
+
+	it('says it from both sides for a table that did not ask for the dark', () => {
+		expect(t10()).toContain(UNDEREXPOSED_NEGATIVE);
+	});
+
+	it('leaves the gloom to a table that asked for it', () => {
+		for (const key of DARK_FEEL_KEYS) {
+			expect(feel([key]), key).not.toContain(UNDEREXPOSED_NEGATIVE);
+		}
+	});
+
+	it('never says night, which the day-neutral guard forbids', () => {
+		expect(UNDEREXPOSED_NEGATIVE).not.toMatch(/\bnight\b/i);
 	});
 });

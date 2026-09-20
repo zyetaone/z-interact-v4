@@ -99,6 +99,18 @@ export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no caption
 export const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
 
 /**
+ * The same instruction as a negative. Measured on one table with identical
+ * answers: the positive clause alone moved mean luminance 108 -> 117 on a
+ * 0-255 scale, and the frame still sat in shade; saying it from both sides
+ * is what made the glasshouse read as daylit. It deliberately does NOT say
+ * "night": a lens has to hold its identity at any hour, and the day-neutral
+ * guard in the tests forbids the word anywhere in a hero prompt, Avoid list
+ * included. Suppressed together with EXPOSURE, since a table that asked for
+ * the dark asked for gloom too.
+ */
+export const UNDEREXPOSED_NEGATIVE = 'underexposed, murky, crushed blacks, gloom';
+
+/**
  * The feel words that ASK for darkness, and are therefore allowed to have
  * it. Each one's own fragment (`questions.ts` q11) is why it is here:
  *
@@ -184,7 +196,8 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// than at the end with the feel words: a model weights the opening of a
 	// prompt, and "volumetric daylight" alone was losing to a stack of dark
 	// surfaces further down.
-	const exposure = wantsBrightExposure(by.get('q11')?.keys ?? []) ? `, ${EXPOSURE}` : '';
+	const bright = wantsBrightExposure(by.get('q11')?.keys ?? []);
+	const exposure = bright ? `, ${EXPOSURE}` : '';
 	const frame = sentences([
 		`Design a workplace that is relevant in ${year}${lens ? ` ${lens}` : ''}: ${window}`,
 		`Show the whole workspace in one elevated three-quarter view ${vantage}, one continuous building, as a film still: anamorphic, volumetric daylight, haze${exposure}, no logos, ${NO_TEXT}`
@@ -233,7 +246,7 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// prompt's, and this is the hero's own lesson: an elevated view of a
 	// whole building gives a model far more wall to write on than one room
 	// does, and the first render used it.
-	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}`;
+	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}${bright ? `, ${UNDEREXPOSED_NEGATIVE}` : ''}`;
 
 	return sentences([frame, world, programme, dressing, avoid, NO_TEXT]);
 }

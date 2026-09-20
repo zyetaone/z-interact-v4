@@ -157,14 +157,15 @@
 </svelte:head>
 
 <div class="admin-root">
-	{#if !fixturesMode && stale}
-		<p class="stale-banner" role="alert">Connection is stale — showing the last good snapshot.</p>
-	{/if}
-	{#if banner}
-		<p class="action-banner" role="status">{banner}</p>
-	{/if}
+	<div class="desk-sticky">
+		{#if !fixturesMode && stale}
+			<p class="stale-banner" role="alert">Connection is stale — showing the last good snapshot.</p>
+		{/if}
+		{#if banner}
+			<p class="action-banner" role="status">{banner}</p>
+		{/if}
 
-	<header class="desk-bar">
+		<header class="desk-bar">
 		<h1>Mission Control</h1>
 
 		<div class="desk-group">
@@ -191,7 +192,8 @@
 			{/if}
 			<button disabled={busy} onclick={doExport}>Export</button>
 		</div>
-	</header>
+		</header>
+	</div>
 
 	<table class="room-table">
 		<thead>
@@ -306,11 +308,11 @@
 	}
 	.stale-banner {
 		border-left: 3px solid var(--danger);
-		background: rgba(224, 71, 92, 0.12);
+		background: var(--card-solid);
 	}
 	.action-banner {
 		border-left: 3px solid var(--teal);
-		background: rgba(62, 201, 176, 0.1);
+		background: var(--card-solid);
 	}
 
 	.desk-bar {
@@ -323,6 +325,12 @@
 		border-radius: var(--radius);
 		padding: 12px 16px;
 		margin-bottom: 16px;
+	}
+
+	/* The banner is the only confirmation a command landed, and the table is
+	   twenty rows long: acting on table 18 printed the answer off the top of
+	   the page. Banners and desk bar stick as one block. */
+	.desk-sticky {
 		position: sticky;
 		top: 8px;
 		z-index: 5;

@@ -26,10 +26,11 @@ describe('LENS_IMAGE', () => {
 describe('OPTION_IMAGE coverage', () => {
 	const renderableOptions = QUESTIONS.flatMap((q) => q.options.filter((o) => !o.open).map((o) => ({ q, o })));
 
-	it('every non-open option has a mapping entry', () => {
+	it('maps exactly the non-open options whose picture is on disk — never a 404 source', () => {
 		for (const { q, o } of renderableOptions) {
-			expect(hasOptionImage(q.id, o.key)).toBe(true);
+			expect(hasOptionImage(q.id, o.key)).toBe(fileExistsForPublicPath(`/visuals/opt/${q.id}-${o.key}.jpg`));
 		}
+		for (const path of Object.values(OPTION_IMAGE)) expect(fileExistsForPublicPath(path)).toBe(true);
 	});
 
 	it('open options and the wildcard have no mapping (nothing to render)', () => {
@@ -47,7 +48,7 @@ describe('OPTION_IMAGE coverage', () => {
 	it('reports how many option images exist on disk', () => {
 		let present = 0;
 		for (const { q, o } of renderableOptions) {
-			if (fileExistsForPublicPath(OPTION_IMAGE[`${q.id}:${o.key}`])) present++;
+			if (hasOptionImage(q.id, o.key)) present++;
 		}
 		console.log(`option images on disk: ${present}/${renderableOptions.length}`);
 		expect(present).toBeGreaterThanOrEqual(0);

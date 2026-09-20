@@ -35,6 +35,9 @@ export interface Future {
 	 *  skyline or landscape outside the glass, the weather and time of day, two signature
 	 *  materials — and nothing else (prompt-recipe.md §2, move 3). Feeds `layers.ts`'s mood. */
 	worldOutside: string;
+	/** One unmistakable 2040 cue INDOORS, ≤12 words — the sibling of `worldOutside` (recipe v2):
+	 *  the room must read as the future even when the window is out of frame. */
+	insideCue: string;
 	/** 12-word phone blurb, under the name. */
 	blurb: string;
 	/** Shown under the label on the phone: an originator and a year. */
@@ -82,6 +85,7 @@ export const FUTURES: Future[] = [
 			'Low horizontal pavilions bedded into a planted park at dusk; rammed earth, weathered oak, oxidised bronze, deep eaves. Light is the last warm hour raking sideways through canopy, pooling amber on timber decks while the shade goes blue-green. Palette: moss, bark, ochre, slate. Two storeys maximum, buildings kept below the tree line. The far skyline sits low and soft behind foliage, half dissolved in humid haze. Distant anonymous figures walking gravel paths. Quiet, unhurried, settled.',
 		worldOutside:
 			'through the glass, low pavilions under trees, the last warm hour, haze; weathered oak, bronze',
+		insideCue: 'inside, a glazed pod and an autonomous cart on the path',
 		negativeFragment: 'neon, high-rise, crowds, glare',
 		shadowFace: 'Greenbelt as exclusion; who lives inside the ring'
 	}),
@@ -97,6 +101,7 @@ export const FUTURES: Future[] = [
 			'One vast continuous interior: a single megastructure canyon of stacked terraces bridging overhead, seen from a mid-level walkway. Board-marked concrete, dark steel, deep planting spilling from every edge. Light falls in enormous shafts from an apex oculus far above, leaving the lower levels in cool blue shadow and warm pooled lamplight. Palette: graphite, moss, amber, dust. Monumental scale; a single small figure dwarfed by structure. No exterior sky, no horizon. Awe with a trace of confinement.',
 		worldOutside:
 			'through the glass, one vast megastructure, terraces stacked into blue shadow; board-marked concrete, dark steel',
+		insideCue: 'inside, a vertical transit car crossing the inner void',
 		negativeFragment: 'daylight sky, suburb, lawns, glare',
 		shadowFace: 'Elysium: the ring above, the ground below'
 	}),
@@ -112,6 +117,7 @@ export const FUTURES: Future[] = [
 			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
 		worldOutside:
 			'through the glass, photovoltaic canopies and edible facades, golden hour; reclaimed timber, copper',
+		insideCue: 'inside, a living wall used as a working surface',
 		negativeFragment: 'neon signage, dead plants, glare',
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
 	}),
@@ -127,6 +133,7 @@ export const FUTURES: Future[] = [
 			'Night, high above a vertical megacity. Rain-slick black glass, wet concrete, brushed steel, holographic signage bleeding magenta and cyan across every surface. The workfloor is a narrow lit shelf cantilevered over a canyon of towers and layered traffic. Light is hard, artificial, from below and behind; no daylight anywhere. Palette: near-black, sodium amber, neon magenta, cold cyan. Extreme density, no ground visible. Silhouetted figures, surveillance sightlines. Dazzling, watched, airless.',
 		worldOutside:
 			'through the glass, rain-slick towers at night, magenta and cyan signage; black glass, brushed steel',
+		insideCue: 'inside, holographic signage drifting through the room',
 		negativeFragment: 'daylight, greenery outside, rural',
 		shadowFace: 'It is the shadow'
 	}),
@@ -142,6 +149,7 @@ export const FUTURES: Future[] = [
 			'A single-storey timber work pavilion alone on open land at dusk, mist in the middle distance. Charred larch cladding, stone plinth, deep glazed veranda, a lit hearth inside. Light is low, warm, interior lamplight spilling onto grass against a cooling blue landscape. Palette: char, ember, wet green, fog grey. No skyline at all; the nearest neighbour is a distant roof. One figure at one desk. Autonomous, remote, faintly lonely.',
 		worldOutside:
 			'through the glass, open land to the horizon, mist at dusk; charred larch, stone',
+		insideCue: 'inside, one screen-wall; a drone landing at the edge',
 		negativeFragment: 'skyline, towers, crowds, glare',
 		shadowFace: 'Ex Machina: isolation sold as autonomy'
 	}),
@@ -157,6 +165,7 @@ export const FUTURES: Future[] = [
 			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
 		worldOutside:
 			'through the glass, a streamlined 1930s city, a gaslit street at evening; fluted walnut, brass',
+		insideCue: 'inside, brass-and-bakelite machine-age instruments that are clearly computers',
 		negativeFragment: 'neon, skyscrapers, glare',
 		shadowFace: 'Ornament as a screen over the same machine'
 	})

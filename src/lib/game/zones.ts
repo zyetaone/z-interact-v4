@@ -66,7 +66,14 @@ function zone(z: { key: string; questionIds: string[]; moment: string }): Zone {
  * "And:" sub-question's fragment, when the table picked one (`layers.ts`'s `resolveZone`).
  */
 /**
- * WHY EACH MOMENT NAMES A ROOM, A VIEWPOINT AND A PERSON.
+ * WHY EACH MOMENT NAMES A WORK ACT, A VIEWPOINT AND PEOPLE MID-ACTION.
+ *
+ * Recipe v2 (20 Sep, after the first 20-table wall): rooms with one person
+ * sitting read as 2026 offices with plants. So the moment is the ACT — the
+ * human-and-AI arrangement the deep-work option describes, the workstation
+ * doing what it does, the building responding to an arriving person, the
+ * recharge in motion — with two or three people doing the thing, mid-action,
+ * never posed. The option fragments (`questions.ts`) carry the act itself.
  *
  * With `REFERENCE_MODE` at its default `none` (`server/reference.ts`) a
  * table's four zones are four independent text-to-image renders. Nothing but
@@ -81,31 +88,31 @@ const BOOK_ZONES: Zone[] = [
 	zone({
 		key: 'library',
 		questionIds: ['q5c'],
-		moment: 'A deep-work room from the doorway, one person in a shaft of light: {q5c}'
+		moment: 'Deep work mid-act, no one posed: {q5c}'
 	}),
 	zone({
 		key: 'studio',
 		questionIds: ['q4w'],
-		moment: 'A making floor across long benches, two people mid-task, dust in the light; at each bench, {q4w}'
+		moment: 'A working floor, two or three people mid-task at their stations: {q4w}'
 	}),
 	zone({
 		key: 'plaza',
 		questionIds: ['q3'],
-		moment: 'The arrival hall from the entrance, a visitor at the threshold: {q3}'
+		moment: 'The arrival act, the building responding to the person walking in: {q3}'
 	}),
 	zone({
 		key: 'garden',
 		questionIds: ['q6r'],
-		moment: 'A garden court from the path, one person walking slowly: {q6r}'
+		moment: 'The recharge act, mid-motion, no one posed: {q6r}'
 	})
 ];
 
 /** Zones derived directly from the V4 question set — one zone-worthy question each, none orphaned. */
 const QUESTION_ZONES: Zone[] = [
-	zone({ key: 'arrival', questionIds: ['q3'], moment: 'The entrance from the door, one visitor mid-step: {q3}' }),
-	zone({ key: 'workstation', questionIds: ['q4w'], moment: 'One desk seen from the aisle, its occupant at work: {q4w}' }),
-	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'The quietest room from its doorway, one person still: {q5c}' }),
-	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge landscape from its edge, one person walking: {q6r}' })
+	zone({ key: 'arrival', questionIds: ['q3'], moment: 'The arrival act from the door, the building responding to the visitor: {q3}' }),
+	zone({ key: 'workstation', questionIds: ['q4w'], moment: 'One station from the aisle, its occupant mid-task: {q4w}' }),
+	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'Deep work mid-act in the quietest room: {q5c}' }),
+	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge act at the landscape\'s edge, people mid-motion: {q6r}' })
 ];
 
 export const ZONE_SETS = {

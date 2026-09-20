@@ -22,7 +22,8 @@
  *                       workplace in <year>, anamorphic, volumetric — see
  *                       `prompt.ts`'s `houseBase`), THEN the chosen future's
  *                       `worldOutside` (the window: skyline, weather, two
- *                       materials — never its name or full mood paragraph).
+ *                       materials — never its name or full mood paragraph),
+ *                       THEN its `insideCue` (one indoor 2040 tell, recipe v2).
  *                       `<year>` comes from the era chip (V4 has no era
  *                       question; the chip's row still stores under `q1`),
  *                       so a nudge shows up in the frame and nowhere else.
@@ -41,7 +42,9 @@
  *   (not drawn)      <- q10's "hardest" pick and q5c's push reply: captured
  *                       for the wall and the export, see `WALL_ONLY_IDS`
  *   wildcard         <- verbatim, never rewritten
- *   negative         <- the house terms + the future's own `negativeFragment`
+ *   negative         <- the layout guard, the house terms, the 2026-office
+ *                       tells (`NO_2026`, paper kept when q7 chose it), then
+ *                       the future's own `negativeFragment`
  *
  * An "And:" sub-question's pick is stored under `<qid>:and` (`andId`) and
  * rides with its parent: `fragmentsWithAnd` is the one place that pairs
@@ -180,11 +183,19 @@ function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
  */
 export const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => z.questionIds));
 
-/** The layout guard first, then the house terms, then the future's own; duplicates dropped, order preserved. */
-export function composeNegative(futureNegative: string | undefined): string {
+/**
+ * The 2026-office tells the first wall showed (recipe v2, §4): kept out of
+ * every render, except that paper stays when the table chose it (q7).
+ */
+export const NO_2026 = 'paper notebooks, coffee mugs, contemporary office furniture, 2020s laptops';
+const NO_2026_KEEP_PAPER = NO_2026.replace('paper notebooks, ', '');
+
+/** The layout guard first, the house terms, the 2026 tells, then the future's own; duplicates dropped, order preserved. */
+export function composeNegative(futureNegative: string | undefined, paperChosen = false): string {
 	const seen = new Set<string>();
 	const out: string[] = [];
-	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${futureNegative ?? ''}`.split(',')) {
+	const no2026 = paperChosen ? NO_2026_KEEP_PAPER : NO_2026;
+	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${no2026}, ${futureNegative ?? ''}`.split(',')) {
 		const t = term.trim();
 		if (!t || seen.has(t.toLowerCase())) continue;
 		seen.add(t.toLowerCase());
@@ -205,7 +216,8 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
 	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
 	const window = future ? future.worldOutside : HOUSE_REGISTER;
-	const mood = joinClauses([base, window, eraAnswer?.pushReply]);
+	// Recipe v2: one unmistakable indoor 2040 cue per lens, right after the window.
+	const mood = joinClauses([base, window, future?.insideCue, eraAnswer?.pushReply]);
 
 	// --- materials & light: q2 (her tone; materials; finish) + its scale
 	// pick (the camera) + its push reply, then technology (q7) and nature
@@ -245,7 +257,8 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const wildcardText = wildcardAnswer?.text?.[WILDCARD.options[0].key]?.trim();
 	const wildcard = wildcardText ? fragmentOf(WILDCARD.options[0], wildcardText) : undefined;
 
-	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment) };
+	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
+	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen) };
 }
 
 /**

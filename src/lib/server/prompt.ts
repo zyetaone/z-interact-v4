@@ -27,14 +27,15 @@ export const NO_TEXT = 'no text';
  * The cause is that a prompt enumerating ten distinct programme items reads
  * to the model as a brief for a board. Two things push back: this negative,
  * and the per-zone programme cap in `layers.ts` that stops the enumeration
- * happening at all. Neither alone was enough.
+ * happening at all. Neither alone was enough. Cut from ten terms to five
+ * for recipe v2's word budget (panels / storyboard / mosaic / contact sheet
+ * are synonyms of collage and grid; `text` is the NO_TEXT guard).
  *
  * Lives here rather than in `futures.ts`'s `HOUSE_NEGATIVE` because it is a
  * rendering guard, the same family as `NO_TEXT` above, not content — and
  * `futures.ts` belongs to another workstream.
  */
-export const NO_COLLAGE =
-	'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels';
+export const NO_COLLAGE = 'collage, grid, split screen, multiple views, labels';
 
 /**
  * The ceiling on the table-editable prompt. Screen 15's textarea is free

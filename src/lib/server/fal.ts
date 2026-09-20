@@ -181,6 +181,33 @@ export function falErrorText(detail: unknown, status?: unknown): string {
 	return 'the image model reported an error';
 }
 
+/**
+ * WHERE THE REASON ACTUALLY LIVES.
+ *
+ * fal's STATUS endpoint reports that a request failed, but its payload is
+ * often a single thin line — table 9's plaza row stored the whole of what
+ * fal gave it: `Unexpected status code: 422`. That is already the
+ * provider's own words, not a truncation on our side, which is why the
+ * body-capture fix did not improve it: there was no richer body at that
+ * endpoint to capture.
+ *
+ * The RESULT endpoint for the same request usually carries the detail —
+ * the validation message, the rejected field. One extra request, only on
+ * the error path, to turn a status code into something a person can act
+ * on.
+ */
+async function failureDetail(falKey: string, model: string, requestId: string): Promise<string> {
+	try {
+		const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}`, {
+			headers: { Authorization: `Key ${falKey}` }
+		});
+		return (await res.text()).trim().slice(0, 300);
+	} catch {
+		// Diagnosis must never be able to fail the thing it is diagnosing.
+		return '';
+	}
+}
+
 export async function pollStatus(falKey: string, model: string, requestId: string): Promise<FalStatus> {
 	if (requestId.startsWith(FAKE_PREFIX)) return { status: 'COMPLETED' };
 	const res = await fetch(`https://queue.fal.run/${model}/requests/${requestId}/status`, {
@@ -188,7 +215,15 @@ export async function pollStatus(falKey: string, model: string, requestId: strin
 	});
 	if (!res.ok) throw new Error(await httpFailure('fal status', res));
 	const body = (await res.json()) as { status?: unknown; queue_position?: number; error?: unknown; detail?: unknown };
-	return normaliseStatus(body);
+	const status = normaliseStatus(body);
+	if (status.status !== 'ERROR') return status;
+
+	const thin = status.error ?? '';
+	const detail = await failureDetail(falKey, model, requestId);
+	// Nothing to add, or the same line twice: a doubled message reads like
+	// two separate failures on the desk.
+	if (!detail || thin.includes(detail) || detail.includes(thin)) return status;
+	return { status: 'ERROR', error: `${thin} — ${detail}`.slice(0, 400) };
 }
 
 /**

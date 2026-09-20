@@ -4,7 +4,7 @@
  * (the pre-change behaviour) is a row no ticker can ever advance.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_ASPECT_RATIO, falErrorText, httpFailure, isRetryableFailure, normaliseStatus, resolutionFrom, submitZoneImage } from './fal';
+import { DEFAULT_ASPECT_RATIO, FAL_MODEL, falErrorText, httpFailure, isRetryableFailure, normaliseStatus, pollStatus, resolutionFrom, submitZoneImage } from './fal';
 
 describe('normaliseStatus', () => {
 	it('passes fal\'s three live states through unchanged', () => {
@@ -198,5 +198,87 @@ describe('isRetryableFailure — what deserves a second submit', () => {
 	it('is false for anything without an HTTP status, so a thrown TypeError is not retried for ever', () => {
 		expect(isRetryableFailure('TypeError: fetch failed')).toBe(false);
 		expect(isRetryableFailure('')).toBe(false);
+	});
+});
+
+/**
+ * Table 9's plaza row stored `Unexpected status code: 422` and nothing
+ * else. That is the whole of what fal's STATUS endpoint returned, so there
+ * was no body on that response left uncaptured — the detail lives on the
+ * RESULT endpoint for the same request.
+ */
+describe('pollStatus — turning a status code into a reason', () => {
+	/** Answers the status endpoint and the result endpoint differently. */
+	function stubFal(statusBody: unknown, resultText: string) {
+		const urls: string[] = [];
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+			const url = String(input);
+			urls.push(url);
+			if (url.endsWith('/status')) {
+				return new Response(JSON.stringify(statusBody), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				});
+			}
+			return new Response(resultText, { status: 422 });
+		});
+		return urls;
+	}
+
+	it('adds the result endpoint\'s detail to a thin status error', async () => {
+		const urls = stubFal(
+			{ status: 'ERROR', detail: 'Unexpected status code: 422' },
+			'{"detail":[{"loc":["body","image_urls"],"msg":"url is not reachable"}]}'
+		);
+		try {
+			const out = await pollStatus('k', FAL_MODEL, 'req-1');
+			expect(out.status).toBe('ERROR');
+			expect(out.error).toContain('Unexpected status code: 422');
+			expect(out.error).toContain('url is not reachable');
+		} finally {
+			vi.unstubAllGlobals();
+		}
+		expect(urls).toHaveLength(2);
+	});
+
+	it('does not print the same line twice when both endpoints say the same thing', async () => {
+		stubFal({ status: 'ERROR', detail: 'Unexpected status code: 422' }, 'Unexpected status code: 422');
+		try {
+			const out = await pollStatus('k', FAL_MODEL, 'req-1');
+			expect(out.error).toBe('Unexpected status code: 422');
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('costs nothing on the happy path — no second request unless it failed', async () => {
+		const urls = stubFal({ status: 'COMPLETED' }, 'never read');
+		try {
+			const out = await pollStatus('k', FAL_MODEL, 'req-1');
+			expect(out.status).toBe('COMPLETED');
+		} finally {
+			vi.unstubAllGlobals();
+		}
+		expect(urls).toHaveLength(1);
+	});
+
+	it('still reports the failure if the detail lookup itself throws', async () => {
+		// Diagnosis must never be able to fail the thing it is diagnosing.
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+			if (String(input).endsWith('/status')) {
+				return new Response(JSON.stringify({ status: 'ERROR', detail: 'boom' }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				});
+			}
+			throw new TypeError('network down');
+		});
+		try {
+			const out = await pollStatus('k', FAL_MODEL, 'req-1');
+			expect(out.status).toBe('ERROR');
+			expect(out.error).toBe('boom');
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });

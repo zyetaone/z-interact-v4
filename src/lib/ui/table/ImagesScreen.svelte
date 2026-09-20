@@ -14,6 +14,7 @@
 		failed,
 		refresh,
 		onregenerate,
+		onretry,
 		ondone
 	}: {
 		prompt: string;
@@ -23,6 +24,8 @@
 		failed: string;
 		refresh: () => Promise<unknown>;
 		onregenerate: () => void;
+		/** One zone, one render — the failed tile's own control, not *Draw again*. */
+		onretry: (zone: string) => void;
 		ondone: () => void;
 	} = $props();
 
@@ -64,7 +67,14 @@
 						<img src={image.url} alt="Our {zoneLabel(image.zoneKey).toLowerCase()}" loading="lazy" />
 					{:else}
 						<div class="pending" class:failed={image.state === 'failed'}>
-							{image.state === 'failed' ? 'this one failed' : 'still drawing'}
+							{#if image.state === 'failed'}
+								<span>this one failed</span>
+								<button class="btn ghost retry" disabled={regenerating} onclick={() => onretry(image.zoneKey)}>
+									Try this one again
+								</button>
+							{:else}
+								still drawing
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -142,7 +152,20 @@
 	}
 
 	.pending.failed {
+		flex-direction: column;
+		gap: 12px;
 		color: var(--warn);
+	}
+
+	/* Sits above the scrim so it can be tapped; the frame's ::after is inert. */
+	.retry {
+		position: relative;
+		z-index: 1;
+		min-height: 44px;
+		padding: 0 18px;
+		font-size: 14px;
+		letter-spacing: 0;
+		text-transform: none;
 	}
 
 	/* Quiet: the table needs the sentence above, and the desk needs this one. */

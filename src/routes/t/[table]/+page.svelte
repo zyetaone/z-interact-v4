@@ -14,7 +14,7 @@
 	 * `poll.svelte.ts`, mounted by the two screens that poll.
 	 */
 	import '../../../app.css';
-	import { tableStatus, saveAnswer, saveFuture, saveEra, saveWildcard, finishTable, regenerate } from './answers.remote';
+	import { tableStatus, saveAnswer, saveFuture, saveEra, saveWildcard, finishTable, regenerate, retryZone } from './answers.remote';
 	import { allRendersSettled, createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
 	import type { Era } from '$lib/game/era';
 	import Topbar from '$lib/ui/table/Topbar.svelte';
@@ -207,6 +207,7 @@
 			{failed}
 			{refresh}
 			onregenerate={() => run(() => regenerate({ table }), false)}
+			onretry={(zone) => run(() => retryZone({ table, zone }), false)}
 			ondone={() => flow.go('done')}
 		/>
 	{:else}

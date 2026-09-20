@@ -125,7 +125,11 @@ function optionJobs() {
 			jobs.push({
 				kind: 'opt',
 				outPath: join(ROOT, 'static/visuals/opt', `${q.id}-${o.key}.jpg`),
-				prompt: `A single architectural detail, close, moody, photoreal: ${o.promptFragment}. Avoid: ${HOUSE_NEGATIVE}.`,
+				prompt:
+					q.layer === 'feel'
+						? // Feel words are light and weather, not objects: frame them as a room in one mood.
+							`A film still of one 2040 workplace room, anamorphic, photoreal, its whole mood: ${o.promptFragment}. ${NO_PEOPLE_POSITIVE}. Avoid: carved stone, ornament, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}.`
+						: `A single architectural detail, close, moody, photoreal: ${o.promptFragment}. Avoid: ${HOUSE_NEGATIVE}.`,
 				aspect_ratio: '1:1',
 				resolution: '0.5K'
 			});

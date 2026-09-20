@@ -4,12 +4,14 @@ import { type Page, type Locator, expect } from '@playwright/test';
 export interface QuestionAnswer {
 	id: string;
 	labels: string[];
+	/** The "And:" chip's label to tap, where the question has one and the table answers it. */
+	and?: string;
 }
 
 export interface TableAnswers {
 	table: number;
-	future: string; // substring of the future card's name, unique enough to match
-	questions: QuestionAnswer[]; // q2..q11, in FLOW order
+	future: string; // substring of the lens card's name, unique enough to match
+	questions: QuestionAnswer[]; // V4's q2..q11, in FLOW order
 	wildcard?: string;
 }
 
@@ -59,13 +61,17 @@ export class TablePage {
 		await this.page.reload();
 	}
 
-	/** One of screens 4-13. Selects each label — a `radio` on single-select questions, a `checkbox` on multi/pick-n — then Next. */
+	/** One question screen. Selects each label — a `radio` on single-select questions, a `checkbox` on pick-n — then the optional "And:" chip, then Next. */
 	async answerQuestion(answer: QuestionAnswer) {
 		for (const label of answer.labels) {
 			await this.page
 				.getByRole('radio', { name: label, exact: true })
 				.or(this.page.getByRole('checkbox', { name: label, exact: true }))
 				.click();
+		}
+		if (answer.and) {
+			// The chip row is its own radiogroup, labelled by the sub-question.
+			await this.page.getByRole('radiogroup', { name: /^And: / }).getByRole('radio', { name: answer.and, exact: true }).click();
 		}
 		await this.page.getByRole('button', { name: 'Next' }).click();
 	}

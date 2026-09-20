@@ -22,8 +22,8 @@ for (const table of ALL_TABLES) {
 		await t.screenshot(dir, '01-landing');
 
 		await t.begin();
-		await expect(t.heading).toContainText('Pick the future');
-		await t.screenshot(dir, '02-future');
+		await expect(t.heading).toContainText('Choose your lens');
+		await t.screenshot(dir, '02-lens');
 
 		await t.pickFutureAndAdvance(table.future, dir);
 		// after reload, resumeIndex should land on Q2
@@ -38,7 +38,7 @@ for (const table of ALL_TABLES) {
 			shot++;
 		}
 
-		await expect(t.heading).toContainText('What else?');
+		await expect(t.heading).toContainText('What have we missed?');
 		await t.screenshot(dir, `${String(shot).padStart(2, '0')}-wildcard`);
 		shot++;
 		await t.wildcard(table.wildcard);
@@ -52,19 +52,18 @@ for (const table of ALL_TABLES) {
 	});
 }
 
-// Local copy of the question stems the assignment brief lists, so this spec
+// Local copy of the VERSION 4 stems (src/lib/game/questions.ts), so this spec
 // doesn't have to reach into `$lib/game/questions` (a SvelteKit alias not
 // resolvable from a plain Playwright test file without extra config).
 const PROMPTS: Record<string, string> = {
 	q2: 'What is your material world?',
-	q3: 'How does a visitor find their way in?',
-	q4: 'How do employees move through the space?',
-	q5: 'Which features protect attention?',
-	q6: 'What do you sit on, and where do you meet?',
+	q3: 'How do people arrive and find their way?',
+	q4w: 'What does your workstation look like?',
+	q5c: 'Where does deep work happen in a centaur organisation?',
+	q6r: 'Where do people recharge?',
 	q7: 'Is the technology obvious or invisible?',
 	q8: 'How much nature, and where?',
-	q9: 'How does the building sense and learn?',
-	q10: 'What runs itself, and what stays human?',
+	q10: 'Your workplace can be brilliant at one of these. Which did you choose?',
 	q11: 'In three words, what should it feel like?'
 };
 

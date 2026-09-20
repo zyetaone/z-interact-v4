@@ -11,7 +11,7 @@
  * answered.
  */
 import { describe, expect, it } from 'vitest';
-import { composeHeroPrompt, HERO_WORD_TARGET } from './hero';
+import { composeHeroPrompt, HERO_WORD_TARGET, NO_SIGNAGE_TEXT } from './hero';
 import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
 import { IMPOSSIBLE_IDEAS } from '$lib/game/zones';
@@ -44,10 +44,10 @@ describe('every answer reaches the hero prompt', () => {
 	it('carries each zone-worthy act, its "And:" pick, and the frame that holds them', () => {
 		const p = t10();
 		// The four acts, each with its sub-question's fragment beside it.
-		expect(p).toMatch(/Arrival: clear sightlines[^.]*a route lighting ahead of the visitor/);
-		expect(p).toMatch(/Deep work: one person walking a loop[^.]*a hologram or figure at the table/);
-		expect(p).toMatch(/Stations: no desks[^.]*no visible technology at the desk/);
-		expect(p).toMatch(/Recharge: rain forest[^.]*only a view through the far glass/);
+		expect(p).toMatch(/People arrive by clear sightlines[^.]*a route lighting ahead of the visitor/);
+		expect(p).toMatch(/Deep work happens as one person walking a loop[^.]*a hologram or figure at the table/);
+		expect(p).toMatch(/They work at no desks[^.]*no visible technology at the desk/);
+		expect(p).toMatch(/They recharge in rain forest[^.]*only a view through the far glass/);
 	});
 
 	it('carries the room participating, nature, the consequence, the materials, the scale and the feel words', () => {
@@ -138,6 +138,42 @@ describe('what the lens may and may not contribute', () => {
 	});
 });
 
+describe('the labels that got painted on the building', () => {
+	it('carries no colon-label for any of the four acts', () => {
+		// THE DEFECT, from the first real render of the table-10 prompt: the
+		// words "Arrival", "Deep work", "Stations" and "Recharge" came back as
+		// signage on the building's walls. A colon-label reads to an image model
+		// as a caption to draw. Every act is a verb-led sentence now.
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({ futureKey: future.key, answers: T10, table: 10 });
+			expect(p).not.toMatch(/\b(Arrival|Deep work|Stations|Recharge):/);
+		}
+	});
+
+	it('states the acts as prose with verbs', () => {
+		const p = t10();
+		expect(p).toContain('People arrive by');
+		expect(p).toContain('Deep work happens as');
+		expect(p).toContain('They work at');
+		expect(p).toContain('They recharge in');
+	});
+
+	it('does not assume what the table chose in the lead-in', () => {
+		// "There are no fixed desks" would contradict a table that chose the
+		// cockpit. The verb carries the grammar, the fragment carries the content.
+		const desks = T10.map((a) => (a.questionId === 'q4w' ? { ...a, keys: ['the-cockpit'] } : a));
+		const p = composeHeroPrompt({ futureKey: 'neo-seoul', answers: desks, table: 10 });
+		expect(p).not.toMatch(/no fixed desks/);
+	});
+
+	it('tells the model not to write on the walls', () => {
+		const p = t10();
+		for (const term of NO_SIGNAGE_TEXT.split(', ')) {
+			expect(p).toContain(term);
+		}
+	});
+});
+
 describe('the guards', () => {
 	it('says "no text" at both ends, like the zone prompts', () => {
 		const p = t10();
@@ -174,9 +210,9 @@ describe('a half-answered table', () => {
 			],
 			table: 2
 		});
-		expect(p).toContain('Arrival: clear sightlines');
-		expect(p).not.toMatch(/Deep work:/);
-		expect(p).not.toMatch(/Stations:/);
+		expect(p).toContain('People arrive by clear sightlines');
+		expect(p).not.toMatch(/Deep work happens/);
+		expect(p).not.toMatch(/They work at/);
 		expect(p.endsWith(NO_TEXT)).toBe(true);
 	});
 

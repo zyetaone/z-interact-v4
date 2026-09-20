@@ -47,16 +47,17 @@ import {
 
 /**
  * THE BRIEF ASKED FOR 150–190 WORDS AND THIS TEMPLATE CANNOT REACH IT.
- * Measured, not estimated: a fully answered table composes 257–262 words
- * across the six lenses (the scratch sample is 260). The arithmetic, so the
+ * Measured, not estimated: a fully answered table composes 273–278 words
+ * across the six lenses (the scratch sample is 276). The arithmetic, so the
  * next reader does not re-derive it:
  *
  *   ~137 words are ANSWER FRAGMENTS, arriving verbatim from `layers.ts` —
  *   the four acts with their "And:" picks, q7's room-participates clause,
  *   q8, q10, q2 with its scale pick, q11's three feel words.
- *   ~120 words are the template's own scaffolding — the design brief
+ *   ~136 words are the template's own scaffolding — the design brief
  *   sentence, the three-quarter-view frame, styleDna + insideCue + the
- *   impossible idea, the people line, and the Avoid list.
+ *   impossible idea, the four verb lead-ins, the people line, and the Avoid
+ *   list including the no-signage terms the first render earned.
  *
  * Getting to 190 means cutting ~70, and there is nothing to cut that is not
  * either an answer (the brief requires every answer key to reach the
@@ -69,7 +70,14 @@ import {
  * unnoticed — not evidence the 150–190 target was met. It was not. Raising
  * it silently would have hidden that; this is the lead's call to make.
  */
-export const HERO_WORD_TARGET = { min: 150, max: 270, briefAsked: { min: 150, max: 190 } } as const;
+export const HERO_WORD_TARGET = { min: 150, max: 285, briefAsked: { min: 150, max: 190 } } as const;
+
+/**
+ * What an elevated view of a whole building invites that one room does not:
+ * writing on it. Added after the first table-10 render came back with the
+ * prompt's own section labels painted on the walls.
+ */
+export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no captions';
 
 /** Drops empties, trims trailing punctuation, joins as sentences — `layers.ts`'s `joinClauses`, which is private there. */
 function sentences(parts: readonly (string | undefined)[]): string {
@@ -85,10 +93,25 @@ function clause(fragments: readonly string[]): string | undefined {
 	return joined.length > 0 ? joined : undefined;
 }
 
-/** `Arrival: …` — omitted entirely when the table never answered, rather than printing a label with nothing after it. */
-function act(label: string, fragments: readonly string[]): string | undefined {
+/**
+ * ONE ACT AS PROSE — a verb-led sentence, never `Label: value`.
+ *
+ * The first render of this prompt (table 10, 20 Sep) put the literal words
+ * "Arrival", "Deep work", "Stations" and "Recharge" on the walls of the
+ * building as signage. A colon-label reads to an image model as a caption
+ * to draw, not as a section heading to obey — which is the same reason
+ * `NO_TEXT` sits at both ends.
+ *
+ * The lead-in is deliberately neutral about WHAT the table chose: "there
+ * are no fixed desks" would contradict a table that chose the cockpit, so
+ * the verb carries the grammar and the fragment carries the content.
+ *
+ * Omitted entirely when the table never answered, rather than leaving a
+ * verb with nothing after it.
+ */
+function act(leadIn: string, fragments: readonly string[]): string | undefined {
 	const body = clause(fragments);
-	return body ? `${label}: ${body}` : undefined;
+	return body ? `${leadIn} ${body}` : undefined;
 }
 
 export function composeHeroPrompt(input: LayerBuildInput): string {
@@ -125,10 +148,10 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// a sentence about the table, never a subject — hence `fragmentsFor`.
 	const roomParticipates = (by.get('q7')?.keys ?? []).map((k) => ROOM_PARTICIPATES[k]).filter(Boolean);
 	const programme = sentences([
-		act('Arrival', fragmentsWithAnd(by, 'q3')),
-		act('Deep work', fragmentsWithAnd(by, 'q5c')),
-		act('Stations', fragmentsWithAnd(by, 'q4w')),
-		act('Recharge', fragmentsWithAnd(by, 'q6r')),
+		act('People arrive by', fragmentsWithAnd(by, 'q3')),
+		act('Deep work happens as', fragmentsWithAnd(by, 'q5c')),
+		act('They work at', fragmentsWithAnd(by, 'q4w')),
+		act('They recharge in', fragmentsWithAnd(by, 'q6r')),
 		...roomParticipates,
 		clause(fragmentsFor(by.get('q8'))),
 		clause(fragmentsFor(by.get('q10')))
@@ -152,7 +175,12 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// the lens's own, and the anti-board terms, deduped in that order. Not
 	// re-typed here: two lists that drift is how a guard stops guarding.
 	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
-	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}`;
+	// The hero's own extra terms, on top of the shared list. They are here
+	// rather than in `composeNegative` because that list is also every zone
+	// prompt's, and this is the hero's own lesson: an elevated view of a
+	// whole building gives a model far more wall to write on than one room
+	// does, and the first render used it.
+	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}`;
 
 	return sentences([frame, world, programme, dressing, avoid, NO_TEXT]);
 }

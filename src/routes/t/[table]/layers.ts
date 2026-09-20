@@ -79,7 +79,7 @@ import { FRAME_HEAD, NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, typ
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
  *  up in the opening line too, not just in the mood clause after it. */
-const ERA_YEAR: Record<Era, string> = {
+export const ERA_YEAR: Record<Era, string> = {
     'retro-1930s': '1930s-revival',
     'same-as-2026': '2026',
     'recognisably-2035': '2035',
@@ -177,8 +177,8 @@ export function fragmentsFor(answer: AnswerLike | undefined): string[] {
 	return options.filter((o) => chosen.has(o.key)).map((o) => fragmentOf(o, answer.text?.[o.key]));
 }
 
-/** A question's fragments followed by its "And:" pick's, so the pair is never split. */
-function fragmentsWithAnd(by: ReadonlyMap<string, AnswerLike>, id: string): string[] {
+/** A question's fragments followed by its "And:" pick's, so the pair is never split. Exported for `hero.ts`, which must read the SAME fragments the zone prompts read. */
+export function fragmentsWithAnd(by: ReadonlyMap<string, AnswerLike>, id: string): string[] {
 	return [...fragmentsFor(by.get(id)), ...fragmentsFor(by.get(andId(id)))];
 }
 
@@ -189,7 +189,8 @@ function joinClauses(parts: readonly (string | undefined)[]): string {
 		.join('. ');
 }
 
-function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
+/** Answers by question id. Exported alongside `fragmentsWithAnd` so `hero.ts` reads answers exactly as the zone path does. */
+export function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
 	return new Map(answers.map((a) => [a.questionId, a]));
 }
 

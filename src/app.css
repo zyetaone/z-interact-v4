@@ -28,7 +28,10 @@
   --teal: #3ec9b0;
   --warn: #e08a5a;
   --line: rgba(244, 237, 224, 0.14);
-  --line-strong: rgba(244, 237, 224, 0.28);
+  /* 0.38, not 0.28: over --ground this is the visual boundary of every
+     unselected chip and every ghost button, and 0.28 measures 2.33:1
+     against WCAG 1.4.11's 3:1. 0.38 measures 3.21:1. */
+  --line-strong: rgba(244, 237, 224, 0.38);
   /* THE caption scrim: 70% ground to transparent over the lower ~45% of an image.
      One token for the lens cards and the workspace tiles — design-review.md §3. */
   --scrim: linear-gradient(180deg, rgba(10, 16, 32, 0) 0%, rgba(10, 16, 32, 0) 55%, rgba(10, 16, 32, 0.7) 100%);

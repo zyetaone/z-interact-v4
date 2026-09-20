@@ -19,6 +19,9 @@ import {
 	markStored,
 	claimQueued,
 	getCurrentImage,
+	getCurrentImageSince,
+	getResetAt,
+	resetTable,
 	saveAnswer,
 	finishTable
 } from '$lib/server/room';
@@ -186,5 +189,73 @@ describe('retryZone', () => {
 		expect(first.ok).toBe(true);
 		expect(second.ok).toBe(false);
 		expect(falBodies).toHaveLength(1);
+	});
+});
+
+/**
+ * RESUBMIT AFTER A DESK RESET.
+ *
+ * Live: table 20 was reset from the desk having had three stored zones and
+ * one failed, walked again, and submitted. The export then showed ONE image
+ * row — `garden`, the zone whose prior attempt had failed. The other three
+ * were never sent, and the phone showed them drawing indefinitely.
+ *
+ * The conditional insert applied the reset watermark correctly. The read
+ * that decided WHICH zones to insert did not: `getCurrentImage` ignores the
+ * watermark, image rows are append-only, so each pre-reset `stored` row
+ * still looked current and its zone was skipped as already done.
+ */
+describe('submit, reset, submit again', () => {
+	beforeEach(() => {
+		db = fakeD1();
+		waited.length = 0;
+		falBodies.length = 0;
+		vi.unstubAllGlobals();
+	});
+
+	/** Walks a table far enough to submit, through the real commands. */
+	async function walkAndSubmit() {
+		const { saveAnswer: save, finishTable: finish } = await import('./answers.remote');
+		await save({ table: TABLE, questionId: 'q1', keys: ['a'] });
+		return finish({ table: TABLE });
+	}
+
+	it('creates a fresh row for EVERY zone, not just the one that had failed', async () => {
+		stubFal();
+		const { retryZone: _ } = await import('./answers.remote');
+
+		// First pass: four zones, three of which land and one fails — the
+		// live shape of table 20 before it was reset.
+		await tableWithAFailedZone();
+		for (const z of ZONES) {
+			expect(await getCurrentImage(db, EVENT, TABLE, z.key)).not.toBeNull();
+		}
+
+		await resetTable(db, EVENT, TABLE, 'admin');
+		const since = await getResetAt(db, EVENT, TABLE);
+
+		// Nothing from before the reset counts as current any more.
+		for (const z of ZONES) {
+			expect(await getCurrentImageSince(db, EVENT, TABLE, z.key, since)).toBeNull();
+		}
+
+		await walkAndSubmit();
+		await Promise.all(waited);
+
+		// Four fresh rows, one per zone, all created after the watermark.
+		for (const z of ZONES) {
+			const row = await getCurrentImageSince(db, EVENT, TABLE, z.key, since);
+			expect(row, `zone ${z.key} has no row after resubmit`).not.toBeNull();
+			expect(row!.createdAt).toBeGreaterThan(since);
+		}
+	});
+
+	it('sends one submit per zone, not one for the whole table', async () => {
+		stubFal();
+		await tableWithAFailedZone();
+		await resetTable(db, EVENT, TABLE, 'admin');
+		await walkAndSubmit();
+		await Promise.all(waited);
+		expect(falBodies.length).toBe(ZONES.length);
 	});
 });

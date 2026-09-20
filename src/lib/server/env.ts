@@ -40,6 +40,13 @@ export interface Env {
 	 */
 	REFERENCE_MODE?: string;
 	/**
+	 * Which zones render: `hero` (default) one main workspace image per
+	 * table, `four` the four functional zones, `all` five. Unset or
+	 * unrecognised means `hero` — a typo must not quintuple what a room
+	 * spends. See `game/zones.ts`'s `activeZones`.
+	 */
+	ZONE_SET?: string;
+	/**
 	 * How many pending rows one admin poll advances, oldest first. Unset or
 	 * unparseable means 8. The tick runs after the response either way, so
 	 * this trades how much of the room the desk carries, not how fast the

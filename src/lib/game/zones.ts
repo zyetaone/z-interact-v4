@@ -180,6 +180,64 @@ export const ZONE_SETS = {
 /** Default set — the lead's call between `book`/`questions` is still pending. Switching is this one line. */
 export const ZONES: Zone[] = ZONE_SETS.book;
 
+
+/* -------------------------------------------------------------------------- */
+/* WHICH ZONES RENDER — `ZONE_SET`                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `hero` (the default) renders the one main workspace image per table;
+ * `four` renders the four functional zones; `all` renders five.
+ *
+ * The default is the owner's decision of 20 Sep: four pictures per table
+ * read as four unrelated ideas, one picture reads as the table's answer.
+ * The four zones are not deleted — a room that wants them is one variable
+ * away — and `all` exists for a rehearsal that wants to compare the two
+ * side by side, not for the night.
+ *
+ * An unrecognised value falls back to `hero` rather than to "everything",
+ * on the same rule `FAL_RESOLUTION` and `REFERENCE_MODE` already follow: a
+ * typo must not quintuple what a room spends.
+ */
+export type ZoneSetName = 'hero' | 'four' | 'all';
+
+export function zoneSetFrom(raw: string | undefined): ZoneSetName {
+	return raw === 'four' || raw === 'all' ? raw : 'hero';
+}
+
+/** The zones a render/read path should enumerate, given the raw `ZONE_SET` value. */
+export function activeZones(raw: string | undefined): Zone[] {
+	switch (zoneSetFrom(raw)) {
+		case 'four':
+			return [...ZONES];
+		case 'all':
+			return [...HERO_ZONES, ...ZONES];
+		default:
+			return [...HERO_ZONES];
+	}
+}
+
+/**
+ * EVERY zone this app has ever rendered, whatever `ZONE_SET` says today.
+ *
+ * A row in D1 outlives the variable that queued it: a table rendered under
+ * `four` and then read under `hero` still has four `image` rows, and a
+ * lookup restricted to the active set would fail to find the zone
+ * definition for a row that plainly exists — which is how a retry or a
+ * ticker silently stops advancing a row. Lookups use this; enumeration
+ * (what to queue, what to show) uses `activeZones`.
+ */
+const ALL_KNOWN_ZONES: Zone[] = [...HERO_ZONES, ...ZONE_SETS.book, ...ZONE_SETS.questions];
+
+export function zoneByKey(key: string): Zone | undefined {
+	return ALL_KNOWN_ZONES.find((z) => z.key === key);
+}
+
+/** True when this key is the one main workspace image — its prompt is composed differently (`hero.ts`). */
+export function isHeroZone(key: string): boolean {
+	return zoneByKey(key)?.hero === true;
+}
+
 // --- Shape guards ------------------------------------------------------------
 // The four-zone sets only: `HERO_ZONES` is deliberately one zone, and its
 // guard is below.

@@ -31,6 +31,7 @@ reads exactly like a dead one.
 | `MAX_RENDERS_PER_TABLE` | var | falls back to **12**, never to "no cap". Unparseable values also fall back rather than disabling the cap |
 | `SIMULATE_ENABLED` | var | the rehearsal route is off unless this is exactly `true` |
 | `PUBLIC_EVENT_TITLE` | var | the Lobby beat reads "Twenty Tables" |
+| `FAL_RESOLUTION` | var | falls back to **1K**. Anything unrecognised falls back too, rather than being passed through to the provider |
 | `ADMIN_TICK_BUDGET` | var | falls back to **8** — how many pending rows one admin poll advances after it has answered. Never unbounded |
 | `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
@@ -41,6 +42,13 @@ reads exactly like a dead one.
 - [ ] `MAX_RENDERS_PER_TABLE` reviewed against the budget (see below)
 - [ ] `SIMULATE_ENABLED` unset (or anything but `true`) **before the doors open**
 - [ ] `REFERENCE_MODE` left unset unless the mood match has been judged on a real table
+- [ ] `ADMIN_TICK_BUDGET` left unset unless the desk is deliberately carrying more of the room
+- [ ] `FAL_RESOLUTION` reviewed — it multiplies the per-render cost
+- [ ] `PUBLIC_EVENT_TITLE` set, or the Lobby beat reads "Twenty Tables"
+
+There is no `PUBLIC_ORIGIN`. The app derives its origin from the request, so
+the fal webhook URL is correct on whatever domain the deploy answers on, and
+there is nothing to set or to get wrong.
 
 ## How much the lens picture decides the render
 
@@ -60,6 +68,27 @@ in the room therefore needs **the admin page open**, or the rows sit
 queued and nothing appears on the wall. The admin poll advances
 `ADMIN_TICK_BUDGET` rows at a time, after it has answered, so a room full
 of pending rows drains over several polls rather than in one.
+
+## Go / no-go, on the day
+
+Three probes. Each one discriminates a correctly configured deploy from a
+broken one **without printing a secret**, so they can be run from the venue
+wifi with someone reading over your shoulder. Any other answer is a no-go.
+
+The first two were run against a local build of this commit and returned
+401 and 404. That is what makes them worth running against the deploy: the
+answer is known, so a different one is a finding rather than a puzzle.
+
+| Probe | Correct answer | What another answer means |
+|---|---|---|
+| `curl -si -X POST https://<domain>/api/fal-webhook?image_id=x` | **401** | Anything else: `FAL_WEBHOOK_SECRET` is unset or the route is not the hardened one. A 200 means anyone can write images into the room |
+| `curl -si https://<domain>/projector/img/<some-other-event>/x` | **404** | A 200 means the projector will serve another event's bucket contents. Note what this probe does and does not prove: a missing object in *this* event answers 404 too, so the 404 confirms nothing is served, not that the prefix check ran. The prefix check itself is covered by unit tests; this probe is here to catch a deploy that serves the bucket wide open |
+| Open `/admin?token=wrong` | **empty room**, no tables | Tables visible means `ADMIN_TOKEN` is unset and the desk is open to anyone with the URL. Run this against the real deploy, never `npm run dev`: an unset token fails OPEN in dev on purpose, so a local run shows the room and tells you nothing |
+
+- [ ] Webhook probe returns 401
+- [ ] Foreign-event image probe returns 404
+- [ ] `/admin?token=wrong` shows an empty room
+- [ ] The three probes were run against the REAL domain, not a preview URL
 
 ## Spend
 
@@ -91,6 +120,15 @@ curl -sS -X POST https://<domain>/simulate \
   -d '{"token":"<ADMIN_TOKEN>","tables":20,"seed":1,"staggerMs":250}'
 ```
 
+**Run a real-render rehearsal in fives, not all twenty at once.** One
+Cloudflare invocation has a cap on D1 calls, and each table's renders add
+their own to the same request, so a full room with real renders exceeds it
+and the run reports refusals that are an artefact of the harness rather
+than of the app. Use `from` to window it: `{"from":1,"tables":5}`, then 6,
+11, 16. Answers-only is much lighter and goes in halves of ten. Plans are
+seeded across the whole room, so the windows drive the same tables a single
+run would have.
+
 Needs `SIMULATE_ENABLED=true` and a matching `ADMIN_TOKEN`; both fail closed.
 The response carries `submitted`, `rendersQueued`, every refusal, and
 `disagreements` — tables whose reported submit disagrees with what the room
@@ -98,6 +136,10 @@ reads back. **`disagreements` must be empty.** Same `seed` replays the same
 room, so a fix can be confirmed rather than hoped for.
 
 - [ ] Rehearsal run, `disagreements` empty, refusals understood
+- [ ] Real-render rehearsal run in windows of five
+- [ ] The admin page was open throughout — see *Nothing renders unless
+      something is polling*. A rehearsal with no phones and no desk submits
+      rows that then sit queued
 - [ ] `SIMULATE_ENABLED` turned back off afterwards
 
 ## The night itself

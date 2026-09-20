@@ -5,7 +5,7 @@
  * component (`r2.ts`'s `imageKey`).
  *
  * Re-derived for VERSION 4 of the questions (`game/questions.ts`): the
- * workstation (q4w) reaches the studio and the library, centaur deep work
+ * workstation (q4w) reaches the studio, centaur deep work
  * (q5c) the library, the recharge biome (q6r) the garden, arrival (q3) the
  * plaza. Nature (q8) and technology (q7) reach every zone through the
  * table-level materials layer, and brilliant-at-one (q10) through the feel
@@ -46,82 +46,66 @@ export function zoneLabel(key: string): string {
 export interface Zone extends ZoneRef {
 	/** Question ids (from game/questions.ts) whose answers fill this zone's `{...}` placeholders. */
 	questionIds: string[];
+	/** The zone's MOMENT (prompt-recipe.md §2, move 2): one subject, one viewpoint, one person
+	 *  doing something, with a `{qN}` slot for the answer that owns the zone. `renderSuffix` is
+	 *  this same string — `ZoneRef`'s name for it, kept so `server/prompt.ts` stays content-free. */
+	moment: string;
+}
+
+/** A zone whose `renderSuffix` is its `moment` — one string, two names. */
+function zone(z: { key: string; questionIds: string[]; moment: string }): Zone {
+	return { ...z, renderSuffix: z.moment };
 }
 
 /**
  * The book's four functions (futures.md §6). `renderSuffix` fragments here are authored from
  * the chapter's own "engineered for" definitions — the source gives the zone names and their
- * question mapping, not literal prompt text. V4 mapping: library <- q5c + q4w (centaur deep
- * work, the workstation); studio <- q4w (the workstation, shared with the library — single-
- * select, so only the table's one pick renders in each); plaza <- q3 (arrival); garden <- q6r
- * (the recharge biome). A `{qN}` placeholder resolves to the question's fragment AND its
+ * question mapping, not literal prompt text. V4 mapping, one slot per zone (prompt-recipe.md
+ * §4): library <- q5c (centaur deep work); studio <- q4w (the workstation); plaza <- q3
+ * (arrival); garden <- q6r (the recharge biome). A `{qN}` placeholder resolves to the question's fragment AND its
  * "And:" sub-question's fragment, when the table picked one (`layers.ts`'s `resolveZone`).
  */
 /**
- * WHY EACH SUFFIX NAMES A ROOM AND A VIEWPOINT.
+ * WHY EACH MOMENT NAMES A ROOM, A VIEWPOINT AND A PERSON.
  *
  * With `REFERENCE_MODE` at its default `none` (`server/reference.ts`) a
  * table's four zones are four independent text-to-image renders. Nothing but
  * the words stops the model handing back the same room four times: the
- * table-level base — mood line, palette, materials, era — is identical
- * across the four prompts, and only this suffix differs.
- *
- * So each one states its own ROOM TYPE and its own CAMERA, and each says
- * "the same building" to carry the continuity the reference image used to
- * carry. The mood still matches the chosen lens picture, because the lens
- * mood line and the table's palette sit in every zone's base; what is no
- * longer shared is the FRAMING, which is precisely what made the anchored
- * run read as one picture edited four times.
+ * table-level base — window, materials, feel — is identical across the four
+ * prompts, and only this moment differs. So each one states its own ROOM,
+ * its own CAMERA and one small anonymous figure doing something (the
+ * owner's references all have one), and the shared world through the
+ * window carries the continuity across the set.
  */
 const BOOK_ZONES: Zone[] = [
-	{
+	zone({
 		key: 'library',
-		questionIds: ['q5c', 'q4w'],
-		renderSuffix:
-			'a quiet deep-work floor in the same building, one wide view looking along its rooms: engineered for the hardest thinking, where deep work happens in a centaur organisation ({q5c}), and the workstation where one person and their AI sit ({q4w})'
-	},
-	{
+		questionIds: ['q5c'],
+		moment: 'A deep-work room from the doorway, one person in a shaft of light: {q5c}'
+	}),
+	zone({
 		key: 'studio',
 		questionIds: ['q4w'],
-		renderSuffix:
-			'a making and workshop floor in the same building, one wide view across the benches: engineered for creativity and teams making together, its workstations ({q4w})'
-	},
-	{
+		moment: 'A making floor across long benches, two people mid-task, dust in the light; at each bench, {q4w}'
+	}),
+	zone({
 		key: 'plaza',
 		questionIds: ['q3'],
-		renderSuffix:
-			'the arrival hall and social floor of the same building, one wide view from the entrance looking in: engineered for collaboration, and for arrival ({q3})'
-	},
-	{
+		moment: 'The arrival hall from the entrance, a visitor at the threshold: {q3}'
+	}),
+	zone({
 		key: 'garden',
 		questionIds: ['q6r'],
-		renderSuffix:
-			'the recharge landscape attached to the same building, one wide view from the path: engineered for restoration, where people recharge ({q6r})'
-	}
+		moment: 'A garden court from the path, one person walking slowly: {q6r}'
+	})
 ];
 
 /** Zones derived directly from the V4 question set — one zone-worthy question each, none orphaned. */
 const QUESTION_ZONES: Zone[] = [
-	{
-		key: 'arrival',
-		questionIds: ['q3'],
-		renderSuffix: 'the entrance and circulation of the same building, one wide view from the door: {q3}'
-	},
-	{
-		key: 'workstation',
-		questionIds: ['q4w'],
-		renderSuffix: 'the workstation floor of the same building, one wide view along the desks: {q4w}'
-	},
-	{
-		key: 'deep-work',
-		questionIds: ['q5c'],
-		renderSuffix: 'the deep-work rooms of the same building, one wide view into the quietest of them: {q5c}'
-	},
-	{
-		key: 'recharge',
-		questionIds: ['q6r'],
-		renderSuffix: 'the recharge landscape of the same building, one wide view from its edge: {q6r}'
-	}
+	zone({ key: 'arrival', questionIds: ['q3'], moment: 'The entrance from the door, one visitor mid-step: {q3}' }),
+	zone({ key: 'workstation', questionIds: ['q4w'], moment: 'One desk seen from the aisle, its occupant at work: {q4w}' }),
+	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'The quietest room from its doorway, one person still: {q5c}' }),
+	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge landscape from its edge, one person walking: {q6r}' })
 ];
 
 export const ZONE_SETS = {

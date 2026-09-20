@@ -1,7 +1,10 @@
 /**
  * FUTURE / TONE PALETTE — VERSION 4's Q1, "Choose your lens" (BRIEF.md
  * §"The questions — VERSION 4", the question owner's 19 Sep 17:58 send).
- * Six futures, plain-named: `name` and `blurb` are her own words verbatim
+ * Six futures, plain-named: `name` and `blurb` are her own words verbatim.
+ * `worldOutside` is what a render gets from the lens (prompt-recipe.md §2,
+ * move 3); `moodLine` stays for the lens picture itself.
+ * The names and blurbs are
  * (the blurb's first letter capitalised, since it opens a line on the card).
  * The seventh V3 future, Pragmatist Retrofit, is dropped per V4 — its lens
  * JPEG stays on disk, unreferenced. `key`, `moodLine`, `negativeFragment`
@@ -26,8 +29,12 @@ import { allowedEras, type Era } from './era';
 export interface Future {
 	key: string;
 	name: string;
-	/** Feeds prompt.ts's LayerInputs.mood. */
+	/** The full mood paragraph — what the LENS PICTURE is generated from (`scripts/gen-visuals.mjs`). */
 	moodLine: string;
+	/** What a table's render gets from the lens: the world through the window — the
+	 *  skyline or landscape outside the glass, the weather and time of day, two signature
+	 *  materials — and nothing else (prompt-recipe.md §2, move 3). Feeds `layers.ts`'s mood. */
+	worldOutside: string;
 	/** 12-word phone blurb, under the name. */
 	blurb: string;
 	/** Shown under the label on the phone: an originator and a year. */
@@ -53,7 +60,7 @@ export interface Future {
  * future's own `negativeFragment` too (so one future can be tuned without touching the
  * others) — exported separately for a consumer that wants to dedupe or state it once.
  */
-export const HOUSE_NEGATIVE = 'no personas, stark white, posed faces, text, watermark';
+export const HOUSE_NEGATIVE = 'personas, stark white, posed faces';
 
 function future(f: Omit<Future, 'eraAllowed'>): Future {
 	return { ...f, eraAllowed: allowedEras({ eraDefault: f.eraDefault, eraLocked: f.eraLocked }) };
@@ -70,6 +77,8 @@ export const FUTURES: Future[] = [
 		eraWarn: ['same-as-2026'],
 		moodLine:
 			'Low horizontal pavilions bedded into a planted park at dusk; rammed earth, weathered oak, oxidised bronze, deep eaves. Light is the last warm hour raking sideways through canopy, pooling amber on timber decks while the shade goes blue-green. Palette: moss, bark, ochre, slate. Two storeys maximum, buildings kept below the tree line. The far skyline sits low and soft behind foliage, half dissolved in humid haze. Distant anonymous figures walking gravel paths. Quiet, unhurried, settled.',
+		worldOutside:
+			'through the glass, low pavilions under trees, the last warm hour, haze; weathered oak, bronze',
 		negativeFragment: 'stark white, neon, high-rise, posed faces, text, watermark, chrome, crowds, glare, sterile',
 		shadowFace: 'Greenbelt as exclusion; who lives inside the ring'
 	}),
@@ -83,6 +92,8 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'One vast continuous interior: a single megastructure canyon of stacked terraces bridging overhead, seen from a mid-level walkway. Board-marked concrete, dark steel, deep planting spilling from every edge. Light falls in enormous shafts from an apex oculus far above, leaving the lower levels in cool blue shadow and warm pooled lamplight. Palette: graphite, moss, amber, dust. Monumental scale; a single small figure dwarfed by structure. No exterior sky, no horizon. Awe with a trace of confinement.',
+		worldOutside:
+			'through the glass, one vast megastructure, terraces stacked into blue shadow; board-marked concrete, dark steel',
 		negativeFragment: 'stark white, daylight sky, suburb, posed faces, text, watermark, pastel, clutter, lawns, glare',
 		shadowFace: 'Elysium: the ring above, the ground below'
 	}),
@@ -96,6 +107,8 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
+		worldOutside:
+			'through the glass, photovoltaic canopies and edible facades, golden hour; reclaimed timber, copper',
 		negativeFragment: 'stark white, neon signage, dead plants, posed faces, text, watermark, sterile, grey, concrete, glare',
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
 	}),
@@ -109,6 +122,8 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'Night, high above a vertical megacity. Rain-slick black glass, wet concrete, brushed steel, holographic signage bleeding magenta and cyan across every surface. The workfloor is a narrow lit shelf cantilevered over a canyon of towers and layered traffic. Light is hard, artificial, from below and behind; no daylight anywhere. Palette: near-black, sodium amber, neon magenta, cold cyan. Extreme density, no ground visible. Silhouetted figures, surveillance sightlines. Dazzling, watched, airless.',
+		worldOutside:
+			'through the glass, rain-slick towers at night, magenta and cyan signage; black glass, brushed steel',
 		negativeFragment: 'daylight, greenery, stark white, posed faces, text, watermark, warm wood, calm, timber, rural',
 		shadowFace: 'It is the shadow'
 	}),
@@ -122,6 +137,8 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'A single-storey timber work pavilion alone on open land at dusk, mist in the middle distance. Charred larch cladding, stone plinth, deep glazed veranda, a lit hearth inside. Light is low, warm, interior lamplight spilling onto grass against a cooling blue landscape. Palette: char, ember, wet green, fog grey. No skyline at all; the nearest neighbour is a distant roof. One figure at one desk. Autonomous, remote, faintly lonely.',
+		worldOutside:
+			'through the glass, open land to the horizon, mist at dusk; charred larch, stone',
 		negativeFragment: 'skyline, crowds, stark white, neon, posed faces, text, watermark, density, towers, glare',
 		shadowFace: 'Ex Machina: isolation sold as autonomy'
 	}),
@@ -135,6 +152,8 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
+		worldOutside:
+			'through the glass, a streamlined 1930s city, a gaslit street at evening; fluted walnut, brass',
 		negativeFragment: 'stark white, visible screens, minimalism, posed faces, text, watermark, chrome, neon, plastic, glare',
 		shadowFace: 'Ornament as a screen over the same machine'
 	})

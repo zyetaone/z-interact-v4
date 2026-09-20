@@ -5,40 +5,53 @@
  * Pure. No D1, no `$app/server`, no fetch — `layers.test.ts` drives it with
  * fixed answers and asserts the exact layer strings.
  *
- * Mapping, re-derived for VERSION 4 of the questions (`game/questions.ts`).
- * These are the TOP-LEVEL table-wide layers (the screen 15 textarea) — the
- * zone-worthy questions (q3 arrival, q4w workstation, q5c centaur deep
- * work, q6r recharge) are deliberately NOT pulled in here even though
- * they're answered: they feed the per-zone `renderSuffix` instead
- * (`zones.ts`), which is the more specific place their content belongs.
- * `resolveZone` below reads them from the raw answers directly.
+ * Mapping, re-derived for VERSION 4 of the questions (`game/questions.ts`)
+ * and prompt-recipe.md's five moves. These are the TOP-LEVEL table-wide
+ * layers (the screen 15 textarea) — the zone-worthy questions (q3 arrival,
+ * q4w workstation, q5c centaur deep work, q6r recharge) are deliberately
+ * NOT pulled in here even though they're answered: they feed the per-zone
+ * `moment` instead (`zones.ts`), which is the more specific place their
+ * content belongs. `resolveZone` below reads them from the raw answers.
  *
- *   mood             <- the fixed house base (a workplace interior in
- *                       <year>, photoreal, wide establishing view — see
- *                       `prompt.ts`'s `houseBase`), THEN the chosen future
- *                       as "seen through the lens of <future>: <moodLine>",
- *                       plus `era.ts`'s fragment when the table nudged the
- *                       chip off the future's default (V4 has no era
- *                       question; the chip's row still stores under `q1`).
- *                       `<year>` comes from the era chip, not a hardcoded
- *                       2035, so a nudge shows up in the house base too.
- *   materialsAndLight<- q2's option fragment, its "And: what scale?" pick,
- *                       its push reply verbatim (the two materials), then
- *                       q7 (technology) and q8 (nature) — both reach every
- *                       zone, because the base is prepended to all four
+ * BUDGET: the recipe targets 90–130 words per submitted zone prompt and
+ * `layers.test.ts` holds a fully answered table under 160. Every clause
+ * here is short because of that, and two answers are deliberately not
+ * composed at all (`WALL_ONLY_IDS`).
+ *
+ *   mood             <- the fixed cinematic frame (a film still from a
+ *                       workplace in <year>, anamorphic, volumetric — see
+ *                       `prompt.ts`'s `houseBase`), THEN the chosen future's
+ *                       `worldOutside` (the window: skyline, weather, two
+ *                       materials — never its name or full mood paragraph).
+ *                       `<year>` comes from the era chip (V4 has no era
+ *                       question; the chip's row still stores under `q1`),
+ *                       so a nudge shows up in the frame and nowhere else.
+ *   materialsAndLight<- q2's option fragment, its "And: what scale?" pick
+ *                       (a lens-and-height clause), its push reply verbatim
+ *                       (the two materials), then q7 (technology) and q8
+ *                       (nature); all reach every zone, because the base
+ *                       is prepended to all four
  *   programme        <- q3, q4w, q5c, q6r fragments, MINUS whatever a zone
- *                       already owns (all four, under the `book` set), THEN
- *                       q5c's push reply verbatim (what the table refused
- *                       to automate) — plus q12 (urban edge / ground plane)
- *                       ONLY when `ENABLE_PROPOSED_QUESTIONS` is on
- *   feel             <- q10's chosen strength, its "And: which was hardest?"
- *                       pick, then q11's three picks — a comma list
+ *                       already owns (all four, under the `book` set) —
+ *                       plus q12 (urban edge / ground plane) ONLY when
+ *                       `ENABLE_PROPOSED_QUESTIONS` is on
+ *   feel             <- q11's three picks as light-and-weather clauses
+ *                       (`questions.ts` holds the table) — a comma list
+ *   (not drawn)      <- q10 and its "hardest" pick, and q5c's push reply:
+ *                       captured for the wall and the export, see
+ *                       `WALL_ONLY_IDS`
  *   wildcard         <- verbatim, never rewritten
  *   negative         <- the house terms + the future's own `negativeFragment`
  *
  * An "And:" sub-question's pick is stored under `<qid>:and` (`andId`) and
- * always rides with its parent: `fragmentsWithAnd` is the one place that
- * pairs them, for the base layers and for a zone's `{qN}` alike.
+ * rides with its parent: `fragmentsWithAnd` is the one place that pairs
+ * them, for the base layers and for a zone's `{qN}` alike — so q4w's "how
+ * much it knows" (tech visibility) lands in the studio with the desk.
+ *
+ * ORDER PER ZONE (prompt-recipe.md §2): frame → the zone's moment → window
+ * → materials + scale → the zone's one or two facts → tech → nature → feel
+ * → wildcard → Avoid → guard. `composeZonePrompt` gets the moment into
+ * second place by recognising the frame at the head of the stored base.
  *
  * **One prompt row per table, not per zone.** `composeBase` is the
  * table-level text screen 15 puts in the editable textarea. The per-zone
@@ -50,10 +63,10 @@
  */
 import { ACTIVE_QUESTIONS, andId, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
-import { ERA_FRAGMENT, ERA_SCALE, type Era } from '$lib/game/era';
+import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import { ZONES, type Zone } from '$lib/game/zones';
-import { NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+import { FRAME_HEAD, NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
 
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
@@ -84,9 +97,11 @@ export interface BuiltLayers extends LayerInputs {
 	negative: string;
 }
 
-/** Used when a table skips the future card (game-flow §1 screen 3's failure state). */
+/** The window when a table skips the lens (game-flow §1 screen 3's failure state) — an ordinary city, moody rather than stark. */
 export const HOUSE_REGISTER =
-	'A working office interior at the last warm hour, moody rather than stark; deep ground, pooled warm light, shadow held deliberately. Distant anonymous figures, never a posed face.';
+	'through the glass, an ordinary mid-rise city at the last warm hour, haze; moody rather than stark, pooled warm light, shadow held deliberately';
+
+
 
 export const QUESTION_BY_ID: ReadonlyMap<string, Question> = new Map(ACTIVE_QUESTIONS.map((q) => [q.id, q]));
 
@@ -99,7 +114,12 @@ const OPTIONS_BY_ID: ReadonlyMap<string, readonly QuestionOption[]> = new Map([
 /** Which V4 question feeds which table-level layer. Exported so a test can prove no question is orphaned. */
 export const MATERIAL_IDS = ['q2', 'q7', 'q8'] as const;
 export const PROGRAMME_IDS = ['q3', 'q4w', 'q5c', 'q6r'] as const;
-export const FEEL_IDS = ['q10', 'q11'] as const;
+export const FEEL_IDS = ['q11'] as const;
+/** Answered for the wall and the ledger, never drawn: prompt-recipe.md's per-zone order has no
+ *  place for "which strength did you choose" (its push line is "point at where it is visible in
+ *  your image" — it is read off the picture, not written into it), and its "hardest" pick is a
+ *  sentence about the table, not a subject. Both stay on the review screen and in the export. */
+export const WALL_ONLY_IDS = ['q10'] as const;
 
 export function futureByKey(key: string | null | undefined): Future | undefined {
 	return key ? FUTURES.find((f) => f.key === key) : undefined;
@@ -176,46 +196,47 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const by = answerMap(input.answers);
 	const future = futureByKey(input.futureKey);
 
-	// --- mood: the fixed house base, THEN the future seen through its
-	// lens, the era only when it was nudged, then 3c.
+	// --- mood: the fixed cinematic frame (the era chip sets its year — a
+	// nudge shows up there, and nowhere else), THEN the world through the
+	// window, which is all the lens contributes (recipe §2, move 3). The
+	// future's NAME never enters the prompt.
 	const eraAnswer = by.get('q1');
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
-	const eraNudged = !!era && !!future && era !== future.eraDefault;
-	const eraFragment = era && (eraNudged || !future) ? ERA_FRAGMENT[era] : undefined;
 	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
-	const lens = future
-		? `seen through the lens of ${future.name}: ${future.moodLine.replace(/\.$/, '')}`
-		: HOUSE_REGISTER;
-	const mood = joinClauses([base, lens, eraFragment, eraAnswer?.pushReply]);
+	const window = future ? future.worldOutside : HOUSE_REGISTER;
+	const mood = joinClauses([base, window, eraAnswer?.pushReply]);
 
-	// --- materials & light: q2 + its scale pick + its push reply, then q7
-	// (technology) and q8 (nature) — read as surface/light qualities, and
-	// carried into every zone through the base.
+	// --- materials & light: q2 (her tone; materials; finish) + its scale
+	// pick (the camera) + its push reply, then technology (q7) and nature
+	// (q8) — all carried into every zone through the base. q4w's "how much
+	// it knows" clause rides with the workstation in the studio's moment
+	// rather than here: at the base it cost eight words in all four zones.
 	const materialsAndLight = joinClauses([
 		...fragmentsWithAnd(by, 'q2'),
 		by.get('q2')?.pushReply,
-		...fragmentsWithAnd(by, 'q7'),
-		...fragmentsWithAnd(by, 'q8')
+		...fragmentsFor(by.get('q7')),
+		...fragmentsFor(by.get('q8'))
 	]);
 
-	// --- programme: the zone-worthy questions MINUS what a zone owns, then
-	// q5c's push reply (what the table refused to automate), plus q12 (urban
-	// edge / ground plane) when the proposed-question flag is on.
+	// --- programme: the zone-worthy questions MINUS what a zone owns, plus
+	// q12 (urban edge / ground plane) when the proposed-question flag is on.
 	//
-	// PER-ZONE CAP: anything a zone's own suffix resolves is dropped here, so
-	// each zone's prompt carries its own programme once instead of the whole
-	// room's, four times over. With the `book` zone set that leaves the base
-	// programme empty but for the table's own sentence, which is correct —
-	// the deep-work room belongs in the library and arrival belongs in the
-	// plaza; saying both in all four is what invited a board.
+	// PER-ZONE CAP: anything a zone's own moment resolves is dropped here, so
+	// each zone's prompt carries its own fact once instead of the whole
+	// room's, four times over. With the `book` zone set every one of these
+	// is zone-owned and the base programme is empty, which is correct — the
+	// deep-work room belongs in the library and arrival belongs in the
+	// plaza; saying both in all four is what invited a board. q5c's push
+	// reply (what the table refused to automate) is captured for the wall,
+	// not drawn: a sentence about a decision has no subject to paint.
 	const programmeIds = (ENABLE_PROPOSED_QUESTIONS ? [...PROGRAMME_IDS, 'q12'] : [...PROGRAMME_IDS]).filter(
 		(id) => !ZONE_OWNED_IDS.has(id)
 	);
-	const programme = joinClauses([...programmeIds.flatMap((id) => fragmentsWithAnd(by, id)), by.get('q5c')?.pushReply]);
+	const programme = joinClauses(programmeIds.flatMap((id) => fragmentsWithAnd(by, id)));
 
-	// --- feel: q10's strength and its "hardest" pick, then q11's three
-	// picks — a comma list rather than sentences.
-	const feel = FEEL_IDS.flatMap((id) => fragmentsWithAnd(by, id)).join(', ');
+	// --- feel: q11's three picks as light-and-weather clauses (recipe §2,
+	// move 5) — a comma list. q10 is `WALL_ONLY_IDS`.
+	const feel = FEEL_IDS.flatMap((id) => fragmentsFor(by.get(id))).join(', ');
 
 	// --- wildcard: verbatim, through its own `{text}` slot.
 	const wildcardAnswer = by.get(WILDCARD.id);
@@ -256,11 +277,20 @@ export function resolveZone(zone: Zone, answers: readonly AnswerLike[]): ZoneRef
  * function, so neither guard can be skipped by a caller.
  */
 export function composeZonePrompt(base: string, zone: ZoneRef, negative?: string): string {
-	return composeLayers(
-		{ mood: sanitizeComposed(base), materialsAndLight: '', programme: '', feel: '' },
-		zone,
-		negative
-	);
+	const clean = sanitizeComposed(base);
+	// The frame is the first clause of every composed base. When it is still
+	// there (the table did not rewrite the opening), the zone's moment goes
+	// straight after it, ahead of the window and the materials. A base the
+	// table rewrote from the first word keeps its own order, moment after.
+	const head = clean.startsWith(FRAME_HEAD) ? clean.indexOf('. ') : -1;
+	const frame = head > 0 ? clean.slice(0, head) : clean;
+	const rest = head > 0 ? clean.slice(head + 2) : '';
+	return composeLayers({ mood: frame, materialsAndLight: rest, programme: '', feel: '' }, zone, negative);
+}
+
+/** Words in a submitted prompt — the recipe's 90–130 target, and the test's 160 ceiling. */
+export function wordCount(prompt: string): number {
+	return prompt.split(/\s+/).filter(Boolean).length;
 }
 
 export { ERA_SCALE };

@@ -14,7 +14,8 @@
  * does not know what a "future" or a "zone" is beyond a string key.
  */
 
-export const NO_TEXT = 'no text, no labels, no UI chrome, no watermark';
+/** Two words, said twice: the recipe's 90–130-word budget cannot afford the old eleven. `no logos` is in the frame. */
+export const NO_TEXT = 'no text';
 
 /**
  * THE ANTI-BOARD TERMS. Evidenced, not guessed: the first real-credit
@@ -32,8 +33,7 @@ export const NO_TEXT = 'no text, no labels, no UI chrome, no watermark';
  * rendering guard, the same family as `NO_TEXT` above, not content — and
  * `futures.ts` belongs to another workstream.
  */
-export const NO_COLLAGE =
-	'collage, grid, panels, storyboard, split screen, mosaic, contact sheet, multiple views, text, labels';
+export const NO_COLLAGE = 'collage, grid, split screen';
 
 /**
  * The ceiling on the table-editable prompt. Screen 15's textarea is free
@@ -78,14 +78,22 @@ export function negativeClause(negative: string | undefined): string {
 
 /**
  * THE HOUSE BASE — the fixed opening frame every table's prompt starts
- * from, before any future's lens is applied: still a workplace interior,
- * still photoreal, still an establishing view, regardless of which future
- * a table argued from. `year` is the only variable, supplied by the
- * caller (layers.ts reads it off the table's era chip / Q1 answer) — this
- * module stays content-free and does not know what an "era" is.
+ * from, before any future's window is applied. A CINEMATIC frame, not
+ * archviz (prompt-recipe.md §2, move 1): the question owner's references
+ * are film stills — a lens, a time of day, atmosphere, a person in them —
+ * and "photoreal architectural visualisation, no people in focus" is
+ * exactly why every render looked like a developer's marketing image.
+ * `year` is the only variable, supplied by the caller (layers.ts reads it
+ * off the table's era chip) — this module stays content-free and does not
+ * know what an "era" is.
+ *
+ * `layers.ts`'s `composeZonePrompt` recognises this sentence at the head of
+ * a stored base (`FRAME_HEAD`) so the zone's moment can follow it directly.
  */
+export const FRAME_HEAD = 'A film still, a workplace in';
+
 export function houseBase(year: string): string {
-    return `one single continuous scene, one viewpoint: a workplace interior in ${year}, photoreal architectural visualisation, a single wide establishing view of one room, no people in focus, no text`;
+	return `${FRAME_HEAD} ${year}: anamorphic 35 mm, shallow focus, volumetric light, haze, one viewpoint, no logos`;
 }
 
 export interface LayerInputs {
@@ -104,11 +112,14 @@ export interface LayerInputs {
 /** Which functional zone this render is for. Content-owned; this module treats it as an opaque label. */
 export interface ZoneRef {
 	key: string;
-	/** Short render-suffix hint, e.g. "wide establishing shot of the {zone} area". TODO(content). */
+	/** The zone's MOMENT — one subject, stated before the materials (prompt-recipe.md §2, move 2). Content-owned. */
 	renderSuffix: string;
 }
 
 /**
+ * Order per the recipe: frame (mood) → the zone's moment → materials →
+ * programme → feel → wildcard → Avoid → guard. The moment sits right after
+ * the frame so the model reads one subject before it reads any dressing.
  * `negative` rides in just before the closing NO_TEXT guard, so the
  * both-ends rule this module exists to hold (and `prompt.test.ts` asserts)
  * is unchanged, and the last thing the model reads is still the guard.
@@ -117,10 +128,10 @@ export function composeLayers(inputs: LayerInputs, zone: ZoneRef, negative?: str
 	const fragments = [
 		NO_TEXT,
 		inputs.mood,
+		zone.renderSuffix,
 		inputs.materialsAndLight,
 		inputs.programme,
 		inputs.feel,
-		zone.renderSuffix,
 		...(inputs.wildcard ? [inputs.wildcard] : []),
 		negativeClause(negative),
 		NO_TEXT

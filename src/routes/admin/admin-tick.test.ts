@@ -14,7 +14,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as v from 'valibot';
 import { fakeD1 } from '$lib/server/fake-d1';
-import { insertPrompt, insertQueuedImage, seedTables } from '$lib/server/room';
+import { insertPrompt, insertQueuedImage, seedTables, claimQueued, markFailed } from '$lib/server/room';
 
 const EVENT = 'admin-tick-test';
 const ADMIN_TOKEN = 'desk-token';
@@ -144,6 +144,25 @@ describe('adminRoom with a room full of pending rows', () => {
 		// window skipped every row.
 		expect(falCalls).toBeGreaterThan(0);
 		expect(falCalls).toBeLessThanOrEqual(BUDGET);
+	});
+
+	it('carries a failed zone and the provider\'s own words to the desk', async () => {
+		await seedPending(4);
+		const failed = await db
+			.prepare(`SELECT id FROM image WHERE event_id = ? AND table_no = 1 AND zone_key = 'library'`)
+			.bind(EVENT)
+			.first<{ id: string }>();
+		expect(failed).toBeTruthy();
+		expect(await claimQueued(db, failed!.id)).toBe(true);
+		expect(await markFailed(db, failed!.id, 'fal: 422 content_policy_violation')).toBe(true);
+		stubFal();
+		const { adminRoom } = await import('./admin.remote');
+
+		const row = (await adminRoom({ token: ADMIN_TOKEN })).tables[0];
+
+		expect(row.images[0]).toBe('failed');
+		expect(row.imageErrors[0]).toBe('fal: 422 content_policy_violation');
+		expect(row.imageErrors.slice(1)).toEqual([null, null, null]);
 	});
 
 	it('makes no provider call at all for a bad token', async () => {

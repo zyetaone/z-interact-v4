@@ -1131,6 +1131,8 @@ export interface AdminImageState {
 	createdAt: number;
 	/** The stored object's key, or null before it lands. Carried so the projector's own read can build image URLs from this ONE batched query instead of a point read per table per zone. */
 	r2Key: string | null;
+	/** The provider's own words when `state` is `failed`, so the desk can show WHY before redrawing one zone. */
+	error: string | null;
 }
 
 export interface AdminRoomRow {
@@ -1172,10 +1174,10 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		imageDb
 			? imageDb
 					.prepare(
-						`SELECT table_no, zone_key, state, r2_key, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`
+						`SELECT table_no, zone_key, state, r2_key, error, MAX(created_at) as created_at FROM image WHERE event_id = ? GROUP BY table_no, zone_key`
 					)
 					.bind(eventId)
-					.all<{ table_no: number; zone_key: string; state: string; r2_key: string | null; created_at: number }>()
+					.all<{ table_no: number; zone_key: string; state: string; r2_key: string | null; error: string | null; created_at: number }>()
 			: Promise.resolve({ results: [] as never[] }),
 		resetDb
 			? resetDb
@@ -1202,7 +1204,7 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
 		let arr = imagesByTable.get(r.table_no);
 		if (!arr) imagesByTable.set(r.table_no, (arr = []));
-		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at, r2Key: r.r2_key });
+		arr.push({ zoneKey: r.zone_key, state: r.state as GenerationState, createdAt: r.created_at, r2Key: r.r2_key, error: r.error ?? null });
 	}
 
 	const rows: AdminRoomRow[] = [];

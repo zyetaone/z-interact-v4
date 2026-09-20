@@ -42,6 +42,7 @@ function buildTable(table: number): AdminTableRow {
 		totalSteps: TOTAL_STEPS,
 		submittedAt: state.submitted ? NOW - state.activityAgoMs - 5_000 : null,
 		images: state.images,
+		imageErrors: state.images.map((s) => (s === 'failed' ? 'fal: 422 content_policy_violation' : null)),
 		imagesStored,
 		lastActivityAt: NOW - state.activityAgoMs,
 		granted: state.granted

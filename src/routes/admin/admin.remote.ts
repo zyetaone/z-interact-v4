@@ -210,6 +210,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				totalSteps: TOTAL_STEPS,
 				submittedAt: r.submittedAt,
 				images,
+				imageErrors: ZONES.map((z) => imagesByZone.get(z.key)?.error ?? null),
 				imagesStored: images.filter((s) => s === 'stored' || s === 'done').length,
 				lastActivityAt: r.lastSeenAt,
 				granted: granted.has(r.table)

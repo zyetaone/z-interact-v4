@@ -22,6 +22,8 @@ export interface AdminTableRow {
 	submittedAt: number | null;
 	/** Per-zone image state, in `ZONES` order. */
 	images: ZoneImageState[];
+	/** Per-zone provider error, in `ZONES` order; null unless that zone is `failed`. */
+	imageErrors: (string | null)[];
 	/** `images.filter(stored or done).length` — precomputed so the row component doesn't recount every poll. */
 	imagesStored: number;
 	/** Most recent of: last_seen_at, latest answer, latest image write. */

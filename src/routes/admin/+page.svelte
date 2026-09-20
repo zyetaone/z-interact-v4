@@ -14,9 +14,9 @@
 	import { poll } from '$lib/poll.svelte';
 	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, seedRoom, exportRoom } from './admin.remote';
 	import { FIXTURE_ROOM } from '$lib/ui/admin/fixtures';
-	import { ZONES } from '$lib/game/zones';
+	import { ZONES, zoneLabel } from '$lib/game/zones';
 	import { FUTURES } from '$lib/game/futures';
-	import type { AdminRoom, Beat } from '$lib/ui/admin/types';
+	import type { AdminRoom, AdminTableRow, Beat } from '$lib/ui/admin/types';
 
 	const BEATS: Beat[] = ['lobby', 'progress', 'reveal', 'finale', 'focus'];
 
@@ -31,7 +31,8 @@
 	// BESIDE it, so a double-click on Regenerate/Reset cannot confirm itself
 	// (design-review.md fix 6). An armed confirm disarms itself after
 	// ARM_MS — the timer is the one legitimate $effect on this screen.
-	let pending = $state<Record<number, 'reset' | 'regenerate' | undefined>>({});
+	type Verb = 'reset' | 'regenerate' | `redraw:${string}`;
+	let pending = $state<Record<number, Verb | undefined>>({});
 	let focusInput = $state('');
 	const ARM_MS = 5000;
 
@@ -103,16 +104,26 @@
 		if (Number.isInteger(n) && n > 0) focusOnProjector(n);
 	}
 
-	function askConfirm(table: number, verb: 'reset' | 'regenerate') {
+	function askConfirm(table: number, verb: Verb) {
 		pending = { ...pending, [table]: verb };
 	}
 	function cancelConfirm(table: number) {
 		pending = { ...pending, [table]: undefined };
 	}
-	function confirmed(table: number, verb: 'reset' | 'regenerate') {
+	function confirmed(table: number, verb: Verb) {
 		pending = { ...pending, [table]: undefined };
 		if (verb === 'reset') return run(`reset table ${table}`, () => resetTable({ token, table }));
+		if (verb.startsWith('redraw:')) {
+			const zone = verb.slice('redraw:'.length);
+			return run(`redraw ${zone} on table ${table}`, () => regenerateTable({ token, table, zone }));
+		}
 		return run(`regenerate table ${table}`, () => regenerateTable({ token, table }));
+	}
+	/** The zones a row lost, with the provider's words — the desk fixes one tile, not four. */
+	function failedZones(row: AdminTableRow) {
+		return ZONES.flatMap((z, i) =>
+			row.images[i] === 'failed' ? [{ key: z.key, label: zoneLabel(z.key), error: row.imageErrors[i] ?? 'failed' }] : []
+		);
 	}
 
 	async function doSeed() {
@@ -198,7 +209,26 @@
 					<td class="tnum">{row.table}</td>
 					<td>{futureName(row.futureKey)}</td>
 					<td>{row.step}/{row.totalSteps}</td>
-					<td>{row.imagesStored}/{ZONES.length}</td>
+					<td class="images">
+						{row.imagesStored}/{ZONES.length}
+						{#each failedZones(row) as z (z.key)}
+							<span class="failed-zone" title={z.error}>
+								<button
+									disabled={busy}
+									class="armable"
+									class:armed={pending[row.table] === `redraw:${z.key}`}
+									aria-pressed={pending[row.table] === `redraw:${z.key}`}
+									aria-label="Redraw {z.label}: {z.error}"
+									onclick={() => (pending[row.table] === `redraw:${z.key}` ? cancelConfirm(row.table) : askConfirm(row.table, `redraw:${z.key}`))}
+								>
+									Redraw {z.label}
+								</button>
+								{#if pending[row.table] === `redraw:${z.key}`}
+									<button disabled={busy} class="confirm" onclick={() => confirmed(row.table, `redraw:${z.key}`)}>Confirm redraw</button>
+								{/if}
+							</span>
+						{/each}
+					</td>
 					<td>{ago(row.lastActivityAt)}</td>
 					<td class="actions">
 						<button disabled={busy} onclick={() => run(`reopen table ${row.table}`, () => reopenTable({ token, table: row.table }))}>
@@ -430,6 +460,14 @@
 		gap: 8px;
 		flex-wrap: wrap;
 		align-items: center;
+	}
+	.images {
+		white-space: nowrap;
+	}
+	.failed-zone {
+		display: inline-flex;
+		gap: 8px;
+		margin-left: 10px;
 	}
 	.danger-slot {
 		display: inline-flex;

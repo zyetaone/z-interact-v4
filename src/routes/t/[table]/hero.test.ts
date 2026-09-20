@@ -16,6 +16,7 @@ import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
 import { IMPOSSIBLE_IDEAS } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
+import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
 
 /** Table 10's rehearsal answers — the set the scratch sample is composed from. */
 const T10: AnswerLike[] = [
@@ -171,6 +172,15 @@ describe('the labels that got painted on the building', () => {
 		for (const term of NO_SIGNAGE_TEXT.split(', ')) {
 			expect(p).toContain(term);
 		}
+	});
+});
+
+describe('the frame it is drawn at', () => {
+	it('renders 16:9, which is what the phone and the wall lay out for', () => {
+		// The ticker passes no aspectRatio, so every render — hero included —
+		// takes fal.ts's default. The phone's hero tile and the done screen
+		// both size a 16:9 box; if this ever changes, they crop.
+		expect(DEFAULT_ASPECT_RATIO).toBe('16:9');
 	});
 });
 

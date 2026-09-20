@@ -245,7 +245,7 @@ export const QUESTIONS: Question[] = [
 				{
 					key: 'never',
 					label: 'Never',
-					promptFragment: 'a plain unlit threshold that reacts to no one'
+					promptFragment: 'a plain threshold, no light running ahead, reacting to no one'
 				},
 				{
 					key: 'at-the-door',
@@ -358,7 +358,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					'The sealed cell — one person, no AI in the room. No signal, no prompts, deliberately unassisted thought.',
 				promptFragment:
-					'one person alone in a sealed cell, no AI, working by hand on paper'
+					'one person alone in a daylit sealed cell, no AI, working by hand on paper'
 			},
 			{
 				key: 'cockpit',

@@ -217,6 +217,20 @@ describe('the room came back dark', () => {
 		expect(wantsBrightExposure(['alive'], ['quiet'])).toBe(true);
 	});
 
+	it('lets no fragment anywhere call a space unlit', () => {
+		// Wider than the q11 check below, and narrower on purpose. A material
+		// answer may be near-black and a prop may be a dark glass slab — those
+		// are things, and the table chose them. What no fragment may do is
+		// declare a SPACE to have no light in it, because that is the whole
+		// frame. Two got through my own audit and came from the other session:
+		// the threshold that reacts to no one, and the sealed cell.
+		for (const q of QUESTIONS) {
+			for (const o of q.options ?? []) {
+				expect(o.promptFragment ?? '', `${q.id}/${o.key}`).not.toMatch(/\bunlit\b/i);
+			}
+		}
+	});
+
 	it('leaves no feel fragment describing the room as dark', () => {
 		// The audit that closed the owner's "all are looking very dark": a feel
 		// word may place the light, never remove it from the building.

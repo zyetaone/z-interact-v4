@@ -52,7 +52,8 @@
 
 	function futureName(key: string | null): string {
 		if (!key) return '—';
-		return FUTURES.find((f) => f.key === key)?.name ?? key;
+		// A lens retired from the set (V3's pragmatist-retrofit) reads as retired, not as its raw key.
+		return FUTURES.find((f) => f.key === key)?.name ?? 'Retired lens';
 	}
 
 	function ago(ts: number | null): string {

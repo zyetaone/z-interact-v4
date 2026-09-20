@@ -97,7 +97,7 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--ink-muted);
-		font-size: 1rem;
+		font-size: var(--type-body);
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 	}

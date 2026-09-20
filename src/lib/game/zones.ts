@@ -4,10 +4,13 @@
  * iterates in `fal.ts`/`prompt.ts`, and each `key` is also the R2/D1 key
  * component (`r2.ts`'s `imageKey`).
  *
- * Re-derived for VERSION 3 of the questions (`game/questions.ts`): Q4
- * (hardest thinking) and Q9 (centaurs) are new; Q7 absorbed the old
- * sensing content that used to live on Q9; Q3 now covers both arrival and
- * wayfinding. Every zone below cites the V3 question ids it actually reads.
+ * Re-derived for VERSION 4 of the questions (`game/questions.ts`): the
+ * workstation (q4w) reaches the studio and the library, centaur deep work
+ * (q5c) the library, the recharge biome (q6r) the garden, arrival (q3) the
+ * plaza. Nature (q8) and technology (q7) reach every zone through the
+ * table-level materials layer, and brilliant-at-one (q10) through the feel
+ * layer — neither is zone-owned (`layers.ts`). Every zone below cites the
+ * V4 question ids it actually reads.
  *
  * Two candidate sets, both implemented behind one export so the lead's call
  * (still pending) is a one-line change:
@@ -48,11 +51,11 @@ export interface Zone extends ZoneRef {
 /**
  * The book's four functions (futures.md §6). `renderSuffix` fragments here are authored from
  * the chapter's own "engineered for" definitions — the source gives the zone names and their
- * question mapping, not literal prompt text (that's only worked out for the `questions` set
- * below, in zones-and-video.md §1(b)). V3 mapping: library <- q4+q5 (hardest thinking, what
- * else restores); studio <- q6+q7+q9 (furniture, tech, centaurs); plaza <- q3+q10 (arrival,
- * agility); garden <- q8+q5 (nature, restoration — q5 shared with library, single-select so
- * only the table's one pick renders in each).
+ * question mapping, not literal prompt text. V4 mapping: library <- q5c + q4w (centaur deep
+ * work, the workstation); studio <- q4w (the workstation, shared with the library — single-
+ * select, so only the table's one pick renders in each); plaza <- q3 (arrival); garden <- q6r
+ * (the recharge biome). A `{qN}` placeholder resolves to the question's fragment AND its
+ * "And:" sub-question's fragment, when the table picked one (`layers.ts`'s `resolveZone`).
  */
 /**
  * WHY EACH SUFFIX NAMES A ROOM AND A VIEWPOINT.
@@ -73,51 +76,51 @@ export interface Zone extends ZoneRef {
 const BOOK_ZONES: Zone[] = [
 	{
 		key: 'library',
-		questionIds: ['q4', 'q5'],
+		questionIds: ['q5c', 'q4w'],
 		renderSuffix:
-			'a quiet reading room in the same building, one wide view looking along the shelves: engineered for the hardest thinking ({q4}), with what protects and restores attention afterward ({q5})'
+			'a quiet deep-work floor in the same building, one wide view looking along its rooms: engineered for the hardest thinking, where deep work happens in a centaur organisation ({q5c}), and the workstation where one person and their AI sit ({q4w})'
 	},
 	{
 		key: 'studio',
-		questionIds: ['q6', 'q7', 'q9'],
+		questionIds: ['q4w'],
 		renderSuffix:
-			'a making and workshop floor in the same building, one wide view across the benches: engineered for creativity, furniture and gathering ({q6}), technology that is {q7}, and the bench where humans and AI work together ({q9})'
+			'a making and workshop floor in the same building, one wide view across the benches: engineered for creativity and teams making together, its workstations ({q4w})'
 	},
 	{
 		key: 'plaza',
-		questionIds: ['q3', 'q10'],
+		questionIds: ['q3'],
 		renderSuffix:
-			'the arrival hall and social floor of the same building, one wide view from the entrance looking in: engineered for collaboration, arrival ({q3}), and the agility of the workplace itself ({q10})'
+			'the arrival hall and social floor of the same building, one wide view from the entrance looking in: engineered for collaboration, and for arrival ({q3})'
 	},
 	{
 		key: 'garden',
-		questionIds: ['q8', 'q5'],
+		questionIds: ['q6r'],
 		renderSuffix:
-			'an outdoor garden court or glasshouse attached to the same building, one wide view from the path: engineered for restoration, nature ({q8}), a place for recovering and protecting attention ({q5})'
+			'the recharge landscape attached to the same building, one wide view from the path: engineered for restoration, where people recharge ({q6r})'
 	}
 ];
 
-/** Zones derived directly from the V3 question set (zones-and-video.md §1, set (b)). */
+/** Zones derived directly from the V4 question set — one zone-worthy question each, none orphaned. */
 const QUESTION_ZONES: Zone[] = [
 	{
 		key: 'arrival',
-		questionIds: ['q3', 'q8'],
-		renderSuffix: 'the entrance and circulation of the office: {q3}, greenery: {q8}'
+		questionIds: ['q3'],
+		renderSuffix: 'the entrance and circulation of the same building, one wide view from the door: {q3}'
 	},
 	{
-		key: 'focus',
-		questionIds: ['q4', 'q5'],
-		renderSuffix: 'a space that protects and restores attention: {q4}, {q5}'
+		key: 'workstation',
+		questionIds: ['q4w'],
+		renderSuffix: 'the workstation floor of the same building, one wide view along the desks: {q4w}'
 	},
 	{
-		key: 'meeting',
-		questionIds: ['q6', 'q9'],
-		renderSuffix: 'a meeting or gathering space, including where the centaurs work: {q6}; {q9}'
+		key: 'deep-work',
+		questionIds: ['q5c'],
+		renderSuffix: 'the deep-work rooms of the same building, one wide view into the quietest of them: {q5c}'
 	},
 	{
-		key: 'agile',
-		questionIds: ['q7', 'q10'],
-		renderSuffix: 'an environment where the technology is {q7}, and the workplace shows its agility as {q10}'
+		key: 'recharge',
+		questionIds: ['q6r'],
+		renderSuffix: 'the recharge landscape of the same building, one wide view from its edge: {q6r}'
 	}
 ];
 

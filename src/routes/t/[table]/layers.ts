@@ -1,17 +1,17 @@
 /**
- * THE LAYER BUILDER — the last content wiring named in CLAUDE.md's "What's
- * still open": turning a table's stored answers into `prompt.ts`'s four
- * `LayerInputs` plus the negative prompt.
+ * THE LAYER BUILDER — turning a table's stored answers into `prompt.ts`'s
+ * four `LayerInputs` plus the negative prompt.
  *
  * Pure. No D1, no `$app/server`, no fetch — `layers.test.ts` drives it with
  * fixed answers and asserts the exact layer strings.
  *
- * Mapping, re-derived for VERSION 3 of the questions (`game/questions.ts`).
- * These are the TOP-LEVEL table-wide layers (the screen 15 textarea) — Q4,
- * Q5 and Q8 are deliberately NOT pulled in here even though they're
- * answered: they feed the per-zone `renderSuffix` instead (`zones.ts`'s
- * `library`/`garden`), which is the more specific place their content
- * belongs. `resolveZone` below reads them from the raw answers directly.
+ * Mapping, re-derived for VERSION 4 of the questions (`game/questions.ts`).
+ * These are the TOP-LEVEL table-wide layers (the screen 15 textarea) — the
+ * zone-worthy questions (q3 arrival, q4w workstation, q5c centaur deep
+ * work, q6r recharge) are deliberately NOT pulled in here even though
+ * they're answered: they feed the per-zone `renderSuffix` instead
+ * (`zones.ts`), which is the more specific place their content belongs.
+ * `resolveZone` below reads them from the raw answers directly.
  *
  *   mood             <- the fixed house base (a workplace interior in
  *                       <year>, photoreal, wide establishing view — see
@@ -22,22 +22,23 @@
  *                       question; the chip's row still stores under `q1`).
  *                       `<year>` comes from the era chip, not a hardcoded
  *                       2035, so a nudge shows up in the house base too.
- *   materialsAndLight<- q2's option fragment + its push reply verbatim,
- *                       then q7's material-adjacent option fragments (walls
- *                       that become screens, writable glass, ambient light,
- *                       sensing, analogue zones — all read as material/light
- *                       qualities now that Q7 absorbed the old sensing Q9)
- *   programme        <- q3, q6 fragments, THEN a dedicated "centaur room"
- *                       clause built from q9's facets (including its
- *                       `refused-to-automate` open capture), THEN a
- *                       dedicated "agile" clause built from q10's chosen
- *                       principle, THEN q10's push reply verbatim (the
- *                       "hardest" one the table named) — plus q12 (urban
- *                       edge / ground plane) ONLY when
- *                       `ENABLE_PROPOSED_QUESTIONS` (game/config.ts) is on
- *   feel             <- q11's three picks
+ *   materialsAndLight<- q2's option fragment, its "And: what scale?" pick,
+ *                       its push reply verbatim (the two materials), then
+ *                       q7 (technology) and q8 (nature) — both reach every
+ *                       zone, because the base is prepended to all four
+ *   programme        <- q3, q4w, q5c, q6r fragments, MINUS whatever a zone
+ *                       already owns (all four, under the `book` set), THEN
+ *                       q5c's push reply verbatim (what the table refused
+ *                       to automate) — plus q12 (urban edge / ground plane)
+ *                       ONLY when `ENABLE_PROPOSED_QUESTIONS` is on
+ *   feel             <- q10's chosen strength, its "And: which was hardest?"
+ *                       pick, then q11's three picks — a comma list
  *   wildcard         <- verbatim, never rewritten
  *   negative         <- the house terms + the future's own `negativeFragment`
+ *
+ * An "And:" sub-question's pick is stored under `<qid>:and` (`andId`) and
+ * always rides with its parent: `fragmentsWithAnd` is the one place that
+ * pairs them, for the base layers and for a zone's `{qN}` alike.
  *
  * **One prompt row per table, not per zone.** `composeBase` is the
  * table-level text screen 15 puts in the editable textarea. The per-zone
@@ -47,7 +48,7 @@
  * the edited and the unedited case: an edit replaces the base, and the
  * guards and suffix are re-applied identically either way.
  */
-import { QUESTIONS, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
+import { ACTIVE_QUESTIONS, andId, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
 import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_FRAGMENT, ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
@@ -87,10 +88,18 @@ export interface BuiltLayers extends LayerInputs {
 export const HOUSE_REGISTER =
 	'A working office interior at the last warm hour, moody rather than stark; deep ground, pooled warm light, shadow held deliberately. Distant anonymous figures, never a posed face.';
 
-export const QUESTION_BY_ID: ReadonlyMap<string, Question> = new Map(QUESTIONS.map((q) => [q.id, q]));
+export const QUESTION_BY_ID: ReadonlyMap<string, Question> = new Map(ACTIVE_QUESTIONS.map((q) => [q.id, q]));
 
-const MATERIAL_IDS = ['q2', 'q7'] as const;
-const PROGRAMME_IDS = ['q3', 'q6'] as const;
+/** Every answer id that carries option fragments: each question, plus `<qid>:and` for its sub-question. */
+const OPTIONS_BY_ID: ReadonlyMap<string, readonly QuestionOption[]> = new Map([
+	...ACTIVE_QUESTIONS.map((q) => [q.id, q.options] as const),
+	...ACTIVE_QUESTIONS.filter((q) => q.and).map((q) => [andId(q.id), q.and!.options] as const)
+]);
+
+/** Which V4 question feeds which table-level layer. Exported so a test can prove no question is orphaned. */
+export const MATERIAL_IDS = ['q2', 'q7', 'q8'] as const;
+export const PROGRAMME_IDS = ['q3', 'q4w', 'q5c', 'q6r'] as const;
+export const FEEL_IDS = ['q10', 'q11'] as const;
 
 export function futureByKey(key: string | null | undefined): Future | undefined {
 	return key ? FUTURES.find((f) => f.key === key) : undefined;
@@ -115,10 +124,15 @@ function fragmentOf(option: QuestionOption, typed: string | undefined): string {
 /** Every selected option's fragment for one question, in the question's own option order. */
 export function fragmentsFor(answer: AnswerLike | undefined): string[] {
 	if (!answer) return [];
-	const q = QUESTION_BY_ID.get(answer.questionId);
-	if (!q) return [];
+	const options = OPTIONS_BY_ID.get(answer.questionId);
+	if (!options) return [];
 	const chosen = new Set(answer.keys);
-	return q.options.filter((o) => chosen.has(o.key)).map((o) => fragmentOf(o, answer.text?.[o.key]));
+	return options.filter((o) => chosen.has(o.key)).map((o) => fragmentOf(o, answer.text?.[o.key]));
+}
+
+/** A question's fragments followed by its "And:" pick's, so the pair is never split. */
+function fragmentsWithAnd(by: ReadonlyMap<string, AnswerLike>, id: string): string[] {
+	return [...fragmentsFor(by.get(id)), ...fragmentsFor(by.get(andId(id)))];
 }
 
 function joinClauses(parts: readonly (string | undefined)[]): string {
@@ -143,7 +157,7 @@ function answerMap(answers: readonly AnswerLike[]): Map<string, AnswerLike> {
  * sentences, one line each, and a sentence does not read as an item in a
  * list the way a stack of option fragments does.
  */
-const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => z.questionIds));
+export const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => z.questionIds));
 
 /** The layout guard first, then the house terms, then the future's own; duplicates dropped, order preserved. */
 export function composeNegative(futureNegative: string | undefined): string {
@@ -174,44 +188,34 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 		: HOUSE_REGISTER;
 	const mood = joinClauses([base, lens, eraFragment, eraAnswer?.pushReply]);
 
-	// --- materials & light: q2 fragment + its push reply, then q7's
-	// material-adjacent fragments (technology read as surface/light quality).
+	// --- materials & light: q2 + its scale pick + its push reply, then q7
+	// (technology) and q8 (nature) — read as surface/light qualities, and
+	// carried into every zone through the base.
 	const materialsAndLight = joinClauses([
-		...fragmentsFor(by.get('q2')),
+		...fragmentsWithAnd(by, 'q2'),
 		by.get('q2')?.pushReply,
-		...fragmentsFor(by.get('q7'))
+		...fragmentsWithAnd(by, 'q7'),
+		...fragmentsWithAnd(by, 'q8')
 	]);
 
-	// --- programme: q3, q6 fragments, then a dedicated centaur-room clause
-	// from q9's facets, then a dedicated agile clause from q10's chosen
-	// principle, then q10's push reply (the "hardest" one), plus q12 (urban
+	// --- programme: the zone-worthy questions MINUS what a zone owns, then
+	// q5c's push reply (what the table refused to automate), plus q12 (urban
 	// edge / ground plane) when the proposed-question flag is on.
-	const centaurFragments = fragmentsFor(by.get('q9'));
-	const centaurClause = centaurFragments.length
-		? `the centaur room where humans and AI work as one unit: ${centaurFragments.join(', ')}`
-		: undefined;
-	const agileFragments = fragmentsFor(by.get('q10'));
-	const agileClause = agileFragments.length ? `this workplace's agility: ${agileFragments.join(', ')}` : undefined;
-
+	//
 	// PER-ZONE CAP: anything a zone's own suffix resolves is dropped here, so
 	// each zone's prompt carries its own programme once instead of the whole
 	// room's, four times over. With the `book` zone set that leaves the base
-	// programme nearly empty, which is correct — the centaur room belongs in
-	// the studio and arrival belongs in the plaza; saying both in all four is
-	// what invited a board.
+	// programme empty but for the table's own sentence, which is correct —
+	// the deep-work room belongs in the library and arrival belongs in the
+	// plaza; saying both in all four is what invited a board.
 	const programmeIds = (ENABLE_PROPOSED_QUESTIONS ? [...PROGRAMME_IDS, 'q12'] : [...PROGRAMME_IDS]).filter(
 		(id) => !ZONE_OWNED_IDS.has(id)
 	);
-	const programmeParts: (string | undefined)[] = [
-		...programmeIds.flatMap((id) => fragmentsFor(by.get(id))),
-		ZONE_OWNED_IDS.has('q9') ? undefined : centaurClause,
-		ZONE_OWNED_IDS.has('q10') ? undefined : agileClause,
-		by.get('q10')?.pushReply
-	];
-	const programme = joinClauses(programmeParts);
+	const programme = joinClauses([...programmeIds.flatMap((id) => fragmentsWithAnd(by, id)), by.get('q5c')?.pushReply]);
 
-	// --- feel: q11's three picks, a comma list rather than sentences.
-	const feel = fragmentsFor(by.get('q11')).join(', ');
+	// --- feel: q10's strength and its "hardest" pick, then q11's three
+	// picks — a comma list rather than sentences.
+	const feel = FEEL_IDS.flatMap((id) => fragmentsWithAnd(by, id)).join(', ');
 
 	// --- wildcard: verbatim, through its own `{text}` slot.
 	const wildcardAnswer = by.get(WILDCARD.id);
@@ -230,11 +234,11 @@ export function composeBase(layers: LayerInputs): string {
 	return joinClauses([layers.mood, layers.materialsAndLight, layers.programme, layers.feel, layers.wildcard]);
 }
 
-/** Fills a zone's `{qN}` placeholders from the table's answers. */
+/** Fills a zone's `{qN}` placeholders from the table's answers — each question's fragment plus its "And:" pick's. */
 export function resolveZone(zone: Zone, answers: readonly AnswerLike[]): ZoneRef {
 	const by = answerMap(answers);
-	const renderSuffix = zone.renderSuffix.replace(/\{(q\d+)\}/g, (_m, id: string) => {
-		const fragments = fragmentsFor(by.get(id));
+	const renderSuffix = zone.renderSuffix.replace(/\{(q\w+)\}/g, (_m, id: string) => {
+		const fragments = fragmentsWithAnd(by, id);
 		return fragments.length ? fragments.join(', ') : 'as the table left it';
 	});
 	return { key: zone.key, renderSuffix };

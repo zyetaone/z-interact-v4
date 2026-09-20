@@ -451,7 +451,7 @@ export const QUESTIONS: Question[] = [
 				label:
 					"Deep Sea — your certainty is spent — you've been sharp too long and stopped trusting your gut. Blue dark, weightless, muffled, slow drift. You recover by stopping thought entirely.",
 				promptFragment:
-					'deep sea: blue dark, weightless, someone drifting still'
+					'deep sea: blue dark indoors, weightless, someone drifting'
 			}
 		],
 		and: {
@@ -630,12 +630,12 @@ export const QUESTIONS: Question[] = [
 		options: [
 			{ key: 'calm', label: 'Calm', promptFragment: 'soft even light, still air' },
 			{ key: 'electric', label: 'Electric', promptFragment: 'hard rim light, reflections, motion blur' },
-			{ key: 'sacred', label: 'Sacred', promptFragment: 'one high shaft of light, silence' },
+			{ key: 'sacred', label: 'Sacred', promptFragment: 'one high daylit shaft, silence' },
 			{ key: 'playful', label: 'Playful', promptFragment: 'colour accents, a tilted frame' },
-			{ key: 'focused', label: 'Focused', promptFragment: 'one pool of light, shadow around' },
+			{ key: 'focused', label: 'Focused', promptFragment: 'one bright pool of working light' },
 			{ key: 'alive', label: 'Alive', promptFragment: 'leaves, water and birds moving' },
 			{ key: 'effortless', label: 'Effortless', promptFragment: 'nothing in the way' },
-			{ key: 'quiet', label: 'Quiet', promptFragment: 'deep shadow, an empty foreground' },
+			{ key: 'quiet', label: 'Quiet', promptFragment: 'an empty foreground, soft daylight' },
 			{ key: 'generous', label: 'Generous', promptFragment: 'wide and tall, open air' },
 			{ key: 'yours', label: 'Yours', promptFragment: 'one personal object in the foreground' }
 		]

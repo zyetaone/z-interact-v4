@@ -200,14 +200,31 @@ describe('the room came back dark', () => {
 		expect(composeHeroPrompt({ answers: T10, table: 5 })).toContain(EXPOSURE);
 	});
 
-	it('leaves the dark alone when the table asked for it', () => {
-		// Overriding a table's own answer to brighten a wall would be the app
-		// arguing with the room.
-		for (const key of DARK_FEEL_KEYS) {
-			const p = withFeel([key, 'yours', 'alive']);
-			expect(p, key).not.toContain(EXPOSURE);
-			// The feel words themselves still arrive.
-			expect(p, key).toContain('one personal object in the foreground');
+	it('brightens every feel word now that none of them asks for the dark', () => {
+		// The three that used to opt out (quiet, focused, sacred) had fragments
+		// that described how LITTLE light there was. They now say where the
+		// light is, so there is nothing left to suppress and the whole wall is
+		// exposed. `DARK_FEEL_KEYS` stays as the knob that undoes this.
+		expect(DARK_FEEL_KEYS).toEqual([]);
+		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
+		for (const o of q11.options) {
+			expect(withFeel([o.key, 'yours', 'alive']), o.key).toContain(EXPOSURE);
+		}
+	});
+
+	it('still suppresses when a key IS listed, so the knob is not decoration', () => {
+		expect(wantsBrightExposure(['alive'], ['alive'])).toBe(false);
+		expect(wantsBrightExposure(['alive'], ['quiet'])).toBe(true);
+	});
+
+	it('leaves no feel fragment describing the room as dark', () => {
+		// The audit that closed the owner's "all are looking very dark": a feel
+		// word may place the light, never remove it from the building.
+		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
+		for (const o of q11.options) {
+			expect(o.promptFragment ?? '', o.key).not.toMatch(
+				/\b(deep shadow|shadow around|dark|dim|unlit|gloom|night)\b/i
+			);
 		}
 	});
 
@@ -217,15 +234,18 @@ describe('the room came back dark', () => {
 	});
 
 	it('names only feel words that actually exist, so a renamed option fails here', () => {
+		// Vacuous while the list is empty, which is why it asserts the set too:
+		// the guard has to keep working the day someone puts a key back.
 		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
 		const keys = new Set(q11.options.map((o) => o.key));
-		for (const key of DARK_FEEL_KEYS) expect(keys.has(key), key).toBe(true);
+		expect(DARK_FEEL_KEYS.filter((k) => !keys.has(k))).toEqual([]);
 	});
 
 	it('decides from the keys alone, so the rule can be read without composing a prompt', () => {
 		expect(wantsBrightExposure([])).toBe(true);
 		expect(wantsBrightExposure(['alive', 'effortless', 'yours'])).toBe(true);
-		expect(wantsBrightExposure(['alive', 'quiet'])).toBe(false);
+		expect(wantsBrightExposure(['alive', 'quiet'])).toBe(true);
+		expect(wantsBrightExposure(['alive', 'quiet'], ['quiet'])).toBe(false);
 	});
 });
 
@@ -386,9 +406,10 @@ describe('the exposure negatives', () => {
 		expect(t10()).toContain(UNDEREXPOSED_NEGATIVE);
 	});
 
-	it('leaves the gloom to a table that asked for it', () => {
-		for (const key of DARK_FEEL_KEYS) {
-			expect(feel([key]), key).not.toContain(UNDEREXPOSED_NEGATIVE);
+	it('carries the negatives for every feel word, since none opts out today', () => {
+		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
+		for (const o of q11.options) {
+			expect(feel([o.key]), o.key).toContain(UNDEREXPOSED_NEGATIVE);
 		}
 	});
 

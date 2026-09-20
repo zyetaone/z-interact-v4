@@ -111,26 +111,39 @@ export const EXPOSURE = 'bright overall exposure, daylight filling the volume, o
 export const UNDEREXPOSED_NEGATIVE = 'underexposed, murky, crushed blacks, gloom';
 
 /**
- * The feel words that ASK for darkness, and are therefore allowed to have
- * it. Each one's own fragment (`questions.ts` q11) is why it is here:
+ * The knob that lets a feel word opt out of the brightening, and why it is
+ * empty.
  *
- *   quiet   — "deep shadow, an empty foreground"
- *   focused — "one pool of light, shadow around"
- *   sacred  — "one high shaft of light, silence" (a shaft needs a dark room)
+ * It was `['quiet', 'focused', 'sacred']`, on the reasoning that a table
+ * which asked for the dark should keep it. Measuring the two branches on
+ * production showed what that cost: a suppressed frame sat at mean
+ * luminance 80 with 27% of it below 40, against 113 and 11% for a brightened
+ * one, and `focused` is a common enough pick to put a real share of the wall
+ * in the first group. The owner's complaint was about the wall as a whole.
  *
- * `electric` ("hard rim light, reflections, motion blur") is deliberately
- * NOT here: rim light is a bright-scene technique, and a table that asked
- * for electric asked for hard light, not for night.
+ * The better fix was upstream. Those three fragments (`questions.ts` q11)
+ * used to describe how little light there was; they now describe WHERE the
+ * light is — a bright pool on the work, a shaft into a light-filled room, a
+ * soft and unhurried foreground. A table's choice still shapes the light. It
+ * no longer dims the building, so there is nothing left to suppress.
  *
- * A table that picked none of these gets the exposure clause. A table that
- * picked one asked for the dark and keeps it — overriding a table's own
- * answer to brighten a wall would be the app arguing with the room.
+ * Kept as a knob rather than deleted: if the dress run shows a lens that
+ * needs its dark back, putting its key here restores the old behaviour with
+ * no other change.
  */
-export const DARK_FEEL_KEYS: readonly string[] = ['quiet', 'focused', 'sacred'];
+export const DARK_FEEL_KEYS: readonly string[] = [];
 
-/** True when nothing the table chose asks for night or deep shadow. */
-export function wantsBrightExposure(feelKeys: readonly string[]): boolean {
-	return !feelKeys.some((k) => DARK_FEEL_KEYS.includes(k));
+/**
+ * True when nothing the table chose asks for night or deep shadow.
+ *
+ * `dark` is a parameter only so a test can prove the knob still works while
+ * `DARK_FEEL_KEYS` is empty; every caller uses the default.
+ */
+export function wantsBrightExposure(
+	feelKeys: readonly string[],
+	dark: readonly string[] = DARK_FEEL_KEYS
+): boolean {
+	return !feelKeys.some((k) => dark.includes(k));
 }
 
 /** Drops empties, trims trailing punctuation, joins as sentences — `layers.ts`'s `joinClauses`, which is private there. */

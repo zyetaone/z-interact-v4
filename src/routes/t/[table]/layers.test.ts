@@ -202,7 +202,7 @@ describe('buildLayerInputs', () => {
 
 	it('builds feel from q10s visible consequence, then q11s three light-and-weather clauses in option order — never the bare adjectives', () => {
 		expect(built.feel).toBe(
-			'half the floor unpowered, people working by hand there, soft even light, still air, one pool of light, shadow around, leaves, water and birds moving'
+			'half the floor unpowered, people working by hand there, soft even light, still air, one bright pool of working light, leaves, water and birds moving'
 		);
 		expect(built.feel).not.toMatch(/\b(calm|focused|alive)\b/);
 	});

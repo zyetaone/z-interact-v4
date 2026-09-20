@@ -294,7 +294,8 @@ export interface RoomSnapshot {
 function highestQuestionIndex(questionIds: readonly string[]): number {
 	let max = 0;
 	for (const id of questionIds) {
-		const m = /^q(\d+)$/.exec(id);
+		// V4 ids carry a letter suffix (q4w, q5c, q6r); an And row (q2:and) is not a step.
+		const m = /^q(\d+)[a-z]*$/.exec(id);
 		if (m) max = Math.max(max, Number(m[1]));
 	}
 	return max;

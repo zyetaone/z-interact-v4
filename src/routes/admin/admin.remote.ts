@@ -205,7 +205,7 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 				table: r.table,
 				futureKey: futures.get(r.table) ?? null,
 				// Clamped for the same reason as the projector's own read:
-				// `answeredCount` includes `future`, `q1` and the wildcard.
+				// `answeredCount` includes `future`, `q1` (the era chip) and the wildcard.
 				step: Math.min(r.answeredCount, TOTAL_STEPS),
 				totalSteps: TOTAL_STEPS,
 				submittedAt: r.submittedAt,

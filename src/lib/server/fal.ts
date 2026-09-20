@@ -109,7 +109,9 @@ export async function submitZoneImage(input: SubmitZoneImageInput): Promise<Subm
 		prompt: input.prompt,
 		aspect_ratio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
 		resolution: input.resolution ?? DEFAULT_RESOLUTION,
-		output_format: 'png',
+		// JPEG, not PNG: a 1K render is ~1.6 MB as PNG and ~300 KB as JPEG, and twenty
+		// phones pull four each over venue wifi. The write path keys by sniffed type.
+		output_format: 'jpeg',
 		...(references.length ? { image_urls: references } : {}),
 		...(input.retentionSeconds ? { sync_mode: false, retention: input.retentionSeconds } : {}),
 		metadata: { requestKey: input.requestKey }

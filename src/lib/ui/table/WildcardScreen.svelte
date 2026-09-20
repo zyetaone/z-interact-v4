@@ -26,6 +26,7 @@
 <textarea
 	class="field"
 	rows="4"
+	aria-label={WILDCARD.prompt}
 	placeholder="One idea, in your own words"
 	value={text}
 	oninput={(e) => onchange(e.currentTarget.value)}

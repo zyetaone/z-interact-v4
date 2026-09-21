@@ -90,9 +90,11 @@ export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no caption
  * THE ROOM CAME BACK DARK.
  *
  * Every lens contributes surfaces rather than light — neo-seoul's "dark
- * surfaces", the house window's "moody rather than stark, pooled light,
- * shadow held deliberately" — and the model reads a stack of those as a
- * night interior. The frame already says "volumetric daylight"; on its own
+ * surfaces", and, until 21 Sep, the house window's "moody rather than stark,
+ * pooled light, shadow held deliberately" — and the model reads a stack of
+ * those as a dark interior. The house window no longer says that (a table
+ * that skipped the lens chose no darkness); a lens's own materials still do,
+ * because those are the lens. The frame already says "volumetric daylight"; on its own
  * that lost to the rest of the prompt. This says it as an EXPOSURE, which
  * is the word a model reads as a camera setting rather than as weather.
  */

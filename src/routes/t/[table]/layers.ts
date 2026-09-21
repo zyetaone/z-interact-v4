@@ -123,9 +123,17 @@ export interface BuiltLayers extends LayerInputs {
 	negative: string;
 }
 
-/** The window when a table skips the lens (game-flow §1 screen 3's failure state) — an ordinary city, moody rather than stark. */
+/**
+ * The window when a table skips the lens (game-flow §1 screen 3's failure
+ * state) — an ordinary city with depth rather than flatness. It used to read
+ * "moody rather than stark, pooled light, shadow held deliberately", which
+ * dictated the exposure of a frame for a table that had chosen nothing; the
+ * same darkness the six option fragments were rewritten out of on 21 Sep.
+ * "Not stark white" is already carried by the house negative, so this clause
+ * only has to say what is out there.
+ */
 export const HOUSE_REGISTER =
-	'through the glass, an ordinary mid-rise city; moody rather than stark, pooled light, shadow held deliberately';
+	'through the glass, an ordinary mid-rise city; daylight and weather in the air, depth rather than flatness';
 
 
 

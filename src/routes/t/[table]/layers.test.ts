@@ -155,7 +155,9 @@ describe('buildLayerInputs', () => {
 	it('falls back to the house window when the table skipped the lens', () => {
 		const skipped = buildLayerInputs({ futureKey: null, answers: [] });
 		expect(skipped.mood).toContain('through the glass, an ordinary mid-rise city');
-		expect(skipped.mood).toContain('moody rather than stark');
+		// A table that chose nothing must not be handed a dark frame by the house.
+		expect(skipped.mood).toContain('daylight and weather in the air');
+		expect(skipped.mood).not.toMatch(/\b(pooled light|shadow held deliberately|moody)\b/);
 	});
 
 	it('builds materialsAndLight from q2 (her tone; materials; finish), its scale as a camera clause, its push reply, then the room participating (q7) and q8', () => {

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>The question book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+	:root { --ink: #10192a; --muted: #5b6579; --gold: #9c7433; --line: #d9d5cc; }
+	* { box-sizing: border-box; }
+	body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; color: var(--ink); font-size: 10pt; }
+	h1, h2, h3, .n { font-family: "Playfair Display", Georgia, serif; }
+	.cover { height: 247mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+	.cover h1 { font-size: 34pt; margin: 0 0 6pt; }
+	.cover p { margin: 0 0 4pt; color: var(--muted); max-width: 120mm; }
+	h2 { font-size: 15pt; margin: 0 0 4pt; line-height: 1.25; }
+	h3 { font-size: 11pt; margin: 0 0 2pt; }
+	.section-title { font-size: 20pt; margin: 0 0 8pt; border-bottom: 2px solid var(--gold); padding-bottom: 4pt; }
+	.question { page-break-inside: avoid; page-break-before: always; }
+	.question header { border-bottom: 1px solid var(--line); padding-bottom: 6pt; margin-bottom: 8pt; }
+	.n { display: block; font-size: 9pt; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+	.diamond { color: var(--gold); }
+	.lead { margin: 2pt 0; color: var(--muted); }
+	.push { margin: 4pt 0 2pt; }
+	.push b { color: var(--gold); letter-spacing: .08em; text-transform: uppercase; font-size: 8pt; margin-right: 5pt; }
+	.meta { margin: 2pt 0 0; font-size: 8pt; color: var(--muted); }
+	.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7pt; }
+	.card { margin: 0; page-break-inside: avoid; }
+	.card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 3pt; display: block; }
+	.card figcaption { padding-top: 3pt; }
+	.card b { font-size: 9pt; line-height: 1.3; display: block; }
+	.card p { margin: 1pt 0 0; font-size: 8pt; color: var(--muted); line-height: 1.35; }
+	.missing { width: 100%; aspect-ratio: 4/3; border: 1pt dashed var(--line); border-radius: 3pt;
+		display: flex; flex-direction: column; align-items: center; justify-content: center;
+		font-size: 8pt; color: var(--muted); text-align: center; }
+	.and { margin-top: 8pt; padding: 6pt 8pt; border-left: 2pt solid var(--gold); background: #faf8f4; page-break-inside: avoid; }
+	.chips { list-style: none; margin: 4pt 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4pt; }
+	.chips li { border: 1px solid var(--line); border-radius: 10pt; padding: 2pt 7pt; font-size: 8pt; }
+	/* Three across keeps all six lenses on one page; two across spilled the last pair over. */
+	.lenses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; page-break-inside: avoid; }
+</style></head>
+<body>
+	<div class="cover">
+		<h1>The question book</h1>
+		<p>Every question a table is asked, every option it can choose, and the picture it sees — in the order they are asked.</p>
+		<p>4 questions, plus the lens and the wildcard — 6 screens on the phone · 20 tables · generated 2026-09-21</p>
+		<p class="meta">Generated from questions.ts, futures.ts and the pictures on disk by scripts/gen-question-book.mjs. Re-run it after any change to either.</p>
+	</div>
+
+	<h1 class="section-title">First: choose your lens</h1>
+	<p class="meta">A worldview, not a character. It sets what surrounds the table: the building, the skyline, the light. One per table; a table may also skip it.</p>
+	<div class="lenses">
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/garden-city.jpg" alt="The garden city">
+		<figcaption>
+			<b>The garden city</b>
+			<p>Nature first, buildings second. There is no boundary: the office IS the parkland, low and half-buried in it, and you are never indoors for long.</p>
+			<p class="meta">Ebenezer Howard, To-morrow, 1898 · era default: recognisably-2035</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/arcology.jpg" alt="The vertical city">
+		<figcaption>
+			<b>The vertical city</b>
+			<p>One enormous structure holds everything: work, homes, food, transit. You need never go outside.</p>
+			<p class="meta">Paolo Soleri, Arcology: The City in the Image of Man, 1969 · era default: hyperfuturistic-2040</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/solarpunk.jpg" alt="The abundant city">
+		<figcaption>
+			<b>The abundant city</b>
+			<p>A city of plenty, not of wilderness. Energy, food, water and amenity are abundant and ON SHOW — dense, urban, and generous with everything it makes.</p>
+			<p class="meta">"From Steampunk to Solarpunk", 2008 — a design movement, not a film · era default: recognisably-2035</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/neo-seoul.jpg" alt="The dense and lit city">
+		<figcaption>
+			<b>The dense and lit city</b>
+			<p>Vertical, neon, always awake. The corporation is the weather. You work inside the machine.</p>
+			<p class="meta">Gibson, Neuromancer, 1984; Neo Seoul 2144 in Cloud Atlas, 2012 · era default: hyperfuturistic-2040</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/broadacre-city.jpg" alt="The dispersed city">
+		<figcaption>
+			<b>The dispersed city</b>
+			<p>No centre at all. An acre each, work wherever the network reaches. The office comes to you.</p>
+			<p class="meta">Frank Lloyd Wright, The Disappearing City, 1932 · era default: recognisably-2035</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/lens/retrofuturism.jpg" alt="Neo Retro">
+		<figcaption>
+			<b>Neo Retro</b>
+			<p>The more we walk into the future, the more we want the past. Deco geometry, brass, streamlined curves — a tomorrow built out of yesterday.</p>
+			<p class="meta">Deco and Streamline Moderne, c. 1925-1939 · era default: retro-1930s (locked)</p>
+		</figcaption>
+	</figure></div>
+
+	
+	<section class="question">
+		<header>
+			<span class="n">1 of 4</span>
+			<h2>How much of the outdoors is inside?</h2>
+			<p class="lead">Slide from a controlled indoor office with a little greenery to a workspace standing in the forest.</p>
+			<p class="push"><b>Talk</b> Singapore is hot and humid. How does your greenery cool a mind as well as a body?</p>
+			<p class="meta">q8 · pick one · feeds the <b>materialsAndLight</b> layer</p>
+		</header>
+		<div class="grid">
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-sparse-inside-abundant-outside.jpg" alt="Sparse inside, abundant outside — the greenery is beyond the glass">
+		<figcaption>
+			<b>Sparse inside, abundant outside — the greenery is beyond the glass</b>
+			<p class="meta">sparse-inside-abundant-outside</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-deliberate-pockets.jpg" alt="Pockets — deliberate, placed moments of planting">
+		<figcaption>
+			<b>Pockets — deliberate, placed moments of planting</b>
+			<p class="meta">deliberate-pockets</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-saturated.jpg" alt="Saturated — greenery threaded through the entire floor">
+		<figcaption>
+			<b>Saturated — greenery threaded through the entire floor</b>
+			<p class="meta">saturated</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-landscape-indoors.jpg" alt="Landscape indoors — trees, water, rock and soil you can walk into">
+		<figcaption>
+			<b>Landscape indoors — trees, water, rock and soil you can walk into</b>
+			<p class="meta">landscape-indoors</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-nature-as-structure.jpg" alt="Nature as structure — terraces and open-air floors; the building is the garden">
+		<figcaption>
+			<b>Nature as structure — terraces and open-air floors; the building is the garden</b>
+			<p class="meta">nature-as-structure</p>
+		</figcaption>
+	</figure></div>
+		
+	</section>
+	<section class="question">
+		<header>
+			<span class="n">2 of 4</span>
+			<h2><span class="diamond">&#9670;</span> Where does deep work happen in a centaur organisation?</h2>
+			<p class="lead">AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. This is the one place your table works — the workstation question is folded into it.</p>
+			<p class="push"><b>Talk</b> what did your table refuse to automate?</p>
+			<p class="meta">q5c · pick one · feeds the <b>programme</b> layer · the talk reply is kept for the wall, not drawn</p>
+		</header>
+		<div class="grid">
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-glass-dome.jpg" alt="The glass dome in the forest — one transparent room standing in the trees, alone with the work">
+		<figcaption>
+			<b>The glass dome in the forest — one transparent room standing in the trees, alone with the work</b>
+			<p class="meta">glass-dome</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-garden-cafe.jpg" alt="The garden café — many settings in one planted room: benches, booths, counters, chosen by mood">
+		<figcaption>
+			<b>The garden café — many settings in one planted room: benches, booths, counters, chosen by mood</b>
+			<p class="meta">garden-cafe</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-open-garden.jpg" alt="Open garden seating — no walls at all; work happens outdoors under planting and sky">
+		<figcaption>
+			<b>Open garden seating — no walls at all; work happens outdoors under planting and sky</b>
+			<p class="meta">open-garden</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-immersive-chamber.jpg" alt="The immersive chamber — a room that becomes somewhere else; deep sea, canopy, orbit">
+		<figcaption>
+			<b>The immersive chamber — a room that becomes somewhere else; deep sea, canopy, orbit</b>
+			<p class="meta">immersive-chamber</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-reconfigurable-pod.jpg" alt="The reconfigurable pod — one room that changes its size, acoustics and light to suit the task">
+		<figcaption>
+			<b>The reconfigurable pod — one room that changes its size, acoustics and light to suit the task</b>
+			<p class="meta">reconfigurable-pod</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q5c-sealed-cell.jpg" alt="The sealed cell — four walls, a door you close, no AI in the room at all">
+		<figcaption>
+			<b>The sealed cell — four walls, a door you close, no AI in the room at all</b>
+			<p class="meta">sealed-cell</p>
+		</figcaption>
+	</figure></div>
+		<div class="and">
+				<h3>And: where does the AI sit?</h3>
+				<p class="meta">Optional — never blocks the way forward.</p>
+				<ul class="chips"><li>Unseen</li><li>In the light</li><li>On the surfaces</li><li>In the room</li></ul>
+			</div>
+	</section>
+	<section class="question">
+		<header>
+			<span class="n">3 of 4</span>
+			<h2><span class="diamond">&#9670;</span> Where do people recharge?</h2>
+			<p class="lead">AI-supported work adds cognitive load, not less. These rooms exist to get people off a screen and into a different posture.</p>
+			<p class="push"><b>Talk</b> which of the four is your organisation actually short of?</p>
+			<p class="meta">q6r · pick one · feeds the <b>programme</b> layer</p>
+		</header>
+		<div class="grid">
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-igloo.jpg" alt="The igloo — a low white dome you crawl into; curved, quiet, no corners and no screen">
+		<figcaption>
+			<b>The igloo — a low white dome you crawl into; curved, quiet, no corners and no screen</b>
+			<p class="meta">igloo</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-mud-hut.jpg" alt="The earth room — thick cool mud walls, a low doorway, deep shade and a beaten floor you sit on">
+		<figcaption>
+			<b>The earth room — thick cool mud walls, a low doorway, deep shade and a beaten floor you sit on</b>
+			<p class="meta">mud-hut</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-tea-room.jpg" alt="The tea room — tatami, paper light, a kettle; you kneel, and the room asks you to slow down">
+		<figcaption>
+			<b>The tea room — tatami, paper light, a kettle; you kneel, and the room asks you to slow down</b>
+			<p class="meta">tea-room</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-outdoors.jpg" alt="Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors">
+		<figcaption>
+			<b>Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors</b>
+			<p class="meta">outdoors</p>
+		</figcaption>
+	</figure></div>
+		<div class="and">
+				<h3>And: how far does it go?</h3>
+				<p class="meta">Optional — never blocks the way forward.</p>
+				<ul class="chips"><li>A view of it</li><li>A room that evokes it</li><li>Fully immersive</li><li>The real thing</li></ul>
+			</div>
+	</section>
+	<section class="question">
+		<header>
+			<span class="n">4 of 4</span>
+			<h2><span class="diamond">&#9670;</span> What is your material world?</h2>
+			
+			<p class="push"><b>Talk</b> name two materials you would actually want to touch.</p>
+			<p class="meta">q2 · pick one · feeds the <b>materialsAndLight</b> layer</p>
+		</header>
+		<div class="grid">
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-deep-low-lit.jpg" alt="Deep and low-lit — near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed">
+		<figcaption>
+			<b>Deep and low-lit — near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed</b>
+			<p class="meta">deep-low-lit</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-stark-clinical.jpg" alt="Stark and clinical — pure white, shadowless; seamless resin, glass, polished steel; shiny and flawless">
+		<figcaption>
+			<b>Stark and clinical — pure white, shadowless; seamless resin, glass, polished steel; shiny and flawless</b>
+			<p class="meta">stark-clinical</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-soft-pastel.jpg" alt="Soft and pastel — blush, sage, butter; felt, bouclé, painted timber, matte ceramic; soft and tactile">
+		<figcaption>
+			<b>Soft and pastel — blush, sage, butter; felt, bouclé, painted timber, matte ceramic; soft and tactile</b>
+			<p class="meta">soft-pastel</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-raw-elemental.jpg" alt="Raw and elemental — grey, sand, ochre; board-marked concrete, stone, rough timber; rugged and unpolished">
+		<figcaption>
+			<b>Raw and elemental — grey, sand, ochre; board-marked concrete, stone, rough timber; rugged and unpolished</b>
+			<p class="meta">raw-elemental</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-warm-earthy.jpg" alt="Warm and earthy — terracotta, clay, olive, bronze; rammed earth, rattan, aged brass, linen; woven and textured">
+		<figcaption>
+			<b>Warm and earthy — terracotta, clay, olive, bronze; rammed earth, rattan, aged brass, linen; woven and textured</b>
+			<p class="meta">warm-earthy</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-jewel-lacquer.jpg" alt="Jewel and lacquer — emerald, oxblood on black; lacquered wood, velvet, marble, brass; glossy and deep">
+		<figcaption>
+			<b>Jewel and lacquer — emerald, oxblood on black; lacquered wood, velvet, marble, brass; glossy and deep</b>
+			<p class="meta">jewel-lacquer</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-undersea.jpg" alt="Undersea — teal and deep blue-green, light rippling from above; curved glass, wet-look surfaces; fluid and slick">
+		<figcaption>
+			<b>Undersea — teal and deep blue-green, light rippling from above; curved glass, wet-look surfaces; fluid and slick</b>
+			<p class="meta">undersea</p>
+		</figcaption>
+	</figure></div>
+		<div class="and">
+				<h3>And: what scale?</h3>
+				<p class="meta">Optional — never blocks the way forward.</p>
+				<ul class="chips"><li>Cathedral</li><li>Generous</li><li>Human</li><li>Nested</li><li>Compressed</li></ul>
+			</div>
+	</section>
+	
+	<section class="question">
+		<header>
+			<span class="n">last</span>
+			<h2>What have we missed?</h2>
+			<p class="meta">wildcard · typed, optional · added to the prompt word for word</p>
+		</header>
+	</section>
+</body></html>

@@ -99,7 +99,7 @@ leaves the key unset in production, which then looks exactly like a dead key.
 | `REFERENCE_MODE` | `none` \| `lens` \| `chain`; unrecognised falls back to `none` |
 | `ADMIN_TICK_BUDGET` | rows the admin read advances in `waitUntil`, default 8 |
 | `SIMULATE_ENABLED` | `/simulate` rejects unless `'true'` |
-| `FAL_FAKE=1` / `AI_FAKE=1` | the two dev fakes — no image call, no Workers AI call |
+| `FAL_FAKE=1` / `AI_FAKE=1` | the two dev fakes — no image call, no Workers AI call. `FAL_FAKE` must be set in the SHELL, not `.dev.vars`: it is read from `process.env` and `.dev.vars` lands in `platform.env` (see NEW-EVENT.md) |
 
 **`platformProxy` proxies the `AI` binding to the REAL remote one under
 `npm run dev`** (D1 and R2 are local). `AI_FAKE=1` is what keeps a local run
@@ -122,18 +122,20 @@ src/lib/server/
   limits.ts    # pure spend rules: per-table render cap + regenerate cooldown
   fetch-image.ts # the ONE place image bytes come off the internet: host allow-list, byte cap, type sniff
   secret.ts    # constant-time secret compare, hand-written (no Cloudflare-only API)
+  admin-gate.ts # the ONE ADMIN_TOKEN rule. `devOpen` is opt-in, per call site
   simulate.ts  # the PURE rehearsal plan (seeded); the route drives it through the real commands
   analytics.ts # PURE: summarise(exportRoomRows) -> answer distribution, lens split, progress, spend
   reference.ts # REFERENCE_MODE — how much the chosen lens picture decides the render
   fake-d1.ts   # an in-memory D1Database for the tests; no test talks to a real binding
 src/lib/game/
-  questions.ts # VERSION 4's nine questions (q2..q11, with "And:" sub-questions) + wildcard
-  futures.ts   # the six named futures (V4's Q1, "Choose your lens") + era fields
-  zones.ts     # both candidate zone sets behind ZONE_SETS, defaulting to `book`
+  questions.ts # the FOUR surviving questions (q8, q5c, q6r, q2) + wildcard; `slider` on q8
+  futures.ts   # the six named futures (V4's Q1, "Choose your future city") + era + lightLine
+  zones.ts     # the zone sets behind ZONE_SETS (+ RETIRED_ZONES for historical rows)
   era.ts       # the era scale + allowedEras/nudge rules
   config.ts    # content-side flags (ENABLE_PROPOSED_QUESTIONS), not env knobs
   visuals.ts + visuals-manifest.ts # which picture belongs to which lens/option (static/visuals/)
 src/lib/ui/    # every screen lives HERE, not in routes/ — the +page.svelte files wire, they don't draw
+  qr.ts        # the ONE QR drawer, shared by / and /admin/cards
   table/       # LandingScreen, FutureScreen, QuestionScreen, WildcardScreen, ReviewScreen,
                # DrawingScreen, ImagesScreen, DoneScreen, OptionList, Topbar
   projector/   # Lobby, Progress, Reveal, TableSequence, Finale, Ledger + aspect.ts/grouping.ts/tokens.ts
@@ -245,6 +247,16 @@ unchanged", which is what the original scaffold already did.
   isolate, hands a double-tap an empty timer and therefore no limit. The
   third is a hard cap on the fal dashboard; it is the only one that survives
   a bug in the other two.
+- **The one model field we do not use is `system_prompt`.** `fal.ts`'s own
+  note lists nano-banana-2's inputs (verified 19 Sep against the model's API
+  page) and `system_prompt` is among them. Every house rule — no text, the
+  Avoid list, the exposure, the single-frame instruction, the camera — rides
+  inside the per-table prompt instead, where it competes with the table's
+  own answers for the model's attention and for the character budget.
+  Moving the constant half into `system_prompt` is the obvious upgrade and
+  is deliberately NOT taken here: it changes every render's composition and
+  there is no measured before/after. Generation 1 had no such field and put
+  everything in one string, which is where this shape came from.
 - **Nothing reaches fal or R2 unbounded.** `fetch-image.ts` is the single
   image-fetch path for both the poll and the webhook: https-only allow-list
   of fal's hosts (the CDN is `*.fal.media`, a different domain from the
@@ -334,6 +346,88 @@ What is actually still open:
 
 ### Recently closed, with the defaults they set
 
+- **The wildcard now reaches the picture (21 Sep end-to-end review).** It
+  did not. `composeBase` — the FOUR-ZONE path — had carried it since the
+  recipe was written; `hero.ts` never read it, and `ZONE_SET` defaults to
+  `hero`, so the only prompt most rooms render was the one that dropped it.
+  The phone's last screen promises "whatever it is, it goes into the drawing
+  exactly as you write it", and the 21 Sep minutes make "What have we
+  missed?" one of the five things asked. It reached D1, the review screen,
+  the desk and the export — never the render. `layers.ts` now exports ONE
+  `wildcardFragment` and both composers call it; it lands last of the
+  content, immediately before the Avoid list, as `composeBase` places it.
+  Both free-text fields on the hero path (the wildcard and q2's push reply)
+  run through `sanitizeComposed` at the 140-char cap, because that path
+  never passed the whole prompt through the sanitizer the base path uses.
+  Re-measured after: **310–324 words, 1,898–1,973 chars** with both fields
+  full — still under the 340 ceiling, with ~16 words of margin.
+- **`ERA_YEAR['retro-1930s']` composed a broken sentence.** It was
+  `'1930s-revival'`, so the opening line read "Design a workplace that is
+  relevant in 1930s-revival". Not an edge case: `retro-1930s` is Neo Retro's
+  `eraDefault`, so every table on that lens got it unless they nudged the
+  chip. Now `'a reimagined 1930s'`; `hero.test.ts` guards every value on
+  `ERA_SCALE` against reading as a slug.
+
+- **The route review's four merges (21 Sep).** The three admin pages STAY
+  three — `/admin` drives and ticks, `/admin/analytics` reads and
+  deliberately ticks and spends nothing, `/admin/cards` prints — because
+  folding the readout into the desk would put a read-only page behind a
+  poll that spends. What merged was the plumbing under them:
+  1. `server/admin-gate.ts` — one `ADMIN_TOKEN` rule. There were two: the
+     desk and the readout each had a private `checkToken` treating an unset
+     token as open in dev, while `/health` and `/simulate` used
+     `secretEquals` directly, which closes everywhere. Both fail closed in
+     production, so nothing was wrong — but the difference lived in four
+     copies. `devOpen` is now an argument the caller passes, defaulting to
+     the strict rule; `/simulate` deliberately does NOT pass it, because it
+     spends with a live key.
+  2. `server/r2.ts`'s `imageResponse` — one image serve for both routes.
+  3. `ui/qr.ts` — one QR drawer for `/` and `/admin/cards`, which had
+     already drifted to different quiet zones for codes scanned in one room.
+  4. The readout counted spend with one `getRenderBudget` per table —
+     twenty sequential D1 round trips. `getRenderStamps` reads them once.
+     **Still open and measured, not fixed:** `exportRoomRows` is a
+     per-table loop and a full room costs ~122 statements to read. It is
+     shared with the desk's Export and the archive path, it is far inside
+     the ~1,000-call ceiling, and the readout is refreshed by hand rather
+     than polled — see `analytics-query-count.test.ts`'s note.
+
+- **The front page is the room, not a leaflet** — generation 1's own shape.
+  `/` is twenty square tiles, one per table, each showing that table's
+  render once it is stored and its QR code until then, over a thin
+  "n of 20 drawn" rule. The headline, the lede, the help line and the
+  six-lens card section are gone; the grid is the instruction. It reads the
+  projector's existing public `getProjectorRoom` (batched, unauthenticated,
+  already the wall's own read) rather than adding an endpoint, and polls it
+  at 5 s via `.refresh()` — a bare re-await returns the cached value and
+  freezes the screen while reporting healthy. Tapping a tile still ENLARGES
+  rather than navigates: `/t/[table]` has no login, so a mis-tap would
+  become that table.
+
+- **Cut to five questions, per the 21 Sep minutes.** `QUESTIONS` is now
+  `q8, q5c, q6r, q2` — nature, deep work, recharge, materials — behind the
+  lens and ahead of the wildcard. q3 (arrival), q4w (workstation, folded
+  into q5c), q7 (technology), q10 (brilliant at one) and q11 (feel words)
+  are gone. **A deleted question is not a deleted fragment:** a row from a
+  table that answered under the eleven-question set still composes, because
+  `layers.ts` reads by id and simply finds nothing for an id nobody answers
+  today. `RETIRED_ZONES` (arrival, workstation, studio, plaza) exists for
+  the same reason — `zoneByKey` has to resolve an image row drawn last week.
+- **The light belongs to the lens now, not to a question.** q11's job moved
+  to each future's `lightLine`, a bright register asserted in both
+  `hero.test.ts` and `layers.test.ts` (must match `sun|daylight|bright|…`,
+  must not match `night|dusk|gloom|…`). `DARK_FEEL_KEYS` survives as the
+  knob that can opt a key back out; it is empty.
+- **q8 is answered by a percentage slider**, minutes §4. `slider` on the
+  question is one percentage per option in option order (10/30/55/80/100),
+  and `OptionList` renders a range input over the same options — so the
+  stored answer is still `keys: [oneKey]` and nothing downstream knows the
+  difference. It commits on `pointerup`/`keyup` as well as `input`, because
+  a range fires `input` only when its value CHANGES and the middle stop is
+  where the untouched thumb already sits.
+- **The opening screen is "Survival Adventure"**, its button says *Start
+  here*, and Q1 asks you to *Choose your future city* (minutes §1).
+
 - **The exposure is said on every render, not just the hero.** `EXPOSURE`
   ("bright overall exposure, daylight filling the volume, open shadows") and
   `UNDEREXPOSED_NEGATIVE` moved from `hero.ts` to `prompt.ts`; `houseBase`
@@ -375,4 +469,8 @@ What is actually still open:
   televisions. No beat prints a future's name — the lens is hidden analysis,
   and it survives on the wall as position and colour only (`grouping.ts`).
 - **R2 objects are keyed and labelled from sniffed bytes**, both written and
-  served. The `.webp`-for-everything assumption is gone from both paths.
+  served. The `.webp`-for-everything assumption is gone from both paths —
+  and since 21 Sep that is true of BOTH serve routes, not just the phone's:
+  `/projector/img/[...key]` handed back the bucket's stored label untouched,
+  so a pre-fix object labelled `image/webp` rendered on a phone and not on
+  the wall. `r2.ts`'s `imageResponse` is the one implementation now.

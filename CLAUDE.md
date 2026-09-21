@@ -46,6 +46,18 @@ wrangler pages secret put FAL_KEY --project-name <project>
 wrangler pages secret put FAL_WEBHOOK_SECRET --project-name <project>
 wrangler pages secret put ADMIN_TOKEN --project-name <project>
 ```
+
+**The real deploy is cut from a separate worktree, not this checkout.**
+`~/Developer/zyetaone/_deploy/v4-release` is a detached-HEAD git worktree of
+this same repo, kept because a deploy from a branch checkout risks the
+"head" branch-name bug above. Its `wrangler.jsonc` carries the real event's
+D1 `database_id` and database name — values this repo's `wrangler.jsonc`
+deliberately leaves as `REPLACE_WITH_NEW_D1_ID` placeholders (per-event
+values are outside this repo). That split is exactly how a config can drift:
+a change made in this checkout's `wrangler.jsonc` (a binding, a compat flag,
+a new var) is invisible on the deploy worktree until someone re-syncs it.
+Before every deploy, diff the two `wrangler.jsonc` files and carry forward
+anything that changed here besides the per-event identifiers.
 `NEW-EVENT.md` has the full variable table and what each one's absence does.
 All three secrets above FAIL CLOSED when unset in production.
 `wrangler secret put` (no `pages`) does **not** reach a Pages project — it
@@ -78,9 +90,9 @@ src/lib/
   poll.svelte.ts       # ported from z-presence: 3-missed-reads staleness rule
   state/table.svelte.ts
 src/routes/
-  t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, stub +page.svelte
-  projector/           # gallery.remote.ts, stub +page.svelte
-  admin/                # admin.remote.ts (no auth yet — see its ponytail note), stub +page.svelte, polls roomLock
+  t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, built +page.svelte (268 lines: questions, images, retry, draw again)
+  projector/           # gallery.remote.ts, built +page.svelte (185 lines: beats, layouts, manual-override badge)
+  admin/                # admin.remote.ts — ADMIN_TOKEN shared-secret gate on every command AND the poll itself (see admin.remote.ts's module note; this is not "no auth", it is a shared-secret gate, not a login), built +page.svelte (507 lines: the full desk), polls `adminRoom`
   api/fal-webhook/      # +server.ts: token (fail-closed, constant-time) + image_id + request_id match, then the shared ticker inside waitUntil
   simulate/             # +server.ts: POST, drives N tables through the REAL remote commands (SIMULATE_ENABLED + ADMIN_TOKEN, both fail closed)
 ```
@@ -97,7 +109,7 @@ success state today.)
 own bespoke logic:**
 1. The phone's `tableStatus` poll (`routes/t/[table]/answers.remote.ts`) —
    ticks that table's pending rows.
-2. The admin screen's `roomLock` poll (`routes/admin/admin.remote.ts`) —
+2. The admin screen's `adminRoom` poll (`routes/admin/admin.remote.ts`) —
    ticks every pending row in the event.
 3. The fal webhook (`routes/api/fal-webhook/+server.ts`) — ticks the one row
    its `image_id` query param names, with deps that resolve immediately from
@@ -233,11 +245,6 @@ default that a reader of this file would otherwise have to infer from code.
 
 What is actually still open:
 
-- **The retry UI hooks** — the server side of per-zone retry is done
-  (`retryZone` on the phone route, `regenerateTable`'s optional `zone` on
-  the desk) and the failure text is on the export as `images[].error`. The
-  two controls that call them — the phone's failed tile and the desk's
-  images cell — belong to the wiring workstream and are not in this branch.
 - **The tile step.** `stored -> done` stays unreachable until a real resizer
   is wired — see `r2.ts`'s `// ponytail:` note. Nothing downstream is blocked
   by it; the projector and phones serve the full-size object.
@@ -258,6 +265,12 @@ What is actually still open:
 
 ### Recently closed, with the defaults they set
 
+- **The retry UI hooks are wired, both ends.** The phone's failed tile calls
+  `retryZone` (`onretry` in `routes/t/[table]/+page.svelte`) and the desk's
+  per-zone Redraw button on the images cell calls `regenerateTable`'s
+  optional `zone` (`routes/admin/+page.svelte`, `failedZones()`). Verified
+  2026-09-21 by reading both files — this used to say the controls were not
+  in this branch; they are.
 - **`REFERENCE_MODE`** decides how much the chosen lens picture decides the
   render: `none` (default) text-to-image everywhere, `lens` first zone only,
   `chain` every zone. Default is `none` because the edit endpoint reproduces

@@ -40,6 +40,7 @@ reads exactly like a dead one.
 | `FAL_RESOLUTION` | var | falls back to **1K**. Anything unrecognised falls back too, rather than being passed through to the provider |
 | `ADMIN_TICK_BUDGET` | var | falls back to **8** — how many pending rows one admin poll advances after it has answered. Never unbounded |
 | `AI_FAKE` | var | unset means the real Workers AI binding writes the done screen's paragraph. `1` writes a deterministic stand-in and never calls the binding — set it locally, never in production |
+| `FAL_FAKE` | var (process env, not a Pages var) | unset means real fal calls. `1` short-circuits submit/poll/fetch in `fal.ts` and returns a fake image with no network call — dev/rehearsal only, set it in `.dev.vars` or the shell, never on the Pages project. Confirm it is **not** set on the deployed project before the doors open; `FAL_KEY` set with `FAL_FAKE` also set silently draws nothing |
 | `ZONE_SET` | var | falls back to **`hero`** — ONE main workspace image per table, which is what the wall and the phones show. `four` renders the four functional zones instead, `all` renders five. Anything unrecognised falls back to `hero` rather than to "everything", so a typo cannot quintuple what the room spends |
 | `REFERENCE_MODE` | var | falls back to **`none`** — and so does any unrecognised value, so a typo cannot turn image anchoring on. See below |
 
@@ -57,6 +58,10 @@ reads exactly like a dead one.
 - [ ] `PUBLIC_EVENT_TITLE` set, or the Lobby beat reads "Twenty Tables"
 - [ ] `AI_FAKE` **unset** in production (it is a local switch; set it in
       `.dev.vars` so `npm run dev` never spends on inference)
+- [ ] `FAL_FAKE` **unset** in production and on the deploy worktree's env —
+      it is a process-env dev switch (`.dev.vars`), not a Pages secret, so
+      there is no dashboard toggle to check; verify by confirming it is
+      absent from `.dev.vars`/shell env on whatever machine runs the deploy
 
 There is no `PUBLIC_ORIGIN`. The app derives its origin from the request, so
 the fal webhook URL is correct on whatever domain the deploy answers on, and
@@ -176,6 +181,159 @@ room, so a fix can be confirmed rather than hoped for.
       rows that then sit queued
 - [ ] `SIMULATE_ENABLED` turned back off afterwards
 
+## Facilitator runbook — what you see, what to press
+
+Written for the desk, not for a developer. Every row: what you SEE, what to
+PRESS, and what that will and will not do. Read the next subsection —
+Reopen vs Regenerate vs Reset — before the doors open, not while a table is
+watching you.
+
+### The one-glance check: `/health`
+
+Before touching anything, or when you are not sure the room is moving at
+all, run this from the desk machine or a phone on venue wifi. It never
+prints a secret and it never spends fal money — it only reads D1.
+
+```bash
+curl -s "https://<domain>/health?token=<ADMIN_TOKEN>"
+```
+
+```json
+{
+  "ok": true,
+  "eventId": "…",
+  "beat": "progress",
+  "focusTable": null,
+  "pending": 3,
+  "failedRecent": 0,
+  "failedWindowMinutes": 10,
+  "submitted": 14,
+  "tables": 20
+}
+```
+
+| Field | Means | Bad value looks like |
+|---|---|---|
+| `ok` | Your token was accepted | `false` with HTTP 401 — wrong token, or `ADMIN_TOKEN` unset on the deploy (fails closed) |
+| `beat` | What the projector is currently showing | Not what you just set on the desk — see "the wall looks wrong" below |
+| `focusTable` | Which table is on the focus beat | Set when you didn't mean to focus anyone |
+| `pending` | Renders still in flight across the whole room right now | A number that never drops between two checks a minute apart — the room has stopped moving |
+| `failedRecent` | Renders that failed in the last `failedWindowMinutes` (10) | Anything above roughly 2-3 at once — one or two failed zones is normal spend, a cluster in the same window is the "every table fails at once" case below |
+| `submitted` | Tables that have submitted at least once | Lower than you expect for how far into the event you are |
+
+`/health` never ticks anything — it is a pure read. Running it twice never
+makes anything worse, and it costs nothing.
+
+### Symptom → lever
+
+**A table's image failed (one tile, one table).**
+SEE: on the desk's room table, that table's Images cell shows "Redraw
+`<zone>`" next to the count, with the failure reason on hover. On the
+table's own phone, that image tile reads failed with a reason instead of
+"being drawn".
+PRESS: the per-zone **Redraw** button on that row (arm it, then **Confirm
+redraw**). It queues exactly one render for that one zone, using the exact
+prompt that failed — not a fresh composition — and counts one against that
+table's render cap, not four.
+It will: fix that one tile without touching the table's other images or
+answers. It will not: change anything else on the table, and it will not
+work while that zone is not currently `failed` (a zone that's still
+drawing, or already stored, has nothing for Redraw to act on — the button
+does not appear for it).
+
+**A table submitted and nothing is happening at all — no "being drawn",
+no image, no error.**
+SEE: the row on the desk shows 0/N images and no failed-zone button; the
+table's phone still shows the images screen with nothing progressing.
+PRESS: nothing, first — reload the admin tab. Rendering only advances when
+something polls it (phone's 2 s poll, the fal webhook, or the desk's own
+3 s poll), so if the admin tab was closed or crashed, nothing was ticking
+that table at all; reopening it resumes every table, not just this one.
+If it still shows nothing after 10-15 seconds with the admin tab open,
+check `/health`'s `pending` — 0 pending for a table that just submitted
+means the submit itself didn't queue anything, which is a genuine bug, not
+a stuck render. Escalate rather than pressing Reset speculatively.
+
+**A render is stuck part-way, and both the desk's Redraw and the table's
+own "Draw again" refuse it as still drawing.**
+Be honest about this one: there is no timeout for a `requested` row that
+never gets an answer from the provider except the very long stale-claim
+window in the code (minutes, not something you wait out at a live desk).
+There is no button that cancels an in-flight render.
+PRESS: **Reset** on that table — arm it, then **Confirm reset**. This is
+not a small nudge; read the next section before you press it. It is the
+only lever that gets that table unstuck, and it costs the table's answers
+and its current images.
+
+**Every table's render fails at once.**
+SEE: `/health`'s `failedRecent` is high across many tables at the same
+time, not concentrated on one. This means the fal account, not the app —
+a dead API key, an exhausted account cap, or fal itself is down.
+PRESS: nothing on the desk fixes this. Redraw, Regenerate and Reset all
+submit to the same fal account; if fal is refusing every request they will
+all fail the same way, and Reset in particular will burn a table's answers
+for a render that still won't happen. Check the fal dashboard directly
+(the hard spend cap mentioned in *Spend* above is the first place a whole-
+account failure shows up). Tell the room what's happening rather than
+working the desk — a facilitator visibly pressing buttons that don't
+change anything reads worse than an honest pause.
+
+**The wall looks wrong, or isn't moving.**
+PRESS, in order: (1) reload the projector browser tab — this is the first
+move, and fixes a wedged or stale render more often than anything on the
+desk; (2) confirm the projector URL has no `?beat=`/`?table=` query string
+— either one puts it in manual-override mode with a small "manual —
+ignoring the desk" badge, and it will stop following the desk's beat
+entirely until removed; (3) check `/health`'s `beat` matches what you just
+pressed on the desk — if it doesn't, the desk's command didn't land, not
+the projector's poll.
+
+**A table needs to change an answer after submitting.**
+PRESS: **Reopen** on that table. This is the only one of the three verbs
+that keeps the table's existing answers and images — see the next section.
+It grants a one-shot permission to submit again; the table can then go
+back through its screens and change what it needs to, and its next submit
+consumes the grant.
+
+**You pressed the wrong button on the wrong table.**
+There is no undo. What you can do depends on which button:
+- Wrong **Reopen** — harmless. It only grants permission to resubmit; if
+  the table never uses it, nothing changes. Leave it.
+- Wrong **Redraw** on a working zone — it will not have offered you the
+  button unless that zone was already `failed`, so this case mostly can't
+  happen from the desk's own UI. If you triggered a regenerate/redraw
+  intending a different table, it queued one real render on the wrong
+  table's cap; there is no way to un-spend it, only to note the table's
+  budget is one lower than expected.
+- Wrong **Regenerate** — queues a full new render set on the wrong table,
+  spending one full cycle of its cap. Not reversible. Tell that table
+  their picture is about to change again.
+- Wrong **Reset** — this is the one that matters. See the next section
+  before you ever arm it: it is not recoverable from the desk. The
+  table's prior answers and images stay in D1 forever (nothing is
+  deleted), but they stop being what the app shows or uses, and the table
+  must answer all eleven questions again to get a new image.
+
+### Reopen vs Regenerate vs Reset — read this once, remember it
+
+This distinction used to live only in code comments. It is the single
+most consequential thing on this page.
+
+| Verb | What it keeps | What it costs | When to use it |
+|---|---|---|---|
+| **Reopen** | Everything. Answers, current images, render budget spent so far — all untouched. | Nothing. It only grants a one-shot permission to submit again. | A table wants to change an answer after submitting, and the room isn't locked against them. |
+| **Regenerate** | The table's answers and prompt. Draws a fresh image set from the same answers (or the desk's per-zone Redraw, one tile). | One render against that table's cap (or one per zone if using the whole-row Regenerate, not the per-zone Redraw). | The picture came out wrong, or one tile failed, but the answers are still right. |
+| **Reset** | Nothing currently visible. It appends a watermark to that table's timeline; every read in the app — the phone, the desk, the projector — only shows what happened *since* the table's most recent reset. The table's existing image stops being shown anywhere. | The table's whole answer set. It must go through all eleven questions again before it can draw anything new. | The render is stuck with no other lever (see above), or the table's data needs to be fully thrown away and restarted — never as a way to "try again" on a table that's otherwise fine. |
+
+**Reset is not an undo.** Nothing is deleted from D1 — every prior answer,
+prompt, and image row stays in the database forever, append-only — but the
+app stops reading any of it for that table. From the table's and the
+wall's point of view, the table goes back to question one with no image.
+If you want a different picture from the *same* answers, that is
+Regenerate, not Reset. Reaching for Reset because a table's picture looks
+off, when a plain Regenerate or a targeted Redraw would have done it,
+throws away eleven answered questions for nothing.
+
 ## The night itself
 
 - [ ] Confirm table count / range (`TABLE_COUNT` in `src/lib/game/questions.ts`)
@@ -191,5 +349,30 @@ room, so a fix can be confirmed rather than hoped for.
 
 ## After
 
-- [ ] Export D1 (`wrangler d1 export`), copy R2, index, retire per the data
-      lifecycle SOP
+- [ ] Export D1 — `--remote` and `--output` are both required; without
+      `--remote` this exports the empty local dev database, not the event's
+      real data:
+      ```bash
+      wrangler d1 export <event>-db --remote --output=<event>-$(date +%F).sql
+      ```
+- [ ] Copy the R2 bucket, index, retire per the data lifecycle SOP
+
+## Deploying from the release worktree
+
+Deploys are cut from `~/Developer/zyetaone/_deploy/v4-release`, a separate
+detached-HEAD git worktree of this repo — not this checkout — because
+deploying from a branch checkout risks the "head" branch-name bug in
+`CLAUDE.md`'s deploy command. That worktree's `wrangler.jsonc` carries the
+real event's D1 `database_id`, which this repo's `wrangler.jsonc`
+deliberately leaves as a placeholder. **This is how config drifts**: a
+binding, compat flag, or var added here is invisible there until someone
+re-syncs it.
+
+- [ ] `git -C ~/Developer/zyetaone/_deploy/v4-release fetch && git -C
+      ~/Developer/zyetaone/_deploy/v4-release checkout <the commit being
+      shipped>`
+- [ ] Diff `wrangler.jsonc` between this checkout and the deploy worktree;
+      carry forward everything except the per-event `database_name` /
+      `database_id` / bucket name
+- [ ] Run the deploy command (`CLAUDE.md`'s Commands section) from inside
+      the deploy worktree, with `--branch main`

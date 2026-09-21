@@ -39,7 +39,19 @@
 
 	const { stale } = poll(3000, async () => {
 		if (fixturesMode) return; // fixtures never touch the network — no poll, no staleness
-		room = await getProjectorRoom();
+		// `.refresh()` IS THE POLL. A remote query caches by (function, args),
+		// so `await getProjectorRoom()` on the second tick returns the first
+		// tick's value from memory and issues no request at all. Measured
+		// against production before this line existed: the beat was changed
+		// on the server, and sixteen seconds and five ticks later the wall
+		// still read "lobby" having made zero network calls, while a reload
+		// showed the new beat instantly. The staleness banner cannot catch it
+		// either — the cached call resolves successfully every time, so the
+		// wall reports healthy while frozen. The phone route already had this
+		// and said why; the wall did not.
+		const q = getProjectorRoom();
+		await q.refresh();
+		room = (await q) as ProjectorRoom;
 	});
 
 	/**

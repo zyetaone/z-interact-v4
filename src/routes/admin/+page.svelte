@@ -47,7 +47,14 @@
 
 	const { stale } = poll(3000, async () => {
 		if (fixturesMode) return; // fixtures never touch the network — no poll, no staleness
-		room = await adminRoom({ token });
+		// See the note on the projector's poll: a remote query caches by
+		// (function, args), so a bare await returns the previous tick's value
+		// and never reaches the network. On the desk that also meant the room
+		// did not change after the operator pressed a button, because the
+		// post-command refresh below was the same non-fetching call.
+		const q = adminRoom({ token });
+		await q.refresh();
+		room = await q;
 	});
 
 	function futureName(key: string | null): string {
@@ -66,7 +73,9 @@
 
 	async function refresh() {
 		if (fixturesMode) return;
-		room = await adminRoom({ token });
+		const q = adminRoom({ token });
+		await q.refresh();
+		room = await q;
 	}
 
 	async function run(label: string, fn: () => Promise<{ ok: boolean; reason?: string }>) {

@@ -67,11 +67,24 @@
 		onchange(keys, { ...texts, [key]: value });
 	}
 
+	/**
+	 * `visualCues: false` (21 Sep 19:42, "No visual cues") makes this screen
+	 * a plain list of words. The art is not deleted — it still ships, still
+	 * prints in the question book, and is still what `visuals-manifest.ts`
+	 * describes. It simply stops being how a table chooses.
+	 *
+	 * Gated HERE rather than at each call site so nothing downstream can
+	 * accidentally reach a picture: the tile grid, the row thumbnail and the
+	 * slider's preview all resolve through this one function.
+	 */
+	const showImages = $derived('visualCues' in question ? question.visualCues !== false : true);
+
 	function imageOf(key: string): string | undefined {
+		if (!showImages) return undefined;
 		return hasOptionImage(question.id, key) ? OPTION_IMAGE[`${question.id}:${key}`] : undefined;
 	}
 
-	const tiles = $derived(question.options.every((o) => hasOptionImage(question.id, o.key)));
+	const tiles = $derived(showImages && question.options.every((o) => hasOptionImage(question.id, o.key)));
 
 	/* --- the percentage slider (questions.ts's `slider`) -------------------
 	   A different way to pick ONE of the same options, not a different kind

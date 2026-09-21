@@ -86,7 +86,11 @@ describe('V4 shape', () => {
 	 */
 	it('keeps every word on screen short enough to scan', () => {
 		for (const q of QUESTIONS) {
-			expect(q.prompt.length, `${q.id} stem`).toBeLessThanOrEqual(48);
+			// 60, not 48: q5c's stem carries "in a centaur organisation" at the
+			// owner's request (21 Sep 19:42) after being trimmed out earlier the
+			// same evening. The ceiling exists to stop a stem becoming a
+			// paragraph, not to win an argument with the person who writes them.
+			expect(q.prompt.length, `${q.id} stem`).toBeLessThanOrEqual(60);
 			if (q.lead) expect(q.lead.length, `${q.id} lead`).toBeLessThanOrEqual(72);
 			if (q.push) expect(q.push.length, `${q.id} push`).toBeLessThanOrEqual(56);
 			for (const o of q.options) {
@@ -106,7 +110,18 @@ describe('V4 shape', () => {
 		expect(longest).toBeGreaterThan(100);
 	});
 
-	it('asks the wildcard as "What have we missed?"', () => {
-		expect(WILDCARD.prompt).toBe('What have we missed?');
+	/**
+	 * SHAPE, NOT THE SENTENCE. This assertion has now been broken twice by
+	 * ordinary rewording ("What have we missed?" -> "Any other flights of
+	 * fancy?"), and each time it failed it was the TEST that was wrong. What
+	 * matters about the wildcard is that it is one open question with one
+	 * free-text option, which is what the composers and the review screen
+	 * rely on; its wording belongs to whoever writes the questions.
+	 */
+	it('asks the wildcard as one open question with one free-text option', () => {
+		expect(WILDCARD.prompt.trim()).toMatch(/\?$/);
+		expect(WILDCARD.options).toHaveLength(1);
+		expect(WILDCARD.options[0].open).toBe(true);
+		expect(WILDCARD.options[0].promptFragment).toContain('{text}');
 	});
 });

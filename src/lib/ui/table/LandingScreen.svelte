@@ -9,16 +9,15 @@
 	}: { table: number; resuming: boolean; closed: boolean; gateReason: string; onbegin: () => void } = $props();
 </script>
 
-<p class="eyebrow">Survival Adventure</p>
-<h1 class="stem">Draw the workspace your table would actually want.</h1>
-<hr class="rule" />
-<!-- The cognitive city is named HERE, before the first question, rather than
-     explained at the third. The 21 Sep note asked how the centaur framework
-     weaves into it: the city is the frame, and q5c's lead is the human half
-     of it — what a table keeps for itself once the building thinks. -->
-<p class="hint">
-	You are designing inside a <b>cognitive city</b>. Six screens. Answer as a table.
-</p>
+<!-- THE TITLE AND A BUTTON. 21 Sep 19:24: "this will change to 'the
+     survival adventure', all other text on top will disappear, below that
+     a start button".
+
+     The cognitive city is not lost with the paragraph that used to name it:
+     screen one now ASKS it ("How do you imagine your future cognitive
+     city?", `futures.ts`'s LENS_STEM), which is a better place for a frame
+     than a paragraph nobody reads standing up in a loud room. -->
+<h1 class="stem title">The Survival Adventure</h1>
 
 {#if closed}
 	<p class="banner">{gateReason || 'Answers are closed and the screen has moved on. The desk can reopen this table.'}</p>
@@ -33,14 +32,12 @@
 </div>
 
 <style>
+	/* The screen is one line and one button now, so the title carries it. */
+	.title {
+		margin-top: 8vh;
+	}
+
 	/* The name of the experience, above its one-line promise — 21 Sep
 	   minutes §1. Small and gold rather than a second headline: the stem is
 	   still what the table reads first. */
-	.eyebrow {
-		margin: 0 0 6px;
-		font-size: 13px;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: var(--gold);
-	}
 </style>

@@ -116,6 +116,19 @@ export interface Question {
 	 * evenly spaced — the jump from "pockets" to "saturated" is the big one.
 	 */
 	slider?: readonly number[];
+	/**
+	 * Whether the phone shows each option's picture. Default true; the
+	 * 21 Sep 19:42 note turns it off on every question ("No visual cues",
+	 * said four times) so the table reads plain words and the pictures do
+	 * "back end work".
+	 *
+	 * THIS IS A PHONE SWITCH, NOT A DELETION. The art stays on disk, stays
+	 * in `visuals-manifest.ts`, and stays in the printed question book —
+	 * which is where the earlier "maintain visual 6 per page" note lives,
+	 * that being page language about the deck rather than about a phone.
+	 * `gen-question-book.mjs` does not read this field, on purpose.
+	 */
+	visualCues?: boolean;
 	/** True only for `PROPOSED_QUESTIONS` (q12) — the question owner has not
 	 *  blessed this; it never appears in the flow unless `config.ts`'s
 	 *  `ENABLE_PROPOSED_QUESTIONS` is on. Absent (falsy) on every one of the nine. */
@@ -124,17 +137,70 @@ export interface Question {
 
 export const QUESTIONS: Question[] = [
 	{
+		id: 'q2',
+		// PLAIN ENGLISH, which is the whole point of the change.
+		//
+		// 21 Sep 19:03, the question owner: "do everyone understand material
+		// world even means??" — so "What is your material world?" goes. The
+		// replacement offered in the same thread was "the ambience and
+		// materiality of your future city", and `materiality` is MORE jargon
+		// than the phrase being retired, not less. A table of non-designers
+		// reads "made of" and "feel"; nobody has to be told what they mean.
+		prompt: 'What is your city made of, and how does it feel?',
+		layer: 'materialsAndLight',
+		select: { kind: 'one' },
+		diamond: true,
+		visualCues: false,
+		push: 'Name two materials you would want to touch.',
+		pushCapturesReply: true,
+		options: [
+			{
+				key: 'stark-clinical',
+				label: 'White and spotless',
+				promptFragment:
+					'pure white and shadowless; seamless resin, glass, polished steel; shiny and flawless'
+			},
+			{
+				key: 'soft-pastel',
+				label: 'Soft and pale',
+				promptFragment:
+					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
+			},
+			{
+				key: 'raw-elemental',
+				label: 'Concrete and stone',
+				promptFragment:
+					'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished'
+			},
+			{
+				key: 'warm-earthy',
+				label: 'Earth and timber',
+				promptFragment:
+					'terracotta, clay, olive and bronze; rammed earth, rattan, aged brass, linen; woven and textured'
+			}
+		],
+		and: {
+			prompt: 'what scale?',
+			options: [
+				{ key: 'cathedral', label: 'Cathedral', promptFragment: 'wide lens, low, a tall volume overhead' },
+				{ key: 'generous', label: 'Generous', promptFragment: 'wide lens, high ceilings, open floor' },
+				{ key: 'human', label: 'Human', promptFragment: 'eye level, ceilings within reach' },
+				{ key: 'nested', label: 'Nested', promptFragment: 'medium lens from an alcove, the hall beyond' },
+				{ key: 'compressed', label: 'Compressed', promptFragment: 'tight framing at eye level, close walls' }
+			]
+		}
+	},
+	{
 		id: 'q8',
-		// The question owner's own framing, from the 21 Sep deck's Q1 ("What is
-		// your agile workplace in cognitive city look like?", grammar settled
-		// here). The indoor/outdoor scale the deck draws beside it — "xx%
-		// Indoor / xx% Outdoor" — is the `lead` and the slider below.
-		prompt: 'Your workplace in a cognitive city',
-		lead: 'How much of the outdoors is inside?',
+		// The lead became the stem: the cognitive city is named on screen one
+		// now (`futures.ts`'s LENS_STEM), so this screen does not have to
+		// re-establish it before asking its own question.
+		prompt: 'How much of the outdoors is inside?',
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
 		slider: [10, 25, 40, 60, 80, 100],
 		diamond: false,
+		visualCues: false,
 		push: 'How does your greenery cool a mind, not just a body?',
 		pushCapturesReply: true,
 		options: [
@@ -172,75 +238,66 @@ export const QUESTIONS: Question[] = [
 	},
 	{
 		id: 'q5c',
-		prompt: 'Where does deep work happen?',
+		// The centaur framing is restored to the stem at the owner's request
+		// (21 Sep 19:42) after being trimmed out earlier the same evening.
+		prompt: 'Where does deep work happen in a centaur organisation?',
 		lead: 'The building already thinks. What does your table keep for itself?',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
+		visualCues: false,
 		push: 'What did your table refuse to automate?',
 		pushCapturesReply: true,
 		pushNotDrawn: true,
 		options: [
 			{
 				key: 'glass-dome',
-				label: 'The glass dome in the forest',
+				label: 'The dome in the rainforest',
 				promptFragment:
 					'a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane'
 			},
 			{
 				key: 'garden-cafe',
-				label: 'The garden café',
+				label: 'The zen garden café',
 				promptFragment:
 					'a large planted indoor cafe of mixed settings, long benches, deep booths and counters between raised planters, people working across all of them'
 			},
 			{
-				key: 'open-garden',
-				label: 'Open garden seating',
-				promptFragment:
-					'outdoor seating in a planted terrace, tables under trees and pergola, no enclosure, people working in the open air'
-			},
-			{
 				key: 'immersive-chamber',
-				label: 'The immersive chamber',
+				label: 'The immersion chamber',
 				promptFragment:
 					'a sealed immersive chamber whose curved walls and floor become another place entirely, deep-sea light rippling over one working figure'
 			},
 			{
-				key: 'reconfigurable-pod',
-				label: 'The reconfigurable pod',
+				key: 'sealed-cell',
+				// Renamed from "the sealed cell" to the owner's own "hermetically
+				// sealed mud hut", so the FRAGMENT moves with the label — an
+				// acoustic box and an earth room do not draw alike, and a label
+				// the picture contradicts is worse than either on its own.
+				label: 'The sealed mud hut',
 				promptFragment:
-					'a pod with movable walls and shifting light visibly reconfiguring itself around its occupant, the previous arrangement still half in motion'
+					'a small windowless room of thick hand-built earth walls, a single low doorway, no screens and no devices, one person working by hand at a plain table'
 			},
 			{
-				key: 'sealed-cell',
-				label: 'The sealed cell',
-				promptFragment:
-					'a small sealed acoustic room, no screens and no devices, one person working by hand at a plain desk'
+				// THE FIFTH SLOT IS A PARAGRAPH, not a fifth picture — "reduce
+				// this to 4 options and leave a paragraph for 5. Any other space
+				// from your imagination". `open` options were gone in V4; this
+				// brings one back, and `layers.ts`'s `fragmentOf` splices the
+				// typed words into `{text}` on both composers, so what a table
+				// invents here is drawn.
+				key: 'other-space',
+				label: 'Somewhere from our imagination',
+				open: true,
+				promptFragment: '{text}'
 			}
 		],
 		and: {
 			prompt: 'where does the AI sit?',
 			options: [
-				{
-					key: 'unseen',
-					label: 'Unseen',
-					promptFragment: 'the AI unseen, no device anywhere'
-				},
-				{
-					key: 'in-the-light',
-					label: 'In the light',
-					promptFragment: 'the AI present only as light'
-				},
-				{
-					key: 'on-the-surfaces',
-					label: 'On the surfaces',
-					promptFragment: 'the AI on the walls and tables'
-				},
-				{
-					key: 'in-the-room',
-					label: 'In the room',
-					promptFragment: 'a hologram or figure at the table'
-				}
+				{ key: 'unseen', label: 'Unseen', promptFragment: 'the AI unseen, no device anywhere' },
+				{ key: 'in-the-light', label: 'In the light', promptFragment: 'the AI present only as light' },
+				{ key: 'on-the-surfaces', label: 'On the surfaces', promptFragment: 'the AI on the walls and tables' },
+				{ key: 'in-the-room', label: 'In the room', promptFragment: 'a hologram or figure at the table' }
 			]
 		}
 	},
@@ -251,6 +308,7 @@ export const QUESTIONS: Question[] = [
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
+		visualCues: false,
 		push: 'What recharge is your table short of?',
 		pushCapturesReply: true,
 		options: [
@@ -294,103 +352,10 @@ export const QUESTIONS: Question[] = [
 		and: {
 			prompt: 'how far does it go?',
 			options: [
-				{
-					key: 'a-view-of-it',
-					label: 'A view of it',
-					promptFragment: 'only a view through the far glass'
-				},
-				{
-					key: 'a-room-that-evokes-it',
-					label: 'A room that evokes it',
-					promptFragment: 'an interior room borrowing its material'
-				},
-				{
-					key: 'fully-immersive',
-					label: 'Fully immersive',
-					promptFragment: 'the biome filling the frame'
-				},
-				{
-					key: 'the-real-thing',
-					label: 'The real thing',
-					promptFragment: 'outdoors inside it, the building at the edge'
-				}
-			]
-		}
-	},
-	{
-		id: 'q2',
-		prompt: 'What is your material world?',
-		layer: 'materialsAndLight',
-		select: { kind: 'one' },
-		diamond: true,
-		push: 'Name two materials you would want to touch.',
-		pushCapturesReply: true,
-		options: [
-			{
-				key: 'stark-clinical',
-				label: 'Stark and clinical',
-				promptFragment:
-					'pure white and shadowless; seamless resin, glass, polished steel; shiny and flawless'
-			},
-			{
-				key: 'soft-pastel',
-				label: 'Soft and pastel',
-				promptFragment:
-					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
-			},
-			{
-				key: 'raw-elemental',
-				label: 'Raw and elemental',
-				promptFragment:
-					'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished'
-			},
-			{
-				key: 'warm-earthy',
-				label: 'Warm and earthy',
-				promptFragment:
-					'terracotta, clay, olive and bronze; rammed earth, rattan, aged brass, linen; woven and textured'
-			},
-			{
-				key: 'jewel-lacquer',
-				label: 'Jewel and lacquer',
-				promptFragment:
-					'emerald and oxblood on black; lacquered wood, velvet, marble, brass; glossy and deep'
-			},
-			{
-				key: 'undersea',
-				label: 'Undersea',
-				promptFragment:
-					'teal and deep blue-green, light rippling from above; curved glass, wet-look surfaces; fluid and slick'
-			}
-		],
-		and: {
-			prompt: 'what scale?',
-			options: [
-				{
-					key: 'cathedral',
-					label: 'Cathedral',
-					promptFragment: 'wide lens, low, a tall volume overhead'
-				},
-				{
-					key: 'generous',
-					label: 'Generous',
-					promptFragment: 'wide lens, high ceilings, open floor'
-				},
-				{
-					key: 'human',
-					label: 'Human',
-					promptFragment: 'eye level, ceilings within reach'
-				},
-				{
-					key: 'nested',
-					label: 'Nested',
-					promptFragment: 'medium lens from an alcove, the hall beyond'
-				},
-				{
-					key: 'compressed',
-					label: 'Compressed',
-					promptFragment: 'tight framing at eye level, close walls'
-				}
+				{ key: 'a-view-of-it', label: 'A view of it', promptFragment: 'only a view through the far glass' },
+				{ key: 'a-room-that-evokes-it', label: 'A room that evokes it', promptFragment: 'an interior room borrowing its material' },
+				{ key: 'fully-immersive', label: 'Fully immersive', promptFragment: 'the biome filling the frame' },
+				{ key: 'the-real-thing', label: 'The real thing', promptFragment: 'outdoors inside it, the building at the edge' }
 			]
 		}
 	},
@@ -464,7 +429,7 @@ export interface WildcardQuestion {
 
 export const WILDCARD: WildcardQuestion = {
 	id: 'wildcard',
-	prompt: 'What have we missed?',
+	prompt: 'Any other flights of fancy?',
 	options: [
 		{
 			key: 'wildcard-open',
@@ -498,7 +463,7 @@ export interface TableAnswers {
  * q11's job (light, weather and time) moved to each lens's `lightLine`; see
  * that field's note, because doing it wrongly is what made the wall dark.
  */
-export const V4_IDS = ['q8', 'q5c', 'q6r', 'q2'] as const;
+export const V4_IDS = ['q2', 'q8', 'q5c', 'q6r'] as const;
 
 /** The pseudo-question id the lens pick is stored under. `q1` stores the era. */
 export const FUTURE_ID = 'future';
@@ -542,15 +507,15 @@ if (QUESTIONS.map((q) => q.id).join(',') !== V4_IDS.join(',')) {
 // four that drove the drawn visual most, which is why these four survived.
 const DIAMOND_IDS = QUESTIONS.filter((q) => q.diamond).map((q) => q.id);
 const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) => q.id);
-if (DIAMOND_IDS.join(',') !== 'q5c,q6r,q2') {
-	throw new Error(`expected diamond (◆) questions q5c,q6r,q2 after the cut to five, got ${DIAMOND_IDS.join(',')}`);
+if (DIAMOND_IDS.join(',') !== 'q2,q5c,q6r') {
+	throw new Error(`expected diamond (◆) questions q2,q5c,q6r, got ${DIAMOND_IDS.join(',')}`);
 }
 // EVERY question takes typed words now, not just two of them — the 21 Sep
 // note "similar to KL, allow open text below", KL being generation 1, where
 // every field was free text. q5c's reply is the only one kept off the render
 // (`pushNotDrawn`): "what did your table refuse to automate" is a decision
 // about the table, which has nothing to paint.
-if (PUSH_CAPTURE_IDS.join(',') !== 'q8,q5c,q6r,q2') {
+if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q8,q5c,q6r') {
 	throw new Error(`expected every question to capture typed words, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 
@@ -561,8 +526,8 @@ if (PUSH_CAPTURE_IDS.join(',') !== 'q8,q5c,q6r,q2') {
  * needs no new screen.
  */
 const AND_IDS = QUESTIONS.filter((q) => q.and).map((q) => q.id);
-if (AND_IDS.join(',') !== 'q5c,q6r,q2') {
-	throw new Error(`expected "And:" sub-questions on q5c,q6r,q2, got ${AND_IDS.join(',')}`);
+if (AND_IDS.join(',') !== 'q2,q5c,q6r') {
+	throw new Error(`expected "And:" sub-questions on q2,q5c,q6r, got ${AND_IDS.join(',')}`);
 }
 
 /**

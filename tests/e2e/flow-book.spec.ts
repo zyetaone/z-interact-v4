@@ -26,20 +26,21 @@ const DIR = 'docs/flow';
 const TABLE = 4;
 
 /** One table's answers — one per question, chosen to be visibly different from each other in the render. */
+// The 21 Sep 19:42 order: materials, outdoors, deep work, recharge.
 const PICKS: { label: string; and?: string; sliderIndex?: number }[] = [
+	{ label: 'Earth and timber', and: 'Generous' },
 	// q8 renders ONLY a range input — no radios exist on that screen at all.
 	// Index 3 of its six options is "Courtyards".
 	{ label: 'Courtyards', sliderIndex: 3 },
-	{ label: 'The glass dome in the forest', and: 'In the light' },
-	{ label: 'The water room', and: 'Fully immersive' },
-	{ label: 'Warm and earthy', and: 'Generous' }
+	{ label: 'The dome in the rainforest', and: 'In the light' },
+	{ label: 'The water room', and: 'Fully immersive' }
 ];
 
 const PUSHES = [
+	'Rammed earth and cool brass.',
 	'Rain trees over the courtyards, so the shade moves with the day.',
 	'Deciding who gets promoted.',
-	'Twenty minutes where nobody can find us.',
-	'Rammed earth and cool brass.'
+	'Twenty minutes where nobody can find us.'
 ];
 
 const WILDCARD = 'A staircase that is also a place to sit and watch the room.';
@@ -100,7 +101,10 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 		await expect(page.locator('h1.stem')).not.toHaveText(stem, { timeout: 15_000 });
 	}
 
-	await expect(page.locator('h1.stem')).toContainText('missed');
+	// Anchored on the FIELD, not the wording. The wildcard's stem has been
+	// reworded twice in one evening ("What have we missed?" -> "Any other
+	// flights of fancy?") and pinning the sentence failed both times.
+	await expect(page.getByPlaceholder('One idea, in your own words')).toBeVisible({ timeout: 15_000 });
 	await page.getByPlaceholder('One idea, in your own words').fill(WILDCARD);
 	await shoot(page, '08-wildcard');
 	await page.getByRole('button', { name: 'Add' }).click();

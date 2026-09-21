@@ -1,12 +1,12 @@
 table 4 · the garden city
-Q1 Your workplace in a cognitive city -> Courtyards
-    typed: Rain trees over the courtyards, so the shade moves with the day.
-Q2 Where does deep work happen? -> The glass dome in the forest (And: In the light)
-    typed: Deciding who gets promoted.
-Q3 Where do people recharge? -> The water room (And: Fully immersive)
-    typed: Twenty minutes where nobody can find us.
-Q4 What is your material world? -> Warm and earthy (And: Generous)
+Q1 What is your city made of, and how does it feel? -> Earth and timber (And: Generous)
     typed: Rammed earth and cool brass.
+Q2 How much of the outdoors is inside? -> Courtyards
+    typed: Rain trees over the courtyards, so the shade moves with the day.
+Q3 Where does deep work happen in a centaur organisation? -> The dome in the rainforest (And: In the light)
+    typed: Deciding who gets promoted.
+Q4 Where do people recharge? -> The water room (And: Fully immersive)
+    typed: Twenty minutes where nobody can find us.
 wildcard: A staircase that is also a place to sit and watch the room.
 
 --- composed (1890 characters) ---

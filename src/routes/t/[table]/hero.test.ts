@@ -29,7 +29,7 @@ const T10: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['soft-pastel'] },
 	{ questionId: 'q2:and', keys: ['generous'] },
-	{ questionId: 'q5c', keys: ['open-garden'] },
+	{ questionId: 'q5c', keys: ['glass-dome'] },
 	{ questionId: 'q5c:and', keys: ['in-the-room'] },
 	{ questionId: 'q6r', keys: ['mud-hut'] },
 	{ questionId: 'q6r:and', keys: ['a-view-of-it'] },
@@ -46,7 +46,7 @@ describe('every answer reaches the hero prompt', () => {
 		// TWO acts now, not four. The 21 Sep minutes cut q3 (arrival) and
 		// folded q4w (the workstation) into q5c, so deep work and recharge are
 		// the whole programme.
-		expect(p).toMatch(/Deep work happens as outdoor seating in a planted terrace[^.]*a hologram or figure at the table/);
+		expect(p).toMatch(/Deep work happens as a glass geodesic room standing alone[^.]*a hologram or figure at the table/);
 		expect(p).toMatch(/They recharge in a round room of thick hand-built earth walls[^.]*only a view through the far glass/);
 	});
 

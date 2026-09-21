@@ -26,7 +26,7 @@ import { ANSWER_IDS } from '$lib/state/table.svelte';
 
 describe('one scale, for the phone and the room', () => {
 	it('is the lens, then every question a table is asked, then the wildcard', () => {
-		expect(STEP_IDS).toEqual([FUTURE_ID, 'q8', 'q5c', 'q6r', 'q2', WILDCARD.id]);
+		expect(STEP_IDS).toEqual([FUTURE_ID, 'q2', 'q8', 'q5c', 'q6r', WILDCARD.id]);
 	});
 
 	it('is the same list the phone counts, not a parallel one', () => {

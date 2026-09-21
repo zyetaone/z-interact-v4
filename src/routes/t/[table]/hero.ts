@@ -53,7 +53,11 @@ import {
  * Measured, not estimated: a fully answered table composes 288–301 words
  * across the six lenses and all twenty tables (the scratch sample is 296).
  * A table whose feel words asked for the dark is ~9 shorter, since it does
- * not carry the exposure clause. The arithmetic, so the next reader does
+ * not carry the exposure clause. SINGLE_FRAME and its four Avoid terms add
+ * ~27 more, which is why the regression ceiling moved 310 -> 340: six of
+ * twenty images on the first full run came back as multi-panel collages,
+ * and a shorter prompt that produces a contact sheet is not the cheaper
+ * outcome. The arithmetic, so the next reader does
  * not re-derive it:
  *
  *   ~137 words are ANSWER FRAGMENTS, arriving verbatim from `layers.ts` —
@@ -77,7 +81,7 @@ import {
  * unnoticed — not evidence the 150–190 target was met. It was not. Raising
  * it silently would have hidden that; this is the lead's call to make.
  */
-export const HERO_WORD_TARGET = { min: 150, max: 310, briefAsked: { min: 150, max: 190 } } as const;
+export const HERO_WORD_TARGET = { min: 150, max: 340, briefAsked: { min: 150, max: 190 } } as const;
 
 /**
  * What an elevated view of a whole building invites that one room does not:
@@ -85,6 +89,25 @@ export const HERO_WORD_TARGET = { min: 150, max: 310, briefAsked: { min: 150, ma
  * prompt's own section labels painted on the walls.
  */
 export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no captions';
+
+/**
+ * THE WALL CAME BACK AS CONTACT SHEETS.
+ *
+ * Measured on the first full twenty-table run against production: six of
+ * twenty images were multi-panel collages — a big frame with three or four
+ * inset photographs beside it — rather than one photograph of one building.
+ * The Avoid list already said "collage, grid, split screen" and had said so
+ * since the recipe was written. A negative did not stop it, which is the
+ * ordinary way negatives behave: they bias, they do not forbid.
+ *
+ * The cause is in the positive half. The prompt asks for four separate acts
+ * — arriving, deep work, the stations, recharging — and the most obvious way
+ * to show four things at once is four panels. So the fix is to say what the
+ * frame IS, once more, immediately after the acts and in the same voice,
+ * rather than to add another word to the Avoid list.
+ */
+export const SINGLE_FRAME =
+	'All of this in one single photograph of one continuous space, seen from one camera at one moment — never panels, insets or a divided frame';
 
 /**
  * THE ROOM CAME BACK DARK.
@@ -259,9 +282,11 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// prompt's, and this is the hero's own lesson: an elevated view of a
 	// whole building gives a model far more wall to write on than one room
 	// does, and the first render used it.
-	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}${bright ? `, ${UNDEREXPOSED_NEGATIVE}` : ''}`;
+	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}${bright ? `, ${UNDEREXPOSED_NEGATIVE}` : ''}, panels, insets, a contact sheet, a divided frame`;
 
-	return sentences([frame, world, programme, dressing, avoid, NO_TEXT]);
+	// SINGLE_FRAME sits immediately after the acts, which are what invite a
+	// split frame in the first place, and before the dressing.
+	return sentences([frame, world, programme, SINGLE_FRAME, dressing, avoid, NO_TEXT]);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,0 +1,135 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>End-to-end flow</title>
+<style>
+	@page { size: A4; margin: 14mm; }
+	:root { --ink:#11151c; --mut:#5b6472; --line:#d8dde5; --gold:#9a7b3f; }
+	* { box-sizing: border-box; }
+	body { font: 10pt/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); margin:0; }
+	h1 { font-size: 26pt; margin: 0 0 4pt; letter-spacing: -0.01em; }
+	h2 { font-size: 15pt; margin: 0 0 10pt; padding-bottom: 4pt; border-bottom: 2px solid var(--gold); }
+	.sub { color: var(--mut); margin: 0 0 18pt; }
+	.page { page-break-after: always; }
+	.page:last-child { page-break-after: auto; }
+	/* A phone screen shot full-page is ~390x2000. Four of those across an A4
+	   column are still a metre tall between them, which is why the first
+	   layout pushed every strip onto its own page and left the cover blank.
+	   Constrained height + contain keeps a tall screen legible and a short
+	   one from being stretched. */
+	.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; align-items: start; }
+	.screen { margin: 0; page-break-inside: avoid; }
+	.screen img { width: 100%; max-height: 165mm; object-fit: contain; object-position: top;
+	              border: 1px solid var(--line); border-radius: 3pt; display:block; }
+	figcaption { font-size: 7.5pt; margin-top: 4pt; line-height: 1.3; }
+	figcaption b { display:block; }
+	figcaption span { color: var(--mut); }
+	.missing { border: 1px dashed var(--line); color: var(--mut); padding: 14pt; text-align:center; font-size: 8pt; border-radius: 3pt; }
+	.missing.big { padding: 60pt; }
+	pre { white-space: pre-wrap; word-break: break-word; font: 8.5pt/1.5 "SF Mono", Menlo, monospace;
+	      background:#f6f7f9; border:1px solid var(--line); border-radius:3pt; padding:10pt; margin:0 0 12pt; }
+	.render { width: 100%; border:1px solid var(--line); border-radius:3pt; display:block; margin-bottom: 10pt; }
+	table { border-collapse: collapse; width:100%; font-size: 9pt; }
+	td, th { text-align:left; vertical-align: top; padding: 5pt 6pt; border-bottom: 1px solid var(--line); }
+	th { color: var(--mut); font-weight:600; font-size: 8pt; text-transform: uppercase; letter-spacing:.06em; }
+	.yes { color:#1f7a44; font-weight:700; }
+	.no { color:#a33; font-weight:700; }
+	.note { color: var(--mut); font-size: 8.5pt; }
+</style>
+
+<div class="page">
+	<h1>End to end</h1>
+	<p class="sub">One table's run, captured from the running app — the screens, the answers, the prompt they compose, and the picture that prompt produced. Table 4 · the garden city · 2026-09-21</p>
+
+	<h2>1 · The screens, in order</h2>
+	<div class="strip">
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/01-landing.png" alt="Landing">
+		<figcaption><b>Landing</b><span>the city is named here, before anything is asked</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/02-lens.png" alt="Screen 1 — the lens">
+		<figcaption><b>Screen 1 — the lens</b><span>six future cities as pictures</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/03-lens-chosen.png" alt="Lens chosen">
+		<figcaption><b>Lens chosen</b><span>the era chip appears only once the pick lands server-side</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/04-q1.png" alt="Q1 — nature">
+		<figcaption><b>Q1 — nature</b><span>a percentage slider, not tiles</span></figcaption>
+	</figure>
+	</div>
+</div>
+
+<div class="page">
+	<div class="strip">
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/05-q2.png" alt="Q2 — deep work">
+		<figcaption><b>Q2 — deep work</b><span>six tiles, an And: chip row, an open-text box</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/06-q3.png" alt="Q3 — recharge">
+		<figcaption><b>Q3 — recharge</b></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/07-q4.png" alt="Q4 — materials">
+		<figcaption><b>Q4 — materials</b></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/08-wildcard.png" alt="Wildcard">
+		<figcaption><b>Wildcard</b><span>free text, 140 characters, drawn verbatim</span></figcaption>
+	</figure>
+	</div>
+</div>
+
+<div class="page">
+	<div class="strip">
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/09-review.png" alt="Review">
+		<figcaption><b>Review</b><span>every answer editable; the prompt shown as it will be sent</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/10-drawing.png" alt="Drawing">
+		<figcaption><b>Drawing</b><span>polls every 2s; the phone can be put down</span></figcaption>
+	</figure>
+		<figure class="screen">
+		<img src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/11-done.png" alt="Done">
+		<figcaption><b>Done</b><span>the render, and the table’s answers written back as a paragraph</span></figcaption>
+	</figure>
+	</div>
+</div>
+
+<div class="page">
+	<h2>2 · What this table answered</h2>
+	<pre>Q1 Your workplace in a cognitive city -&gt; Courtyards
+    typed: Rain trees over the courtyards, so the shade moves with the day.
+Q2 Where does deep work happen? -&gt; The glass dome in the forest (And: In the light)
+    typed: Deciding who gets promoted.
+Q3 Where do people recharge? -&gt; The water room (And: Fully immersive)
+    typed: Twenty minutes where nobody can find us.
+Q4 What is your material world? -&gt; Warm and earthy (And: Generous)
+    typed: Rammed earth and cool brass.
+wildcard: A staircase that is also a place to sit and watch the room.</pre>
+
+	<h2>3 · The prompt those answers composed</h2>
+	<p class="note">1890 characters. Read out of the review screen's own textarea — this is the string submitted, not a reconstruction. The house half (camera, lighting, the no-text guard, the Avoid list) is also sent separately in fal's <code>system_prompt</code> field; it still appears here because the composed prompt has not stopped saying it.</p>
+	<pre>Design a workplace that is relevant in 2035 for a team that chose the garden city: through the glass, low pavilions under trees, gravel paths; weathered oak, bronze. Show the whole workspace in one elevated three-quarter view from a gallery balcony on the far side, one continuous building, as a film still: anamorphic, volumetric daylight, haze, bright overall exposure, daylight filling the volume, open shadows, no logos, no text. low rammed-earth pavilions with green roofs under mature trees, gravel paths, deep eaves. inside, a glazed pod, an autonomous cart on the path. the ceiling is a meadow seen from below, grass against the glass. Deep work happens as a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane, the AI present only as light. They recharge in a warm shallow bathing room in daylight, steam drifting, two people floating in water up to the chest, no devices anywhere, the biome filling the frame. planted courtyards cut open to the sky, the floor plate broken by them. All of this in one single photograph of one continuous space, seen from one camera at one moment — never panels, insets or a divided frame. terracotta, clay, olive and bronze; rammed earth, rattan, aged brass, linen; woven and textured, Rammed earth and cool brass.; wide lens, high ceilings, open floor. high midday sun falling through the canopy, dappled and open, nothing held in deep shade. People small and anonymous, mid-task, two to six of them. A staircase that is also a place to sit and watch the room. Avoid: collage, grid, split screen, labels, personas, stark white, posed faces, paper notebooks, coffee mugs, 2020s office furniture, laptops, neon, high-rise, crowds, no signage text, no wayfinding words, no captions, underexposed, murky, crushed blacks, gloom, panels, insets, a contact sheet, a divided frame. no text</pre>
+</div>
+
+<div class="page">
+	<h2>4 · The workspace</h2>
+	<img class="render" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/docs/flow/workspace.jpg" alt="The rendered workspace">
+	<p class="note">fal-ai/nano-banana-2, 16:9, one hero render (<code>ZONE_SET=hero</code>). The bytes the phone was served, off the app's own R2 read path.</p>
+
+	<h2 style="margin-top:14pt">Does the picture contain the answers?</h2>
+	<table>
+		<tr><th>What the table chose</th><th>In the frame</th><th></th></tr>
+		<tr><td>Courtyards — the floor opens to the sky</td><td>Glazed roof structure, courtyards cut through the plate</td><td class="yes">yes</td></tr>
+		<tr><td>The glass dome in the forest</td><td>Geodesic dome, one person working inside it</td><td class="yes">yes</td></tr>
+		<tr><td>The water room, fully immersive</td><td>Steaming pool, two people floating</td><td class="yes">yes</td></tr>
+		<tr><td>Warm and earthy, generous scale</td><td>Rammed earth, timber, brass, terracotta paving; open floor</td><td class="yes">yes</td></tr>
+		<tr><td><b>Wildcard</b> — "a staircase that is also a place to sit and watch the room"</td><td>Stepped seating at right, two people sitting on it</td><td class="yes">yes</td></tr>
+		<tr><td>And: the AI sits "in the light"</td><td>Not legible. The autonomous cart reads as the garden city's own signature, not as this pick</td><td class="no">no</td></tr>
+	</table>
+	<p class="note">A read of this one render, not a measurement across the room. The wildcard appearing at all is the 21 Sep fix: under the default zone set the wildcard reached the database, the review screen, the desk and the export, and never the picture.</p>
+</div>

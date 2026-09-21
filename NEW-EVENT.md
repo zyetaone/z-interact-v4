@@ -376,3 +376,24 @@ re-syncs it.
       `database_id` / bucket name
 - [ ] Run the deploy command (`CLAUDE.md`'s Commands section) from inside
       the deploy worktree, with `--branch main`
+
+## Table cards (the QR codes)
+
+The app tells people to scan a card on their table, in three places, and it does not produce that
+card. It is made outside the repo and printed.
+
+The current set is `print/table-qr-cards-A4.pdf` in the event's strategy folder: twenty pages, one
+A4 per table, each carrying the table number, its QR code and the plain URL as a fallback for a
+phone that will not scan. Each code points at `https://<deployment>/t/<n>`.
+
+**For a new event, regenerate them, because the host changes.** The codes are made with `segno` and
+every one is decoded back before it is used. That check is not ceremony: one of the twenty was a
+valid code that would not read at any size with the decoder, while the other nineteen read fine,
+and it needed a different mask. A card that does not scan is a table that cannot start, and you
+will not discover it until twenty people are sitting in front of it.
+
+So the rule is: generate, decode every code back at several sizes, and only print the ones that
+round-trip.
+
+The client's standing format, unchanged across events, is one board and one A4 sheet per table with
+the table number and the QR code, kept as simple as possible. Do not redesign it.

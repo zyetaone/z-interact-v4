@@ -61,6 +61,21 @@ export interface Future {
 	 *  lens must survive daylight). The lens JPEGs were generated from the V3 ten-term lists;
 	 *  they are not regenerated for this. */
 	negativeFragment: string;
+	/**
+	 * LIGHT, WEATHER AND TIME — the `feel` layer, which the lens now owns.
+	 *
+	 * q11's three feel words used to own this and q11 is gone with the cut to
+	 * five questions (the 21 Sep minutes). The owner's call was to fold it
+	 * into the lens.
+	 *
+	 * BE CAREFUL WHAT YOU WRITE HERE. `moodLine` was a per-lens light
+	 * paragraph too, and it is why the wall came back at night: neo-seoul's
+	 * said "no daylight anywhere". Every line below is therefore written in a
+	 * BRIGHT register, and `prompt.ts`'s `EXPOSURE` still says it again from
+	 * the house. A lens keeps its identity through its surfaces and its
+	 * skyline, not by turning the lights off.
+	 */
+	lightLine: string;
 	/** The dystopian reading of this future — how the palette spans the dystopian pole
 	 *  without every card being dystopian. */
 	shadowFace: string;
@@ -83,7 +98,7 @@ export const FUTURES: Future[] = [
 		key: 'garden-city',
 		name: 'The garden city',
 		provenance: 'Ebenezer Howard, To-morrow, 1898',
-		blurb: "Low and walkable. The office dissolves into parkland; you can't tell where the building ends and the park begins.",
+		blurb: 'Nature first, buildings second. There is no boundary: the office IS the parkland, low and half-buried in it, and you are never indoors for long.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: ['same-as-2026'],
@@ -93,6 +108,7 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, low pavilions under trees, gravel paths; weathered oak, bronze',
 		insideCue: 'inside, a glazed pod, an autonomous cart on the path',
 		negativeFragment: 'neon, high-rise, crowds',
+		lightLine: 'high midday sun falling through the canopy, dappled and open, nothing held in deep shade',
 		shadowFace: 'Greenbelt as exclusion; who lives inside the ring'
 	}),
 	future({
@@ -109,13 +125,14 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, terraces stacked around an inner void; board-marked concrete, dark steel',
 		insideCue: 'inside, a vertical transit car crossing the inner void',
 		negativeFragment: 'suburb, lawns, open sky',
+		lightLine: 'daylight pouring down the apex oculus and bouncing off pale concrete into every terrace',
 		shadowFace: 'Elysium: the ring above, the ground below'
 	}),
 	future({
 		key: 'solarpunk',
 		name: 'The abundant city',
 		provenance: '"From Steampunk to Solarpunk", 2008 — a design movement, not a film',
-		blurb: 'Energy is visible and free. Solar skins, edible facades, water and power on show. Repair is a civic ritual.',
+		blurb: 'A city of plenty, not of wilderness. Energy, food, water and amenity are abundant and ON SHOW \u2014 dense, urban, and generous with everything it makes.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],
@@ -125,6 +142,7 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, photovoltaic canopies, edible facades, trams; reclaimed timber, copper',
 		insideCue: 'inside, a living wall as a working surface',
 		negativeFragment: 'neon signage, dead plants',
+		lightLine: 'bright diffuse light through the glass canopy, green reflected light, no deep shadow',
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
 	}),
 	future({
@@ -141,6 +159,7 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, dense towers, layered traffic decks; black glass, brushed steel',
 		insideCue: 'inside, holographic signage drifting through the room',
 		negativeFragment: 'rural, greenery outside',
+		lightLine: 'flat bright daylight off glass and steel, the signage washed pale against a high sky',
 		shadowFace: 'It is the shadow'
 	}),
 	future({
@@ -157,13 +176,14 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, open grassland to the horizon; charred larch, stone',
 		insideCue: 'inside, one screen-wall; a drone landing at the edge',
 		negativeFragment: 'skyline, towers, crowds',
+		lightLine: 'full sun across open grass and deep into the pavilion through full-height glass',
 		shadowFace: 'Ex Machina: isolation sold as autonomy'
 	}),
 	future({
 		key: 'retrofuturism',
-		name: 'The warm machine age',
+		name: 'Neo Retro',
 		provenance: 'Deco and Streamline Moderne, c. 1925-1939',
-		blurb: 'The future as the 1930s imagined it. Deco geometry, brass, streamlined curves. Rooms remember how they once felt.',
+		blurb: 'The more we walk into the future, the more we want the past. Deco geometry, brass, streamlined curves \u2014 a tomorrow built out of yesterday.',
 		eraDefault: 'retro-1930s',
 		eraLocked: true,
 		eraWarn: [],
@@ -173,6 +193,7 @@ export const FUTURES: Future[] = [
 		worldOutside: 'through the glass, a streamlined 1930s city, arched stone facades; fluted walnut, brass',
 		insideCue: 'inside, brass-and-bakelite machine-age instruments that are clearly computers',
 		negativeFragment: 'neon, skyscrapers',
+		lightLine: 'bright daylight through the tall arched windows, walnut and brass lit warm and clear',
 		shadowFace: 'Ornament as a screen over the same machine'
 	})
 ];

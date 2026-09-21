@@ -105,6 +105,17 @@ export interface Question {
 	pushNotDrawn?: boolean;
 	/** The "And:" sub-question, where V4 has one. Optional to answer; never blocks Next. */
 	and?: AndQuestion;
+	/**
+	 * ANSWERED BY A SLIDER, not by a list of tiles — the 21 Sep minutes §4
+	 * ("replace the binary outdoor-versus-indoor question with a percentage
+	 * slider, 10% to 100%"). One percentage per option, in the options'
+	 * own order, so the slider is a different WAY TO PICK an option and
+	 * nothing downstream changes: the answer is still `keys: [oneKey]` and
+	 * the prompt still gets that option's `promptFragment`. The numbers are
+	 * data here rather than derived from the index because they are not
+	 * evenly spaced — the jump from "pockets" to "saturated" is the big one.
+	 */
+	slider?: readonly number[];
 	/** True only for `PROPOSED_QUESTIONS` (q12) — the question owner has not
 	 *  blessed this; it never appears in the flow unless `config.ts`'s
 	 *  `ENABLE_PROPOSED_QUESTIONS` is on. Absent (falsy) on every one of the nine. */
@@ -112,6 +123,187 @@ export interface Question {
 }
 
 export const QUESTIONS: Question[] = [
+	{
+		id: 'q8',
+		prompt: 'How much of the outdoors is inside?',
+		lead: 'Slide from a controlled indoor office with a little greenery to a workspace standing in the forest.',
+		layer: 'materialsAndLight',
+		select: { kind: 'one' },
+		slider: [10, 30, 55, 80, 100],
+		diamond: false,
+		push: 'Singapore is hot and humid. How does your greenery cool a mind as well as a body?',
+		options: [
+			{
+				key: 'sparse-inside-abundant-outside',
+				label: 'Sparse inside, abundant outside — the greenery is beyond the glass',
+				promptFragment: 'sparse planting inside, abundant greenery beyond the glass'
+			},
+			{
+				key: 'deliberate-pockets',
+				label: 'Pockets — deliberate, placed moments of planting',
+				promptFragment: 'deliberate pockets of greenery'
+			},
+			{
+				key: 'saturated',
+				label: 'Saturated — greenery threaded through the entire floor',
+				promptFragment: 'greenery threaded through the entire floor'
+			},
+			{
+				key: 'landscape-indoors',
+				label: 'Landscape indoors — trees, water, rock and soil you can walk into',
+				promptFragment: 'trees, water, rock and soil indoors'
+			},
+			{
+				key: 'nature-as-structure',
+				label: 'Nature as structure — terraces and open-air floors; the building is the garden',
+				promptFragment: 'planted terraces and open-air floors, the building a garden'
+			}
+		]
+	},
+	{
+		id: 'q5c',
+		prompt: 'Where does deep work happen in a centaur organisation?',
+		lead: 'AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. This is the one place your table works — the workstation question is folded into it.',
+		layer: 'programme',
+		select: { kind: 'one' },
+		diamond: true,
+		push: 'what did your table refuse to automate?',
+		pushCapturesReply: true,
+		pushNotDrawn: true,
+		options: [
+			{
+				key: 'glass-dome',
+				label:
+					'The glass dome in the forest — one transparent room standing in the trees, alone with the work',
+				promptFragment:
+					'a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane'
+			},
+			{
+				key: 'garden-cafe',
+				label:
+					'The garden café — many settings in one planted room: benches, booths, counters, chosen by mood',
+				promptFragment:
+					'a large planted indoor cafe of mixed settings, long benches, deep booths and counters between raised planters, people working across all of them'
+			},
+			{
+				key: 'open-garden',
+				label:
+					'Open garden seating — no walls at all; work happens outdoors under planting and sky',
+				promptFragment:
+					'outdoor seating in a planted terrace, tables under trees and pergola, no enclosure, people working in the open air'
+			},
+			{
+				key: 'immersive-chamber',
+				label:
+					'The immersive chamber — a room that becomes somewhere else; deep sea, canopy, orbit',
+				promptFragment:
+					'a sealed immersive chamber whose curved walls and floor become another place entirely, deep-sea light rippling over one working figure'
+			},
+			{
+				key: 'reconfigurable-pod',
+				label:
+					'The reconfigurable pod — one room that changes its size, acoustics and light to suit the task',
+				promptFragment:
+					'a pod with movable walls and shifting light visibly reconfiguring itself around its occupant, the previous arrangement still half in motion'
+			},
+			{
+				key: 'sealed-cell',
+				label:
+					'The sealed cell — four walls, a door you close, no AI in the room at all',
+				promptFragment:
+					'a small sealed acoustic room, no screens and no devices, one person working by hand at a plain desk'
+			}
+		],
+		and: {
+			prompt: 'where does the AI sit?',
+			options: [
+				{
+					key: 'unseen',
+					label: 'Unseen',
+					promptFragment: 'the AI unseen, no device anywhere'
+				},
+				{
+					key: 'in-the-light',
+					label: 'In the light',
+					promptFragment: 'the AI present only as light'
+				},
+				{
+					key: 'on-the-surfaces',
+					label: 'On the surfaces',
+					promptFragment: 'the AI on the walls and tables'
+				},
+				{
+					key: 'in-the-room',
+					label: 'In the room',
+					promptFragment: 'a hologram or figure at the table'
+				}
+			]
+		}
+	},
+	{
+		id: 'q6r',
+		prompt: 'Where do people recharge?',
+		lead: 'AI-supported work adds cognitive load, not less. These rooms exist to get people off a screen and into a different posture.',
+		layer: 'programme',
+		select: { kind: 'one' },
+		diamond: true,
+		push: 'which of the four is your organisation actually short of?',
+		options: [
+			{
+				key: 'igloo',
+				label:
+					'The igloo — a low white dome you crawl into; curved, quiet, no corners and no screen',
+				promptFragment:
+					'a smooth white domed room entered on hands and knees, curved seamless walls, one person lying back in soft indirect light'
+			},
+			{
+				key: 'mud-hut',
+				label:
+					'The earth room — thick cool mud walls, a low doorway, deep shade and a beaten floor you sit on',
+				promptFragment:
+					'a round room of thick hand-built earth walls, a low doorway, woven mats on a beaten floor, people sitting on the ground'
+			},
+			{
+				key: 'tea-room',
+				label:
+					'The tea room — tatami, paper light, a kettle; you kneel, and the room asks you to slow down',
+				promptFragment:
+					'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
+			},
+			{
+				key: 'outdoors',
+				label:
+					'Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors',
+				promptFragment:
+					'an open grassland terrace under a wide sky, wind moving the grass, people walking and stretching away from any building'
+			}
+		],
+		and: {
+			prompt: 'how far does it go?',
+			options: [
+				{
+					key: 'a-view-of-it',
+					label: 'A view of it',
+					promptFragment: 'only a view through the far glass'
+				},
+				{
+					key: 'a-room-that-evokes-it',
+					label: 'A room that evokes it',
+					promptFragment: 'an interior room borrowing its material'
+				},
+				{
+					key: 'fully-immersive',
+					label: 'Fully immersive',
+					promptFragment: 'the biome filling the frame'
+				},
+				{
+					key: 'the-real-thing',
+					label: 'The real thing',
+					promptFragment: 'outdoors inside it, the building at the edge'
+				}
+			]
+		}
+	},
 	{
 		id: 'q2',
 		prompt: 'What is your material world?',
@@ -199,447 +391,6 @@ export const QUESTIONS: Question[] = [
 			]
 		}
 	},
-	{
-		id: 'q3',
-		prompt: 'How do people arrive and find their way?',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: false,
-		push: 'what is the first thing a visitor sees, hears and smells?',
-		options: [
-			{
-				key: 'human-welcome',
-				label: 'The human welcome — a person is waiting; they greet you, walk you in, hand you over',
-				promptFragment:
-					'a person at the threshold greeting and walking the visitor in'
-			},
-			{
-				key: 'explains-itself',
-				label:
-					"The building that explains itself — sightlines, landmarks, distinct zones. No signage, no screens, no visual clutter — nothing to read, because there's nothing you need to be told",
-				promptFragment:
-					'clear sightlines, landmarks, distinct zones, no signage, a visitor reading them'
-			},
-			{
-				key: 'guided-path',
-				label: 'The guided path — directories, dynamic screens and signage that update as you move',
-				promptFragment: 'dynamic screens and signage updating around the visitor as they move'
-			},
-			{
-				key: 'virtual-companion',
-				label: "The virtual companion — a personal AI knows where you're headed; it speaks only when you hesitate",
-				promptFragment:
-					'no signage, a visitor with an earpiece pausing as it speaks'
-			},
-			{
-				key: 'expected-you',
-				label:
-					'The building that expected you — light warms toward your zone, acoustics soften, thresholds change underfoot, and the room is already cooled, lit and set up',
-				promptFragment:
-					'light warming toward the visitor, thresholds shifting underfoot'
-			}
-		],
-		and: {
-			prompt: "when does it know you're coming?",
-			options: [
-				{
-					key: 'never',
-					label: 'Never',
-					promptFragment: 'a plain threshold, no light running ahead, reacting to no one'
-				},
-				{
-					key: 'at-the-door',
-					label: 'At the door',
-					promptFragment: 'a threshold lighting and opening as someone reaches the door'
-				},
-				{
-					key: 'on-the-journey',
-					label: 'On the journey',
-					promptFragment: 'a route lighting ahead of the visitor'
-				},
-				{
-					key: 'yesterday',
-					label: 'Yesterday',
-					promptFragment: 'a room set and named for the visitor since yesterday'
-				}
-			]
-		}
-	},
-	{
-		id: 'q4w',
-		prompt: 'What does your workstation look like?',
-		lead: 'Where one person and their AI actually sit. Research point: enclosure and quiet measurably improve thinking. Private rooms outperform everything. The open bench with a low screen performs worst.',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: true,
-		push: "if the research says private rooms win, why doesn't your office have them?",
-		options: [
-			{
-				key: 'room-of-your-own',
-				label:
-					'A room of your own — four walls, a door you close, a window. Yours, with your things in it. The highest-performing answer in the research, and the most expensive.',
-				promptFragment: 'a private room, door and window, one person dictating to a wall that writes'
-			},
-			{
-				key: 'deep-desk',
-				label:
-					'The deep desk — a metre-plus deep, tall acoustic panels on three sides, one large screen. Nearly a room, without the door.',
-				promptFragment:
-					'a metre-deep desk, panels three sides, one large screen where the work grows'
-			},
-			{
-				key: 'cockpit',
-				label:
-					'The cockpit — a curve of screens and surfaces wrapping around you. You and your AI, fully instrumented, working at speed.',
-				promptFragment:
-					'a cockpit desk, screens curving round one seat, hands moving through data'
-			},
-			{
-				key: 'pod',
-				label:
-					'The pod — a sealed acoustic booth you book and leave. Remote colleagues appear beside you. Small, glazed, temporary.',
-				promptFragment:
-					'a glazed pod, a remote colleague appearing on its glass mid-sentence'
-			},
-			{
-				key: 'open-bench',
-				label:
-					'The open bench — a shared surface, no panels, no ownership. Focus happens elsewhere; this is for being together.',
-				promptFragment: 'a long open bench, no panels, people side by side comparing live models'
-			},
-			{
-				key: 'no-workstation',
-				label: 'No workstation at all — you carry your work. The building offers settings, not desks.',
-				promptFragment:
-					'no desks: window seats and soft corners, the work following onto any surface'
-			}
-		],
-		and: {
-			prompt: 'how much does it know about you?',
-			options: [
-				{
-					key: 'nothing',
-					label: 'Nothing',
-					promptFragment: 'no visible technology at the desk'
-				},
-				{
-					key: 'your-settings',
-					label: 'Your settings',
-					promptFragment: 'the desk adjusting itself as someone sits'
-				},
-				{
-					key: 'your-patterns',
-					label: 'Your patterns',
-					promptFragment:
-						"the day's schedule surfacing on the desk when touched"
-				},
-				{
-					key: 'your-state',
-					label: 'Your state',
-					promptFragment:
-						'light and air shifting around the occupant as they work'
-				}
-			]
-		}
-	},
-	{
-		id: 'q5c',
-		prompt: 'Where does deep work happen in a centaur organisation?',
-		lead: 'AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context.',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: true,
-		push: 'what did your table refuse to automate?',
-		pushCapturesReply: true,
-		pushNotDrawn: true,
-		options: [
-			{
-				key: 'sealed-cell',
-				label:
-					'The sealed cell — one person, no AI in the room. No signal, no prompts, deliberately unassisted thought.',
-				promptFragment:
-					'one person alone in a daylit sealed cell, no AI, working by hand on paper'
-			},
-			{
-				key: 'cockpit',
-				label: 'The cockpit — one person flying with full AI power; data and options surround them, they steer',
-				promptFragment:
-					'one person steering a wraparound slab of live data, options rising as their hand moves'
-			},
-			{
-				key: 'quiet-pair',
-				label: 'The quiet pair — two people thinking together; AI listens, captures, retrieves, never interrupts',
-				promptFragment:
-					'two people thinking aloud, a small device listening and lifting answers onto the table'
-			},
-			{
-				key: 'judgement-room',
-				label:
-					'The judgement room — a small group making a hard call; AI laid out the evidence, the decision stays in the room',
-				promptFragment:
-					'a model rising from a dark glass slab, one hand reshaping it, a voice answering as light'
-			},
-			{
-				key: 'studio',
-				label: 'The studio — a team creating with AI generating alongside them; messy, visual, fast',
-				promptFragment:
-					'a team sketching while AI variants bloom beside them on the wall'
-			},
-			{
-				key: 'thinking-walk',
-				label: 'The thinking walk — not a room; a loop through garden, water or sky, AI in the ear only when called',
-				promptFragment:
-					'one person walking a loop through garden and water, an earpiece answering'
-			}
-		],
-		and: {
-			prompt: 'where does the AI sit?',
-			options: [
-				{
-					key: 'unseen',
-					label: 'Unseen',
-					promptFragment: 'the AI unseen, no device anywhere'
-				},
-				{
-					key: 'in-the-light',
-					label: 'In the light',
-					promptFragment: 'the AI present only as light'
-				},
-				{
-					key: 'on-the-surfaces',
-					label: 'On the surfaces',
-					promptFragment: 'the AI on the walls and tables'
-				},
-				{
-					key: 'in-the-room',
-					label: 'In the room',
-					promptFragment: 'a hologram or figure at the table'
-				}
-			]
-		}
-	},
-	{
-		id: 'q6r',
-		prompt: 'Where do people recharge?',
-		lead: 'Not all tiredness is the same. Four kinds of depletion, four ways back.',
-		layer: 'programme',
-		select: { kind: 'one' },
-		diamond: true,
-		push: 'which of the four is your organisation actually short of?',
-		options: [
-			{
-				key: 'grassland',
-				label:
-					"Grassland — your body is spent — you've been still too long. Open horizon, sky, wind, room to move. You recover by walking, stretching, being outside.",
-				promptFragment: 'grassland: open horizon, wind, people walking and stretching'
-			},
-			{
-				key: 'old-forest',
-				label:
-					"Old Forest — your thinking is spent — you've decided too much. Tall trunks, filtered light, long quiet views, no one talking. You recover by thinking slowly, alone.",
-				promptFragment:
-					'old forest: tall trunks, one person thinking slowly alone'
-			},
-			{
-				key: 'rain-forest',
-				label:
-					"Rain Forest — your patience is spent — you've given too much to other people. Warm, dense, alive with sound. You recover among people who ask nothing of you.",
-				promptFragment: 'rain forest: warm, dense, alive with sound, people near, asking nothing'
-			},
-			{
-				key: 'deep-sea',
-				label:
-					"Deep Sea — your certainty is spent — you've been sharp too long and stopped trusting your gut. Blue dark, weightless, muffled, slow drift. You recover by stopping thought entirely.",
-				promptFragment:
-					'deep sea: blue dark indoors, weightless, someone drifting'
-			}
-		],
-		and: {
-			prompt: 'how far does it go?',
-			options: [
-				{
-					key: 'a-view-of-it',
-					label: 'A view of it',
-					promptFragment: 'only a view through the far glass'
-				},
-				{
-					key: 'a-room-that-evokes-it',
-					label: 'A room that evokes it',
-					promptFragment: 'an interior room borrowing its material'
-				},
-				{
-					key: 'fully-immersive',
-					label: 'Fully immersive',
-					promptFragment: 'the biome filling the frame'
-				},
-				{
-					key: 'the-real-thing',
-					label: 'The real thing',
-					promptFragment: 'outdoors inside it, the building at the edge'
-				}
-			]
-		}
-	},
-	{
-		id: 'q7',
-		prompt: 'Is the technology obvious or invisible?',
-		layer: 'materialsAndLight',
-		select: { kind: 'one' },
-		diamond: false,
-		push: 'where is there visibly no technology, on purpose?',
-		options: [
-			{
-				key: 'nothing-to-see',
-				label: "Nothing to see — no screens, no devices, no hardware anywhere. It works, but you couldn't point at it.",
-				promptFragment:
-					'light and a surface responding to a hand, no devices anywhere'
-			},
-			{
-				key: 'light-and-sound',
-				label:
-					'Light and sound do the talking — no screens. The room communicates by warming, dimming, quieting or cooling.',
-				promptFragment:
-					'no screens; a wall brightening toward the person as it speaks'
-			},
-			{
-				key: 'surfaces-wake-up',
-				label:
-					'Surfaces wake up — walls, glass and tables are blank until needed, then become displays, then go blank again.',
-				promptFragment:
-					"a bare table showing the work under someone's hands"
-			},
-			{
-				key: 'screens-everywhere',
-				label: 'Screens everywhere, always on — displays, dashboards and data visible across the floor at all times.',
-				promptFragment: 'screens everywhere, always on, live dashboards across the floor'
-			},
-			{
-				key: 'has-a-body',
-				label:
-					"It has a body — a hologram, avatar or robot with physical presence. You speak to it, and it's in the room with you.",
-				promptFragment:
-					'one small robot or hologram mid-task in the room'
-			},
-			{
-				key: 'paper-and-pens',
-				label:
-					'Paper and pens on purpose — whiteboards, pinboards, printouts. Deliberately unplugged zones where nothing is recorded.',
-				promptFragment:
-					'paper and pens on purpose: whiteboards, pinboards, printouts in use'
-			}
-		]
-	},
-	{
-		id: 'q8',
-		prompt: 'How much nature, and where?',
-		layer: 'materialsAndLight',
-		select: { kind: 'one' },
-		diamond: false,
-		push: 'Singapore is hot and humid. How does your greenery cool a mind as well as a body?',
-		options: [
-			{
-				key: 'sparse-inside-abundant-outside',
-				label: 'Sparse inside, abundant outside — the greenery is beyond the glass',
-				promptFragment: 'sparse planting inside, abundant greenery beyond the glass'
-			},
-			{
-				key: 'deliberate-pockets',
-				label: 'Pockets — deliberate, placed moments of planting',
-				promptFragment: 'deliberate pockets of greenery'
-			},
-			{
-				key: 'saturated',
-				label: 'Saturated — greenery threaded through the entire floor',
-				promptFragment: 'greenery threaded through the entire floor'
-			},
-			{
-				key: 'landscape-indoors',
-				label: 'Landscape indoors — trees, water, rock and soil you can walk into',
-				promptFragment: 'trees, water, rock and soil indoors'
-			},
-			{
-				key: 'nature-as-structure',
-				label: 'Nature as structure — terraces and open-air floors; the building is the garden',
-				promptFragment: 'planted terraces and open-air floors, the building a garden'
-			}
-		]
-	},
-	{
-		id: 'q10',
-		prompt: 'Your workplace can be brilliant at one of these. Which did you choose?',
-		layer: 'feel',
-		select: { kind: 'one' },
-		diamond: true,
-		push: 'be ready to point at the exact place in your image where your choice is visible.',
-		options: [
-			{
-				key: 'protects-attention',
-				label: 'It protects attention — we made it quiet and enclosed, and accepted that it feels less buzzy',
-				promptFragment: 'more small quiet rooms than open floor, doors closing'
-			},
-			{
-				key: 'supports-judgement',
-				label: 'It supports judgement — we built space for hard conversations, and gave up floor area to do it',
-				promptFragment:
-					'one oversized room built for a hard decision, in use'
-			},
-			{
-				key: 'adapts-as-needs-change',
-				label: 'It adapts — we made everything movable, and accepted that nothing feels permanent or owned',
-				promptFragment: 'the same furniture set up two ways in view, being moved'
-			},
-			{
-				key: 'knows-when-to-step-back',
-				label: 'It knows when to step back — we kept AI out of some places on purpose, and gave up efficiency there',
-				promptFragment:
-					'half the floor unpowered, people working by hand there'
-			}
-		],
-		and: {
-			prompt: 'which one did you find hardest?',
-			options: [
-				{
-					key: 'a',
-					label: 'Protects attention',
-					promptFragment: 'the hardest trade-off was protecting attention'
-				},
-				{
-					key: 'b',
-					label: 'Supports judgement',
-					promptFragment: 'the hardest trade-off was supporting judgement'
-				},
-				{
-					key: 'c',
-					label: 'Adapts',
-					promptFragment: 'the hardest trade-off was adapting'
-				},
-				{
-					key: 'd',
-					label: 'Steps back',
-					promptFragment: 'the hardest trade-off was knowing when to step back'
-				}
-			]
-		}
-	},
-	{
-		id: 'q11',
-		prompt: 'In three words, what should it feel like?',
-		layer: 'feel',
-		select: { kind: 'pick', n: 3 },
-		diamond: false,
-		options: [
-			{ key: 'calm', label: 'Calm', promptFragment: 'soft even light, still air' },
-			{ key: 'electric', label: 'Electric', promptFragment: 'hard rim light, reflections, motion blur' },
-			{ key: 'sacred', label: 'Sacred', promptFragment: 'one high daylit shaft, silence' },
-			{ key: 'playful', label: 'Playful', promptFragment: 'colour accents, a tilted frame' },
-			{ key: 'focused', label: 'Focused', promptFragment: 'one bright pool of working light' },
-			{ key: 'alive', label: 'Alive', promptFragment: 'leaves, water and birds moving' },
-			{ key: 'effortless', label: 'Effortless', promptFragment: 'nothing in the way' },
-			{ key: 'quiet', label: 'Quiet', promptFragment: 'an empty foreground, soft daylight' },
-			{ key: 'generous', label: 'Generous', promptFragment: 'wide and tall, open air' },
-			{ key: 'yours', label: 'Yours', promptFragment: 'one personal object in the foreground' }
-		]
-	}
 ];
 
 /**
@@ -732,8 +483,19 @@ export interface TableAnswers {
 // Runtime, not type-level: `QUESTIONS` is typed `Question[]`, a real array,
 // so its length and order are not literal types the compiler can pin.
 
-/** V4's nine, in her order; q1 is the lens screen's era chip, never a question. */
-export const V4_IDS = ['q2', 'q3', 'q4w', 'q5c', 'q6r', 'q7', 'q8', 'q10', 'q11'] as const;
+/**
+ * V5's four, in the order the 21 Sep minutes set: outdoors, deep work,
+ * recharge, materials. The lens is screen one and the wildcard is the last
+ * screen, so the phone still counts six things; these four are the
+ * multiple-choice questions between them.
+ *
+ * Cut from V4's nine (q3 arrival, q4w workstation, q7 technology, q10
+ * "brilliant at one", q11 three words). q4w was MERGED into q5c rather than
+ * dropped — the minutes ask one deep-work question where there were two.
+ * q11's job (light, weather and time) moved to each lens's `lightLine`; see
+ * that field's note, because doing it wrongly is what made the wall dark.
+ */
+export const V4_IDS = ['q8', 'q5c', 'q6r', 'q2'] as const;
 
 if (QUESTIONS.map((q) => q.id).join(',') !== V4_IDS.join(',')) {
 	throw new Error(
@@ -741,29 +503,37 @@ if (QUESTIONS.map((q) => q.id).join(',') !== V4_IDS.join(',')) {
 	);
 }
 
-const q11 = QUESTIONS[QUESTIONS.length - 1];
-if (q11.options.length !== 10) {
-	throw new Error(`V4's three-words question must have exactly 10 options, got ${q11.options.length}`);
-}
-if (q11.select.kind !== 'pick' || q11.select.n !== 3) {
-	throw new Error('the three-words question must be select: { kind: "pick", n: 3 } per the brief');
-}
-
-// V4 has five ◆ questions (Q2, Q4, Q5, Q6, Q9 -> q2, q4w, q5c, q6r, q10).
-// Only q2 and q5c carry `pushCapturesReply` — see the module note.
+// Every surviving question is a ◆ except q8 — the four that are left are the
+// four that drove the drawn visual most, which is why these four survived.
 const DIAMOND_IDS = QUESTIONS.filter((q) => q.diamond).map((q) => q.id);
 const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) => q.id);
-if (DIAMOND_IDS.join(',') !== 'q2,q4w,q5c,q6r,q10') {
-	throw new Error(`expected diamond (◆) questions q2,q4w,q5c,q6r,q10 per V4, got ${DIAMOND_IDS.join(',')}`);
+if (DIAMOND_IDS.join(',') !== 'q5c,q6r,q2') {
+	throw new Error(`expected diamond (◆) questions q5c,q6r,q2 after the cut to five, got ${DIAMOND_IDS.join(',')}`);
 }
-if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q5c') {
-	throw new Error(`expected push-capturing questions q2,q5c per V4, got ${PUSH_CAPTURE_IDS.join(',')}`);
+if (PUSH_CAPTURE_IDS.join(',') !== 'q5c,q2') {
+	throw new Error(`expected push-capturing questions q5c,q2, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 
-// V4's six "And:" sub-questions, on exactly these.
+/**
+ * The "And:" sub-questions that survived. q6r's is the realism scale the
+ * minutes' §8 asked for ("a view of it / a room that evokes it / fully
+ * immersive / the real thing") — it was already built, so §8's open question
+ * needs no new screen.
+ */
 const AND_IDS = QUESTIONS.filter((q) => q.and).map((q) => q.id);
-if (AND_IDS.join(',') !== 'q2,q3,q4w,q5c,q6r,q10') {
-	throw new Error(`expected "And:" sub-questions on q2,q3,q4w,q5c,q6r,q10 per V4, got ${AND_IDS.join(',')}`);
+if (AND_IDS.join(',') !== 'q5c,q6r,q2') {
+	throw new Error(`expected "And:" sub-questions on q5c,q6r,q2, got ${AND_IDS.join(',')}`);
+}
+
+/**
+ * A slider has to name one percentage per option or it cannot label its own
+ * stops — and a mismatch would silently drop the top of the scale, which is
+ * the end of it the minutes cared about ("cabins in a forest").
+ */
+for (const q of QUESTIONS) {
+	if (q.slider && q.slider.length !== q.options.length) {
+		throw new Error(`${q.id}: slider has ${q.slider.length} stops for ${q.options.length} options`);
+	}
 }
 
 if (PROPOSED_QUESTIONS.length !== 1) {
@@ -772,6 +542,6 @@ if (PROPOSED_QUESTIONS.length !== 1) {
 if (!(PROPOSED_QUESTIONS[0].id === 'q12' && PROPOSED_QUESTIONS[0].proposed === true)) {
 	throw new Error('the one proposed question must be q12, marked proposed: true');
 }
-if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 10 : 9)) {
+if (ACTIVE_QUESTIONS.length !== (ENABLE_PROPOSED_QUESTIONS ? 5 : 4)) {
 	throw new Error(`ACTIVE_QUESTIONS length does not match ENABLE_PROPOSED_QUESTIONS (got ${ACTIVE_QUESTIONS.length})`);
 }

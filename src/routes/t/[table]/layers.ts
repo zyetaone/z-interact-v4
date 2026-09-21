@@ -89,8 +89,16 @@ import {
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
  *  up in the opening line too, not just in the mood clause after it. */
+/**
+ * WHAT GOES AFTER "relevant in ...". Three of these are years and read as
+ * years; the fourth is not a year at all, and `'1930s-revival'` composed
+ * the sentence "Design a workplace that is relevant in 1930s-revival".
+ * Caught by the 21 Sep smoke test, on the FIRST table it drew — and not an
+ * edge case: `retro-1930s` is Neo Retro's `eraDefault`, so every table that
+ * picks that lens and leaves the chip alone gets it.
+ */
 export const ERA_YEAR: Record<Era, string> = {
-    'retro-1930s': '1930s-revival',
+    'retro-1930s': 'a reimagined 1930s',
     'same-as-2026': '2026',
     'recognisably-2035': '2035',
     'hyperfuturistic-2040': '2040'
@@ -149,11 +157,20 @@ const OPTIONS_BY_ID: ReadonlyMap<string, readonly QuestionOption[]> = new Map([
 
 /** Which V4 question feeds which table-level layer. Exported so a test can prove no question is orphaned. */
 export const MATERIAL_IDS = ['q2', 'q7', 'q8'] as const;
-export const PROGRAMME_IDS = ['q3', 'q4w', 'q5c', 'q6r'] as const;
+// q3 (arrival) and q4w (workstation) are gone with the cut to five; q4w's
+// subject is inside q5c now, so the deep-work zone carries both.
+export const PROGRAMME_IDS = ['q5c', 'q6r'] as const;
 /** q10 (brilliant at one) is ◆ and its push line is "point at the exact place in your image
  *  where your choice is visible" — so it is drawn, as one short visible consequence, the last
  *  content clause before the light-and-weather line in every zone. */
-export const FEEL_IDS = ['q10', 'q11'] as const;
+/**
+ * EMPTY, AND THAT IS THE CHANGE. The `feel` layer was q10's consequence plus
+ * q11's three words; both questions are cut. The owner's call was to fold
+ * light, weather and time into the lens, so `feel` is now the chosen
+ * future's `lightLine` and nothing else. A table with no lens gets no feel
+ * clause, and the house `EXPOSURE` in the frame still states the light.
+ */
+export const FEEL_IDS = [] as const;
 /** Answered for the wall and the ledger, never drawn: q10's "hardest" pick is a sentence
  *  about the table, not a subject. It stays on the review screen and in the export. */
 export const WALL_ONLY_IDS = ['q10:and'] as const;
@@ -225,6 +242,35 @@ export const NO_2026 = 'paper notebooks, coffee mugs, 2020s office furniture, la
 const NO_2026_KEEP_PAPER = NO_2026.replace('paper notebooks, ', '');
 
 /**
+ * THE TABLE'S TYPED WILDCARD, verbatim, through its own `{text}` slot — or
+ * undefined when they skipped it.
+ *
+ * Exported because there are TWO composers and only one of them read it.
+ * `buildLayerInputs` (the four-zone path) had this inline; `hero.ts` — the
+ * composer for `ZONE_SET=hero`, which is the DEFAULT and therefore the only
+ * render most rooms produce — never read the wildcard at all. The phone
+ * meanwhile tells every table "whatever it is, it goes into the drawing
+ * exactly as you write it" (`WildcardScreen.svelte`), and the 21 Sep
+ * minutes make "What have we missed?" one of the five things asked. It was
+ * collected, promised, stored, exported, and silently not drawn.
+ *
+ * `sanitizeComposed` at the free-text cap rather than a bare `.trim()`:
+ * this is the one string in the prompt a stranger typed, and the hero path
+ * does not run the whole prompt through the sanitizer the way the base
+ * path does. Valibot already caps the stored value at 140; this strips
+ * control characters and collapses whitespace so the same text cannot
+ * arrive differently by composer.
+ */
+export function wildcardFragment(by: ReadonlyMap<string, AnswerLike>): string | undefined {
+	const raw = by.get(WILDCARD.id)?.text?.[WILDCARD.options[0].key] ?? '';
+	const text = sanitizeComposed(raw, FREE_TEXT_MAX);
+	return text ? fragmentOf(WILDCARD.options[0], text) : undefined;
+}
+
+/** The cap valibot already applies when the answer is saved (`answers.remote.ts`), restated where the text is composed. */
+export const FREE_TEXT_MAX = 140;
+
+/**
  * The layout guard first, the house terms, the 2026 tells, then the future's
  * own; duplicates dropped, order preserved.
  *
@@ -284,6 +330,9 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	// zone through the base. q4w's "how much
 	// it knows" clause rides with the workstation in the studio's moment
 	// rather than here: at the base it cost eight words in all four zones.
+	// q7 (is the technology obvious or invisible?) is cut. Kept as a lookup
+	// rather than deleted: rows answered under V4 still carry q7 keys, and a
+	// regenerate of one of those rows should still say what it said.
 	const roomParticipates = (by.get('q7')?.keys ?? []).map((k) => ROOM_PARTICIPATES[k]).filter(Boolean);
 	const materialsAndLight = joinClauses([
 		...fragmentsWithAnd(by, 'q2'),
@@ -311,12 +360,10 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	// --- feel: q10's visible consequence, then q11's three picks as
 	// light-and-weather clauses (recipe §2, move 5) — a comma list. q10's
 	// "hardest" And is `WALL_ONLY_IDS`, so `fragmentsFor`, not `fragmentsWithAnd`.
-	const feel = FEEL_IDS.flatMap((id) => fragmentsFor(by.get(id))).join(', ');
+	const feel = future?.lightLine ?? '';
 
 	// --- wildcard: verbatim, through its own `{text}` slot.
-	const wildcardAnswer = by.get(WILDCARD.id);
-	const wildcardText = wildcardAnswer?.text?.[WILDCARD.options[0].key]?.trim();
-	const wildcard = wildcardText ? fragmentOf(WILDCARD.options[0], wildcardText) : undefined;
+	const wildcard = wildcardFragment(by);
 
 	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
 	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen, bright) };

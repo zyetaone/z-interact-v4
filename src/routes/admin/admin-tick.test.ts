@@ -168,7 +168,8 @@ describe('adminRoom with a room full of pending rows', () => {
 
 		expect(row.images[0]).toBe('failed');
 		expect(row.imageErrors[0]).toBe('fal: 422 content_policy_violation');
-		expect(row.imageErrors.slice(1)).toEqual([null, null, null]);
+		// One other zone, not three: the question cut left two act zones.
+		expect(row.imageErrors.slice(1)).toEqual([null]);
 	});
 
 	it('makes no provider call at all for a bad token', async () => {

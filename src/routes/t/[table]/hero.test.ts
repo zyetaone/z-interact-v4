@@ -5,20 +5,22 @@
  *
  * The last one is not hypothetical. `futures.ts` keeps `moodLine` (which
  * opens "Night, high above a vertical megacity") apart from `worldOutside`
- * / `styleDna` / `insideCue` precisely so a lens survives daylight, and
- * q11's feel words own light and weather. A hero prompt that reached for
- * `moodLine` would put every neo-seoul table in the dark whatever they
- * answered.
+ * / `styleDna` / `insideCue` / `lightLine` precisely so a lens survives
+ * daylight. Since the 21 Sep cut it is `lightLine` — not q11's feel words,
+ * which are gone — that owns the light. A hero prompt that reached for
+ * `moodLine` instead would put every neo-seoul table in the dark whatever
+ * they answered.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { composeHeroPrompt, composePromptFor, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
-import { wordCount, type AnswerLike } from './layers';
+import { wordCount, wildcardFragment, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
-import { QUESTIONS, TABLE_COUNT } from '$lib/game/questions';
+import { QUESTIONS, TABLE_COUNT, WILDCARD } from '$lib/game/questions';
 import { HERO_ZONE, IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
+import { ERA_SCALE } from '$lib/game/era';
 import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
 
 /** Table 10's rehearsal answers — the set the scratch sample is composed from. */
@@ -27,45 +29,36 @@ const T10: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['soft-pastel'] },
 	{ questionId: 'q2:and', keys: ['generous'] },
-	{ questionId: 'q3', keys: ['explains-itself'] },
-	{ questionId: 'q3:and', keys: ['on-the-journey'] },
-	{ questionId: 'q4w', keys: ['no-workstation'] },
-	{ questionId: 'q4w:and', keys: ['nothing'] },
-	{ questionId: 'q5c', keys: ['thinking-walk'] },
+	{ questionId: 'q5c', keys: ['open-garden'] },
 	{ questionId: 'q5c:and', keys: ['in-the-room'] },
-	{ questionId: 'q6r', keys: ['rain-forest'] },
+	{ questionId: 'q6r', keys: ['mud-hut'] },
 	{ questionId: 'q6r:and', keys: ['a-view-of-it'] },
-	{ questionId: 'q7', keys: ['light-and-sound'] },
 	{ questionId: 'q8', keys: ['landscape-indoors'] },
-	{ questionId: 'q10', keys: ['supports-judgement'] },
-	{ questionId: 'q10:and', keys: ['a'] },
-	{ questionId: 'q11', keys: ['alive', 'effortless', 'yours'] }
+	// A V4-era row. It still composes — see `layers.test.ts`'s note.
+	{ questionId: 'q7', keys: ['light-and-sound'] }
 ];
 
 const t10 = () => composeHeroPrompt({ futureKey: 'neo-seoul', answers: T10, table: 10 });
 
 describe('every answer reaches the hero prompt', () => {
-	it('carries each zone-worthy act, its "And:" pick, and the frame that holds them', () => {
+	it('carries each surviving act, its "And:" pick, and the frame that holds them', () => {
 		const p = t10();
-		// The four acts, each with its sub-question's fragment beside it.
-		expect(p).toMatch(/People arrive by clear sightlines[^.]*a route lighting ahead of the visitor/);
-		expect(p).toMatch(/Deep work happens as one person walking a loop[^.]*a hologram or figure at the table/);
-		expect(p).toMatch(/They work at no desks[^.]*no visible technology at the desk/);
-		expect(p).toMatch(/They recharge in rain forest[^.]*only a view through the far glass/);
+		// TWO acts now, not four. The 21 Sep minutes cut q3 (arrival) and
+		// folded q4w (the workstation) into q5c, so deep work and recharge are
+		// the whole programme.
+		expect(p).toMatch(/Deep work happens as outdoor seating in a planted terrace[^.]*a hologram or figure at the table/);
+		expect(p).toMatch(/They recharge in a round room of thick hand-built earth walls[^.]*only a view through the far glass/);
 	});
 
-	it('carries the room participating, nature, the consequence, the materials, the scale and the feel words', () => {
+	it('carries the room participating, nature, the materials, the scale and the lens light', () => {
 		const p = t10();
 		// q7 arrives as its ROOM_PARTICIPATES clause, not as its option fragment.
 		expect(p).toContain('a wall brightens toward whoever walks to it and dims behind them');
 		expect(p).toContain('trees, water, rock and soil indoors'); // q8
-		expect(p).toContain('one oversized room built for a hard decision, in use'); // q10
 		expect(p).toContain('blush, sage and butter'); // q2
 		expect(p).toContain('wide lens, high ceilings, open floor'); // q2:and, as the camera
-		// q11's three picks, as light and weather.
-		expect(p).toContain('leaves, water and birds moving');
-		expect(p).toContain('nothing in the way');
-		expect(p).toContain('one personal object in the foreground');
+		// The feel is the LENS's `lightLine` now that q11 is cut.
+		expect(p).toContain(FUTURES.find((f) => f.key === 'neo-seoul')!.lightLine);
 	});
 
 	it('carries the lens world, the indoor cue, the impossible idea and the era year', () => {
@@ -181,20 +174,18 @@ describe('the judge has to be able to tell two tables apart', () => {
 
 
 describe('the room came back dark', () => {
-	const withFeel = (keys: string[], table = 3) =>
-		composeHeroPrompt({
-			futureKey: 'neo-seoul',
-			answers: T10.map((a) => (a.questionId === 'q11' ? { ...a, keys } : a)),
-			table
-		});
+	/**
+	 * q11 — the feel words — is CUT. The light now belongs to the lens, as
+	 * `futures.ts`'s `lightLine`, so the guards that used to walk q11's
+	 * options walk the six lenses instead. `DARK_FEEL_KEYS` survives as the
+	 * knob that can opt a key out again; it is empty and the tests below say
+	 * so out loud rather than passing vacuously.
+	 */
+	const BRIGHT = /\b(sun|sunlit|daylight|bright|light)\b/i;
+	const DARK = /\b(night|dusk|evening|twilight|unlit|gloom|dim|darkness)\b/i;
 
-	it('states the exposure whenever no feel word asks for night or deep shadow', () => {
-		// The table-10 set is alive/effortless/yours — none of them dark.
+	it('states the exposure for every lens, and with no lens at all', () => {
 		expect(t10()).toContain(EXPOSURE);
-		for (const keys of [['alive', 'effortless', 'yours'], ['calm', 'generous', 'playful'], ['electric', 'yours', 'alive'], []]) {
-			expect(withFeel(keys), keys.join('+')).toContain(EXPOSURE);
-		}
-		// Every lens, not just the dark one.
 		for (const future of FUTURES) {
 			expect(composeHeroPrompt({ futureKey: future.key, answers: T10, table: 5 }), future.key).toContain(EXPOSURE);
 		}
@@ -202,15 +193,21 @@ describe('the room came back dark', () => {
 		expect(composeHeroPrompt({ answers: T10, table: 5 })).toContain(EXPOSURE);
 	});
 
-	it('brightens every feel word now that none of them asks for the dark', () => {
-		// The three that used to opt out (quiet, focused, sacred) had fragments
-		// that described how LITTLE light there was. They now say where the
-		// light is, so there is nothing left to suppress and the whole wall is
-		// exposed. `DARK_FEEL_KEYS` stays as the knob that undoes this.
+	it('gives every lens a lightLine that places light rather than removing it', () => {
+		// The audit that closed the owner's "all are looking very dark". The
+		// same guard `layers.test.ts` holds over the zone prompts, held here
+		// because the hero reads the same field.
 		expect(DARK_FEEL_KEYS).toEqual([]);
-		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
-		for (const o of q11.options) {
-			expect(withFeel([o.key, 'yours', 'alive']), o.key).toContain(EXPOSURE);
+		for (const future of FUTURES) {
+			expect(future.lightLine, future.key).toMatch(BRIGHT);
+			expect(future.lightLine, future.key).not.toMatch(DARK);
+		}
+	});
+
+	it('carries the lens lightLine into the prompt, so the guard above is not theoretical', () => {
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({ futureKey: future.key, answers: T10, table: 6 });
+			expect(p, future.key).toContain(future.lightLine);
 		}
 	});
 
@@ -220,41 +217,16 @@ describe('the room came back dark', () => {
 	});
 
 	it('lets no fragment anywhere call a space unlit', () => {
-		// Wider than the q11 check below, and narrower on purpose. A material
-		// answer may be near-black and a prop may be a dark glass slab — those
-		// are things, and the table chose them. What no fragment may do is
-		// declare a SPACE to have no light in it, because that is the whole
-		// frame. Two got through my own audit and came from the other session:
-		// the threshold that reacts to no one, and the sealed cell.
+		// A material answer may be near-black and a prop may be a dark glass
+		// slab — those are things, and the table chose them. What no fragment
+		// may do is declare a SPACE to have no light in it, because that is the
+		// whole frame. Two got through my own audit and came from the other
+		// session: the threshold that reacts to no one, and the sealed cell.
 		for (const q of QUESTIONS) {
 			for (const o of q.options ?? []) {
 				expect(o.promptFragment ?? '', `${q.id}/${o.key}`).not.toMatch(/\bunlit\b/i);
 			}
 		}
-	});
-
-	it('leaves no feel fragment describing the room as dark', () => {
-		// The audit that closed the owner's "all are looking very dark": a feel
-		// word may place the light, never remove it from the building.
-		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
-		for (const o of q11.options) {
-			expect(o.promptFragment ?? '', o.key).not.toMatch(
-				/\b(deep shadow|shadow around|dark|dim|unlit|gloom|night)\b/i
-			);
-		}
-	});
-
-	it('keeps electric bright — hard rim light is a lit scene, not a night one', () => {
-		expect(withFeel(['electric', 'alive', 'yours'])).toContain(EXPOSURE);
-		expect(DARK_FEEL_KEYS).not.toContain('electric');
-	});
-
-	it('names only feel words that actually exist, so a renamed option fails here', () => {
-		// Vacuous while the list is empty, which is why it asserts the set too:
-		// the guard has to keep working the day someone puts a key back.
-		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
-		const keys = new Set(q11.options.map((o) => o.key));
-		expect(DARK_FEEL_KEYS.filter((k) => !keys.has(k))).toEqual([]);
 	});
 
 	it('decides from the keys alone, so the rule can be read without composing a prompt', () => {
@@ -328,9 +300,7 @@ describe('the labels that got painted on the building', () => {
 
 	it('states the acts as prose with verbs', () => {
 		const p = t10();
-		expect(p).toContain('People arrive by');
 		expect(p).toContain('Deep work happens as');
-		expect(p).toContain('They work at');
 		expect(p).toContain('They recharge in');
 	});
 
@@ -391,13 +361,12 @@ describe('a half-answered table', () => {
 			futureKey: 'solarpunk',
 			answers: [
 				{ questionId: 'q1', keys: ['recognisably-2035'] },
-				{ questionId: 'q3', keys: ['explains-itself'] }
+				{ questionId: 'q6r', keys: ['igloo'] }
 			],
 			table: 2
 		});
-		expect(p).toContain('People arrive by clear sightlines');
+		expect(p).toMatch(/They recharge in/);
 		expect(p).not.toMatch(/Deep work happens/);
-		expect(p).not.toMatch(/They work at/);
 		expect(p.endsWith(NO_TEXT)).toBe(true);
 	});
 
@@ -411,21 +380,16 @@ describe('a half-answered table', () => {
 });
 
 describe('the exposure negatives', () => {
-	const feel = (keys: string[]) =>
-		composeHeroPrompt({
-			futureKey: 'neo-seoul',
-			answers: T10.map((a) => (a.questionId === 'q11' ? { ...a, keys } : a)),
-			table: 3
-		});
-
 	it('says it from both sides for a table that did not ask for the dark', () => {
 		expect(t10()).toContain(UNDEREXPOSED_NEGATIVE);
 	});
 
-	it('carries the negatives for every feel word, since none opts out today', () => {
-		const q11 = QUESTIONS.find((q) => q.id === 'q11')!;
-		for (const o of q11.options) {
-			expect(feel([o.key]), o.key).toContain(UNDEREXPOSED_NEGATIVE);
+	it('carries the negatives on every lens, since nothing opts out today', () => {
+		// `DARK_FEEL_KEYS` is the only opt-out left and it is empty, so every
+		// lens in the room gets the negative half of the brightening too.
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({ futureKey: future.key, answers: T10, table: 3 });
+			expect(p, future.key).toContain(UNDEREXPOSED_NEGATIVE);
 		}
 	});
 
@@ -461,5 +425,84 @@ describe('every submit path uses the chooser', () => {
 		expect(composePromptFor(HERO_ZONE, ctx)).toBe(
 			composeHeroPrompt({ futureKey: 'neo-seoul', era: null, answers: T10, table: 7 })
 		);
+	});
+});
+
+describe('the wildcard — the answer that was collected and never drawn', () => {
+	/**
+	 * THE DEFECT, from the 21 Sep end-to-end review. `composeBase` (the
+	 * four-zone path) has always carried the wildcard. This composer did
+	 * not — and `ZONE_SET` defaults to `hero`, so this composer is the ONLY
+	 * prompt most rooms render. The phone's last screen meanwhile promises
+	 * "whatever it is, it goes into the drawing exactly as you write it".
+	 */
+	const TYPED = 'a brass diving bell hanging over the atrium';
+	const withWildcard = (text: string) =>
+		composeHeroPrompt({
+			futureKey: 'neo-seoul',
+			answers: [...T10, { questionId: WILDCARD.id, keys: [WILDCARD.options[0].key], text: { [WILDCARD.options[0].key]: text } }],
+			table: 10
+		});
+
+	it('carries the table\'s own words into the prompt', () => {
+		expect(withWildcard(TYPED)).toContain(TYPED);
+	});
+
+	it('puts them last of the content, immediately before the Avoid list', () => {
+		const p = withWildcard(TYPED);
+		expect(p.indexOf(TYPED)).toBeLessThan(p.indexOf('Avoid: '));
+		// And after the dressing, so nothing the table typed is buried mid-brief.
+		expect(p.indexOf(TYPED)).toBeGreaterThan(p.indexOf('People small and anonymous'));
+	});
+
+	it('adds nothing at all when the table skipped it', () => {
+		expect(withWildcard('')).toBe(t10());
+		expect(withWildcard('   ')).toBe(t10());
+	});
+
+	it('strips control characters and collapses whitespace, since this is the one string a stranger typed', () => {
+		const p = withWildcard('a brass\u0007 diving   bell\nover the atrium');
+		expect(p).toContain('a brass diving bell over the atrium');
+		expect(p).not.toMatch(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/);
+	});
+
+	it('reads the same wildcard the four-zone path reads, from the one reader', () => {
+		// Not a second copy of "what the wildcard is" — `wildcardFragment` is
+		// exported from layers.ts and both composers call it.
+		const by = new Map([[WILDCARD.id, { questionId: WILDCARD.id, keys: [WILDCARD.options[0].key], text: { [WILDCARD.options[0].key]: TYPED } }]]);
+		expect(withWildcard(TYPED)).toContain(wildcardFragment(by)!);
+	});
+
+	it('stays under the word ceiling with the longest wildcard a table can type', () => {
+		// 140 is the cap valibot applies at save time.
+		const longest = 'x'.repeat(140);
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({
+				futureKey: future.key,
+				answers: [...T10, { questionId: WILDCARD.id, keys: [WILDCARD.options[0].key], text: { [WILDCARD.options[0].key]: longest } }],
+				table: 10
+			});
+			expect(wordCount(p), future.key).toBeLessThanOrEqual(HERO_WORD_TARGET.max);
+		}
+	});
+});
+
+describe('the era reads as a sentence, whichever chip the table holds', () => {
+	/**
+	 * `ERA_YEAR['retro-1930s']` was `'1930s-revival'`, which composed
+	 * "Design a workplace that is relevant in 1930s-revival". Smoke test 1
+	 * drew it on its first table, because `retro-1930s` is Neo Retro's
+	 * `eraDefault` — every table on that lens got it unless they nudged the
+	 * chip. Three of the four values are years and always read; this is the
+	 * guard for the one that is not.
+	 */
+	it('composes "relevant in <something that reads>" for every era on the scale', () => {
+		for (const era of ERA_SCALE) {
+			const p = composeHeroPrompt({ futureKey: 'retrofuturism', era, answers: T10, table: 3 });
+			const opening = p.slice(0, p.indexOf(':'));
+			expect(opening, era).toMatch(/relevant in (a reimagined 1930s|20\d\d)\b/);
+			// A bare slug would have a hyphen in it where prose does not.
+			expect(/relevant in [a-z0-9]+-[a-z0-9]/.test(opening), era).toBe(false);
+		}
 	});
 });

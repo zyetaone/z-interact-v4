@@ -72,7 +72,62 @@
 	}
 
 	const tiles = $derived(question.options.every((o) => hasOptionImage(question.id, o.key)));
+
+	/* --- the percentage slider (questions.ts's `slider`) -------------------
+	   A different way to pick ONE of the same options, not a different kind
+	   of answer: `commit` calls the same `toggle` every tile calls, so the
+	   row written server-side is identical to the one a tap would write.
+
+	   An untouched slider must not read as an answer — the table has to
+	   choose. So the thumb rests in the middle with no option selected, and
+	   `picked` stays null until they move it. That is also why the caption
+	   says "drag to choose" rather than naming the middle option.
+
+	   `oninput` alone would strand exactly one option: a range fires input
+	   only when its value CHANGES, so a table whose answer is the middle
+	   stop — the one the untouched thumb already sits on — could press it
+	   and get nothing. `onpointerup`/`onkeyup` commit whatever is showing. */
+	const slider = $derived('slider' in question ? question.slider : undefined);
+	const sliderIndex = $derived(question.options.findIndex((o) => keys.includes(o.key)));
+	const restIndex = $derived(Math.floor((question.options.length - 1) / 2));
+	const sliderValue = $derived(sliderIndex >= 0 ? sliderIndex : restIndex);
+	const sliderOption = $derived(sliderIndex >= 0 ? question.options[sliderIndex] : undefined);
+
+	function commit(raw: string) {
+		const option = question.options[Number(raw)];
+		if (option && !keys.includes(option.key)) toggle(option.key);
+	}
 </script>
+
+{#if slider}
+	{@const percent = slider[sliderValue]}
+	{@const img = sliderOption ? imageOf(sliderOption.key) : undefined}
+	<section class="slider" aria-label={question.prompt}>
+		<p class="readout">
+			<span class="percent" class:unset={!sliderOption}>{sliderOption ? `${percent}%` : '—'}</span>
+			<span class="caption">{sliderOption ? sliderOption.label : 'Drag to choose'}</span>
+		</p>
+		{#if img}
+			<img class="preview" src={img} alt="" />
+		{/if}
+		<input
+			type="range"
+			min="0"
+			max={question.options.length - 1}
+			step="1"
+			value={sliderValue}
+			aria-label={question.prompt}
+			aria-valuetext={sliderOption ? `${percent} percent — ${sliderOption.label}` : 'not chosen yet'}
+			oninput={(e) => commit(e.currentTarget.value)}
+			onpointerup={(e) => commit(e.currentTarget.value)}
+			onkeyup={(e) => commit(e.currentTarget.value)}
+		/>
+		<p class="ends">
+			<span>{slider[0]}% indoors</span>
+			<span>{slider[slider.length - 1]}% outdoors</span>
+		</p>
+	</section>
+{:else}
 
 <p class="count-lead" aria-live="polite">
 	{#if countLine.n}<strong>{countLine.n}</strong><span class="sep">·</span>{/if}{countLine.rule}
@@ -128,8 +183,69 @@
 		</li>
 	{/each}
 </ul>
+{/if}
 
 <style>
+	/* --- the percentage slider -------------------------------------------- */
+
+	.slider {
+		margin-bottom: 18px;
+	}
+
+	.readout {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		margin: 0 0 12px;
+	}
+
+	.percent {
+		font-family: var(--display, Georgia, serif);
+		font-size: 2rem;
+		line-height: 1;
+		color: var(--gold);
+	}
+
+	.percent.unset {
+		color: var(--muted);
+	}
+
+	.caption {
+		flex: 1;
+		min-width: 0;
+		font-size: 15px;
+		line-height: 1.3;
+	}
+
+	.preview {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+		border-radius: var(--radius);
+		border: 1px solid var(--line);
+		display: block;
+		margin-bottom: 12px;
+		background: var(--card-solid);
+	}
+
+	/* A thumb big enough for a thumb. The browser default is ~12px, which is
+	   below the 44px target the rest of this flow holds to. */
+	.slider input[type='range'] {
+		width: 100%;
+		height: 44px;
+		accent-color: var(--gold);
+	}
+
+	.ends {
+		display: flex;
+		justify-content: space-between;
+		margin: 0;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	/* --- the option list --------------------------------------------------- */
+
 	.open-field {
 		padding: 8px 0 2px 16px;
 	}

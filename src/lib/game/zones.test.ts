@@ -44,7 +44,7 @@ describe('zone ownership cites real V4 question ids', () => {
 
 	it('the questions set gives every zone-worthy V4 question exactly one zone', () => {
 		const owned = ZONE_SETS.questions.flatMap((z) => z.questionIds);
-		expect(owned.sort()).toEqual(['q3', 'q4w', 'q5c', 'q6r']);
+		expect(owned.sort()).toEqual(['q5c', 'q6r']);
 	});
 });
 
@@ -58,17 +58,17 @@ describe('ZONE_SET — which zones render', () => {
 		}
 	});
 
-	it('renders the four functional zones on "four", and five on "all"', () => {
+	it('renders the act zones on "four", and those plus the hero on "all"', () => {
 		const four = activeZones('four');
-		expect(four).toHaveLength(4);
+		expect(four).toHaveLength(2);
 		expect(four.some((z) => z.hero)).toBe(false);
 
 		const all = activeZones('all');
-		expect(all).toHaveLength(5);
+		expect(all).toHaveLength(3);
 		// The hero leads, so a projector or a phone showing the first tile shows
 		// the one that is the table's answer.
 		expect(all[0].key).toBe('workspace');
-		expect(new Set(all.map((z) => z.key)).size).toBe(5);
+		expect(new Set(all.map((z) => z.key)).size).toBe(3);
 	});
 
 	it('names the raw value the same way everywhere', () => {
@@ -81,7 +81,7 @@ describe('ZONE_SET — which zones render', () => {
 	it('hands back a copy, so a caller cannot mutate the zone set', () => {
 		const zones = activeZones('four');
 		zones.pop();
-		expect(activeZones('four')).toHaveLength(4);
+		expect(activeZones('four')).toHaveLength(2);
 	});
 });
 

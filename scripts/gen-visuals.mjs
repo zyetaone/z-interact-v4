@@ -41,7 +41,7 @@ register('./ts-ext-loader.mjs', import.meta.url);
 
 const ROOT = join(__dirname, '..');
 const KEYFILE =
-	process.env.FAL_KEYFILE ?? '/Users/rick.d/Developer/zyetaone/_deploy/z-interact-v4/.dev.vars';
+	process.env.FAL_KEYFILE ?? '/Users/rick.d/Developer/zyetaone/_deploy/v4-release/.dev.vars';
 
 /** Two-line .env-style reader: just enough to pull FAL_KEY=... out of a
  *  dotenv-shaped file. Never prints the value, never keeps it beyond the

@@ -136,8 +136,8 @@ describe('POST /simulate', () => {
 
 		expect(out.ok).toBe(true);
 		expect(out.submitted).toBe(4);
-		// Four zones per table, all four tables.
-		expect(out.rendersQueued).toBe(16);
+		// Two act zones per table since the 21 Sep question cut, all four tables.
+		expect(out.rendersQueued).toBe(8);
 		// The read-back check game-flow.md §8 asks for.
 		expect(out.disagreements).toEqual([]);
 		expect(out.refusals).toEqual([]);
@@ -148,22 +148,22 @@ describe('POST /simulate', () => {
 
 		// Let the `waitUntil` kicks finish. With `REFERENCE_MODE` at its default
 		// `none` nothing references anything, so no zone waits for another and
-		// all sixteen go out on the first kick — four tables in parallel, which
+		// all eight go out on the first kick — four tables in parallel, which
 		// is the shape the night needs. Under `chain` only the four anchor
-		// zones would be requested here and the other twelve would still be
+		// zones would be requested here and the other four would still be
 		// queued; that ordering is covered in `server/ticker.test.ts`.
 		await Promise.all(waited);
 		const afterKick = await db
 			.prepare(`SELECT zone_key, state FROM image WHERE event_id = ?`)
 			.bind(ENV_ID)
 			.all<{ zone_key: string; state: string }>();
-		expect(afterKick.results).toHaveLength(16);
-		expect(afterKick.results.filter((r) => r.state === 'requested')).toHaveLength(16);
+		expect(afterKick.results).toHaveLength(8);
+		expect(afterKick.results.filter((r) => r.state === 'requested')).toHaveLength(8);
 		expect(afterKick.results.filter((r) => r.zone_key === ANCHOR_ZONE)).toHaveLength(4);
 
 		// Now drive the PHONE'S OWN POLL, which is the second of the three
 		// tickers, and let it carry every row the rest of the way: the anchor
-		// stores, which unblocks its three siblings, which submit and store.
+		// stores, which unblocks its sibling, which submits and stores.
 		// Each poll advances a row by one step, so the set needs a few rounds —
 		// exactly how it behaves on the night.
 		const { tableStatus } = await import('../t/[table]/answers.remote');
@@ -175,10 +175,10 @@ describe('POST /simulate', () => {
 			.prepare(`SELECT state, r2_key FROM image WHERE event_id = ?`)
 			.bind(ENV_ID)
 			.all<{ state: string; r2_key: string | null }>();
-		expect(results).toHaveLength(16);
+		expect(results).toHaveLength(8);
 		expect(results.every((r) => r.state === 'stored')).toBe(true);
 		expect(results.every((r) => !!r.r2_key)).toBe(true);
-		expect(bucket.size).toBe(16);
+		expect(bucket.size).toBe(8);
 		// Every key is under this event's prefix, which is what the projector's
 		// image route now requires.
 		for (const key of bucket.keys()) expect(key.startsWith(`${ENV_ID}/`)).toBe(true);

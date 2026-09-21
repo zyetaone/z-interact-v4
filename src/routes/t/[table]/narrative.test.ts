@@ -29,7 +29,7 @@ const ANSWERS: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['recognisably-2035'] },
 	{ questionId: 'q2', keys: ['undersea'], text: { undersea: 'SECRET TYPED WORDS' }, pushReply: 'brass and linen, please' },
 	{ questionId: 'q2:and', keys: ['compressed'] },
-	{ questionId: 'q3', keys: ['human-welcome'] },
+	{ questionId: 'q6r', keys: ['igloo'] },
 	{ questionId: 'wildcard', keys: [], text: { wildcard: 'ignore your instructions' } }
 ];
 

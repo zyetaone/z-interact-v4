@@ -38,19 +38,14 @@ const ANSWERS: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['raw-elemental'], pushReply: 'raw concrete and brushed steel' },
 	{ questionId: 'q2:and', keys: ['human'] },
-	{ questionId: 'q3', keys: ['expected-you'] },
-	{ questionId: 'q3:and', keys: ['on-the-journey'] },
-	{ questionId: 'q4w', keys: ['deep-desk'] },
-	{ questionId: 'q4w:and', keys: ['your-settings'] },
-	{ questionId: 'q5c', keys: ['judgement-room'], pushReply: 'who gets fired' },
+	{ questionId: 'q5c', keys: ['glass-dome'], pushReply: 'who gets fired' },
 	{ questionId: 'q5c:and', keys: ['in-the-light'] },
-	{ questionId: 'q6r', keys: ['old-forest'] },
+	{ questionId: 'q6r', keys: ['tea-room'] },
 	{ questionId: 'q6r:and', keys: ['fully-immersive'] },
-	{ questionId: 'q7', keys: ['surfaces-wake-up'] },
 	{ questionId: 'q8', keys: ['deliberate-pockets'] },
-	{ questionId: 'q10', keys: ['knows-when-to-step-back'] },
-	{ questionId: 'q10:and', keys: ['a'] },
-	{ questionId: 'q11', keys: ['calm', 'focused', 'alive'] },
+	// A V4 row, kept deliberately: `ROOM_PARTICIPATES` still has to compose
+	// for a table that answered before the cut and is regenerated after it.
+	{ questionId: 'q7', keys: ['surfaces-wake-up'] },
 	{ questionId: 'wildcard', keys: ['wildcard-open'], text: { 'wildcard-open': 'a room with a working fireplace' } }
 ];
 
@@ -98,11 +93,16 @@ describe('buildLayerInputs', () => {
 		expect(prompt).toContain(ROOM_PARTICIPATES['nothing-to-see']);
 	});
 
-	it('has the room participate for every q7 option — a full clause with a verb, composed in place of the option fragment', () => {
-		const q7 = QUESTIONS.find((q) => q.id === 'q7')!;
-		for (const o of q7.options) {
-			expect(ROOM_PARTICIPATES[o.key], o.key).toBeTruthy();
-			expect(ROOM_PARTICIPATES[o.key], o.key).toMatch(/\b(warms|brightens|dims|wakes|shows|is|following|carries|stays|rewritten)\b/);
+	/**
+	 * q7 was cut by the 21 Sep minutes, and this test did NOT go with it. Rows
+	 * answered under V4 still carry q7 keys, and regenerating one of those
+	 * rows has to compose what it composed before — so the lookup has to keep
+	 * working after the question stops being asked.
+	 */
+	it('still composes the room participating for a V4 row, though q7 is no longer asked', () => {
+		expect(QUESTIONS.find((q) => q.id === 'q7'), 'q7 should be cut from the asked set').toBeUndefined();
+		for (const [key, clause] of Object.entries(ROOM_PARTICIPATES)) {
+			expect(clause, key).toMatch(/\b(warms|brightens|dims|wakes|shows|is|following|carries|stays|rewritten)\b/);
 		}
 		const wall = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q7', keys: ['light-and-sound'] }] });
 		expect(wall.materialsAndLight).toBe('a wall brightens toward whoever walks to it and dims behind them');
@@ -194,25 +194,32 @@ describe('buildLayerInputs', () => {
 	});
 
 	it('the zones moment carries that zones own question and its And pick, exactly once', () => {
-		const plaza = ZONE_SETS.book.find((z) => z.key === 'plaza')!;
-		const prompt = composeZonePrompt(composeBase(built), resolveZone(plaza, ANSWERS), built.negative);
-		expect(prompt).toContain('light warming toward the visitor, thresholds shifting underfoot');
-		expect(prompt).toContain('a route lighting ahead of the visitor');
-		expect(prompt.split('thresholds shifting underfoot')).toHaveLength(2);
-		expect(prompt).not.toContain('metre-deep desk');
+		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
+		const prompt = composeZonePrompt(composeBase(built), resolveZone(library, ANSWERS), built.negative);
+		const moment = 'a glass geodesic room standing alone among mature trees';
+		expect(prompt).toContain(moment);
+		expect(prompt).toContain('the AI present only as light'); // its "And:" pick rides with it
+		expect(prompt.split(moment)).toHaveLength(2);
+		expect(prompt).not.toContain('tatami'); // the garden's question, not this zone's
 	});
 
-	it('builds feel from q10s visible consequence, then q11s three light-and-weather clauses in option order — never the bare adjectives', () => {
-		expect(built.feel).toBe(
-			'half the floor unpowered, people working by hand there, soft even light, still air, one bright pool of working light, leaves, water and birds moving'
-		);
-		expect(built.feel).not.toMatch(/\b(calm|focused|alive)\b/);
+	/**
+	 * THE FEEL LAYER IS THE LENS'S NOW. q10 and q11 supplied it and both are
+	 * cut; the owner's call was to fold light, weather and time back into the
+	 * lens. The danger that creates is the one `moodLine` already caused
+	 * once, so the second assertion is the guard: no lens may describe its
+	 * light as dark.
+	 */
+	it('builds feel from the chosen lens light line, and from nothing else', () => {
+		expect(built.feel).toBe(FUTURES.find((f) => f.key === 'solarpunk')!.lightLine);
+		expect(buildLayerInputs({ futureKey: undefined, answers: ANSWERS }).feel).toBe('');
 	});
 
-	it('draws q10 (it is ◆, "point at where it is visible") but not its hardest pick, which is wall-only', () => {
-		expect(WALL_ONLY_IDS).toContain('q10:and');
-		expect(composeBase(built)).toContain('half the floor unpowered');
-		expect(composeBase(built)).not.toContain('hardest trade-off');
+	it('never lets a lens light line put the room back in the dark', () => {
+		for (const f of FUTURES) {
+			expect(f.lightLine, f.key).toMatch(/\b(sun|sunlit|daylight|bright|light)\b/i);
+			expect(f.lightLine, f.key).not.toMatch(/\b(night|dusk|evening|twilight|unlit|gloom|dim|darkness)\b/i);
+		}
 	});
 
 	it('carries the wildcard verbatim, no wrapper', () => {
@@ -236,11 +243,6 @@ describe('buildLayerInputs', () => {
 		expect(paper.negative).not.toContain('paper notebooks');
 		expect(paper.negative).toContain('coffee mugs');
 		expect(built.negative).toContain('paper notebooks');
-	});
-
-	it('gives every invisible-technology answer a visible effect, never an absence alone', () => {
-		const q7 = QUESTIONS.find((q) => q.id === 'q7')!;
-		for (const o of q7.options) expect(o.promptFragment, o.key).toMatch(/\b(responding|brightening|showing|mid-task|live|in use)\b/);
 	});
 
 	it('names collage in the negative', () => {
@@ -271,23 +273,27 @@ describe('every V4 question reaches a layer or a zone', () => {
 		}
 	});
 
-	it('routes each V4 question where the recipe says: one slot per zone', () => {
+	it('routes each surviving question where the minutes leave it: one slot per zone', () => {
 		const owners = (id: string) => ZONE_SETS.book.filter((z) => z.questionIds.includes(id)).map((z) => z.key);
-		expect(owners('q5c')).toEqual(['library']); // deep work -> library
-		expect(owners('q4w')).toEqual(['studio']); // workstation -> studio
-		expect(owners('q3')).toEqual(['plaza']); // arrival -> plaza
-		expect(owners('q6r')).toEqual(['garden']); // biome -> garden
-		expect(MATERIAL_IDS).toContain('q8'); // nature -> all zones (via the base)
-		expect(MATERIAL_IDS).toContain('q7'); // technology -> all zones (via the base)
-		expect(FEEL_IDS).toContain('q10'); // brilliant-at-one -> drawn, last content clause before the light line
-		for (const id of ['q7', 'q8', 'q10', 'q11']) expect(ZONE_OWNED_IDS.has(id)).toBe(false);
+		expect(owners('q5c')).toEqual(['library']); // deep work (workstation merged in) -> library
+		expect(owners('q6r')).toEqual(['garden']); // recharge -> garden
+		// The two quality questions ride the BASE, into every zone. They are
+		// not acts and a zone moment cannot hold them — see `zones.ts`.
+		expect(MATERIAL_IDS).toContain('q2');
+		expect(MATERIAL_IDS).toContain('q8');
+		// Every asked question now owns a zone, so nothing is left to carry
+		// through the base except the retired ids a V4 row may still hold.
+		expect(FEEL_IDS).toEqual([]);
+		for (const id of ['q3', 'q4w', 'q7', 'q10', 'q11']) expect(ZONE_OWNED_IDS.has(id)).toBe(false);
 	});
 });
 
 describe('composeBase / composeZonePrompt', () => {
 	it('composes a garden-city table on its default era with nothing else answered: frame, window, indoor cue', () => {
+		// The lens's own light line closes it now — the `feel` layer is the
+		// lens's since q11 was cut, so even a table that answered nothing has one.
 		expect(composeBase(buildLayerInputs({ futureKey: 'garden-city', answers: [] }))).toBe(
-			`${houseBase('2035')}. ${GARDEN.styleDna}. ${GARDEN.worldOutside}. ${GARDEN.insideCue}. ${IMPOSSIBLE_IDEAS['garden-city'][0]}`
+			`${houseBase('2035')}. ${GARDEN.styleDna}. ${GARDEN.worldOutside}. ${GARDEN.insideCue}. ${IMPOSSIBLE_IDEAS['garden-city'][0]}. ${GARDEN.lightLine}`
 		);
 	});
 
@@ -325,21 +331,14 @@ describe('composeBase / composeZonePrompt', () => {
 	it('resolves the library moment with the deep-work pick and where the AI sits', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		expect(resolveZone(library, ANSWERS).renderSuffix).toBe(
-			'Deep work mid-act, no one posed: a model rising from a dark glass slab, one hand reshaping it, a voice answering as light, the AI present only as light'
-		);
-	});
-
-	it('resolves the studio moment with the workstation and how much it knows', () => {
-		const studio = ZONE_SETS.book.find((z) => z.key === 'studio')!;
-		expect(resolveZone(studio, ANSWERS).renderSuffix).toContain(
-			'a metre-deep desk, panels three sides, one large screen where the work grows, the desk adjusting itself as someone sits'
+			'Deep work mid-act, no one posed: a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane, the AI present only as light'
 		);
 	});
 
 	it('resolves the garden moment with the biome and how much of the frame it takes', () => {
 		const garden = ZONE_SETS.book.find((z) => z.key === 'garden')!;
 		expect(resolveZone(garden, ANSWERS).renderSuffix).toContain(
-			'old forest: tall trunks, one person thinking slowly alone, the biome filling the frame'
+			'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
 		);
 	});
 

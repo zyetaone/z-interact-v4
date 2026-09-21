@@ -100,21 +100,29 @@ function zone(z: { key: string; questionIds: string[]; moment: string; hero?: bo
  * owner's references all have one), and the shared world through the
  * window carries the continuity across the set.
  */
+/**
+ * TWO ZONES, NOT FOUR, SINCE THE CUT TO FIVE QUESTIONS.
+ *
+ * A zone's `moment` names ONE ACT and splices that zone's own question into
+ * it. The 21 Sep minutes cut both remaining act questions' neighbours — q3
+ * (arrival, the plaza's) and q4w (the workstation, the studio's) — leaving
+ * only deep work and recharge as things a person can be seen DOING.
+ *
+ * Repointing the two orphaned zones at q2 (materials) and q8 (outdoors) was
+ * tried and is wrong: those are qualities, not acts, and their fragments
+ * carry commas and semicolons, which the moment machinery splits on. The
+ * plaza came out as "its surfaces reading plainly: grey." Fewer questions
+ * means fewer scenes; `studio` and `plaza` are retired below so their
+ * existing rows still resolve.
+ */
+/** The questions a person can be seen DOING — one zone each. */
+const ACT_QUESTION_IDS = ['q5c', 'q6r'] as const;
+
 const BOOK_ZONES: Zone[] = [
 	zone({
 		key: 'library',
 		questionIds: ['q5c'],
 		moment: 'Deep work mid-act, no one posed: {q5c}'
-	}),
-	zone({
-		key: 'studio',
-		questionIds: ['q4w'],
-		moment: 'Three people mid-task at their stations: {q4w}'
-	}),
-	zone({
-		key: 'plaza',
-		questionIds: ['q3'],
-		moment: 'The arrival act, the building responding to the person arriving: {q3}'
 	}),
 	zone({
 		key: 'garden',
@@ -125,8 +133,6 @@ const BOOK_ZONES: Zone[] = [
 
 /** Zones derived directly from the V4 question set — one zone-worthy question each, none orphaned. */
 const QUESTION_ZONES: Zone[] = [
-	zone({ key: 'arrival', questionIds: ['q3'], moment: 'The arrival act from the door, the building responding to the visitor: {q3}' }),
-	zone({ key: 'workstation', questionIds: ['q4w'], moment: 'One station from the aisle, its occupant mid-task: {q4w}' }),
 	zone({ key: 'deep-work', questionIds: ['q5c'], moment: 'Deep work mid-act in the quietest room: {q5c}' }),
 	zone({ key: 'recharge', questionIds: ['q6r'], moment: 'The recharge act at the landscape\'s edge, people mid-motion: {q6r}' })
 ];
@@ -337,7 +343,25 @@ export function activeZones(raw: string | undefined): Zone[] {
  * ticker silently stops advancing a row. Lookups use this; enumeration
  * (what to queue, what to show) uses `activeZones`.
  */
-const ALL_KNOWN_ZONES: Zone[] = [...HERO_ZONES, ...ZONE_SETS.book, ...ZONE_SETS.questions];
+/**
+ * Zones that no set queues any more, kept so their ROWS still resolve. The
+ * cut to five questions (21 Sep minutes) took q3 and q4w with it, and the
+ * two zones that asked them — `arrival` and `workstation` — left the
+ * question set with them. Any table rendered before that still has image
+ * rows whose `zone_key` says `arrival`, and a ticker that cannot find the
+ * definition silently stops advancing the row. Their `questionIds` are
+ * emptied rather than repointed: the question they showed is gone, and
+ * claiming they show a different one would put the wrong subject in a
+ * regenerated prompt.
+ */
+const RETIRED_ZONES: Zone[] = [
+	zone({ key: 'arrival', questionIds: [], moment: 'The arrival act from the door, the building responding to the visitor' }),
+	zone({ key: 'workstation', questionIds: [], moment: 'One station from the aisle, its occupant mid-task' }),
+	zone({ key: 'studio', questionIds: [], moment: 'Three people mid-task at their stations' }),
+	zone({ key: 'plaza', questionIds: [], moment: 'The social floor at its busiest' })
+];
+
+const ALL_KNOWN_ZONES: Zone[] = [...HERO_ZONES, ...ZONE_SETS.book, ...ZONE_SETS.questions, ...RETIRED_ZONES];
 
 export function zoneByKey(key: string): Zone | undefined {
 	return ALL_KNOWN_ZONES.find((z) => z.key === key);
@@ -349,11 +373,16 @@ export function isHeroZone(key: string): boolean {
 }
 
 // --- Shape guards ------------------------------------------------------------
-// The four-zone sets only: `HERO_ZONES` is deliberately one zone, and its
+// The multi-zone sets only: `HERO_ZONES` is deliberately one zone, and its
 // guard is below.
+//
+// The count was 4 and is now "one per act question". The 21 Sep minutes cut
+// arrival and the workstation, so there are two acts left to draw; a guard
+// insisting on four would only be satisfied by inventing two scenes with no
+// question behind them, which is exactly what this guard exists to prevent.
 for (const [name, zones] of Object.entries(ZONE_SETS)) {
-	if (zones.length !== 4) {
-		throw new Error(`ZONE_SETS.${name} must have exactly 4 zones, got ${zones.length}`);
+	if (zones.length !== ACT_QUESTION_IDS.length) {
+		throw new Error(`ZONE_SETS.${name} must have one zone per act question (${ACT_QUESTION_IDS.length}), got ${zones.length}`);
 	}
 	if (new Set(zones.map((z) => z.key)).size !== zones.length) {
 		throw new Error(`ZONE_SETS.${name} has duplicate zone keys`);

@@ -29,7 +29,7 @@
  * zone prompts: once inside the opening frame sentence, once as the last
  * thing the model reads.
  */
-import { NO_TEXT, EXPOSURE, UNDEREXPOSED_NEGATIVE, DARK_FEEL_KEYS, wantsBrightExposure } from '$lib/server/prompt';
+import { NO_TEXT, EXPOSURE, UNDEREXPOSED_NEGATIVE, DARK_FEEL_KEYS, sanitizeComposed, wantsBrightExposure } from '$lib/server/prompt';
 import { impossibleIdea, vantageFor } from '$lib/game/zones';
 import type { Era } from '$lib/game/era';
 import type { Zone } from '$lib/game/zones';
@@ -44,6 +44,8 @@ import {
 	futureByKey,
 	HOUSE_REGISTER,
 	ROOM_PARTICIPATES,
+	wildcardFragment,
+	FREE_TEXT_MAX,
 	type AnswerLike,
 	type LayerBuildInput
 } from './layers';
@@ -80,6 +82,13 @@ import {
  * against it is a REGRESSION guard — it catches a fragment set that grows
  * unnoticed — not evidence the 150–190 target was met. It was not. Raising
  * it silently would have hidden that; this is the lead's call to make.
+ *
+ * RE-MEASURED 21 Sep, after the question cut and after the wildcard was
+ * added to this prompt: 310–324 words across all six lenses and all twenty
+ * tables, with BOTH free-text fields full (a 140-character wildcard and a
+ * q2 push reply). 1,898–1,973 characters. Still under 340, so the ceiling
+ * did not move — but the margin is now ~16 words, and the next fragment
+ * added here will need this number re-measured rather than assumed.
  */
 export const HERO_WORD_TARGET = { min: 150, max: 340, briefAsked: { min: 150, max: 190 } } as const;
 
@@ -182,7 +191,11 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// than at the end with the feel words: a model weights the opening of a
 	// prompt, and "volumetric daylight" alone was losing to a stack of dark
 	// surfaces further down.
-	const bright = wantsBrightExposure(by.get('q11')?.keys ?? []);
+	// q11 is cut, so there is no feel word left to opt out of the
+	// brightening. `wantsBrightExposure` is still the one place that decides
+	// it — called with no keys, which is the "nothing asked for the dark"
+	// case it already had.
+	const bright = wantsBrightExposure([]);
 	const exposure = bright ? `, ${EXPOSURE}` : '';
 	const frame = sentences([
 		`Design a workplace that is relevant in ${year}${lens ? ` ${lens}` : ''}: ${window}`,
@@ -194,19 +207,21 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// so the hero and any zone render of the same table agree about the world.
 	const world = sentences([future?.styleDna, future?.insideCue, impossibleIdea(future?.key, input.table)]);
 
-	// The four zone-worthy answers as ACTS inside one building, each keeping
-	// its "And:" pick, plus the room participating (q7), nature (q8) and
-	// q10's one visible consequence. q10's own "And:" is `WALL_ONLY_IDS` —
-	// a sentence about the table, never a subject — hence `fragmentsFor`.
+	// The surviving answers as ACTS inside one building, each keeping its
+	// "And:" pick. The 21 Sep minutes cut q3 (arrival), q4w (workstation,
+	// merged into q5c), q7 (technology) and q10 (brilliant at one): two acts
+	// where there were four, plus nature as a clause.
+	//
+	// q7's clauses are still composed when a row HAS a q7 answer. A table
+	// that answered under V4 and is regenerated now should read as it read
+	// then; a table answering today simply has no q7 key and contributes
+	// nothing here.
 	const roomParticipates = (by.get('q7')?.keys ?? []).map((k) => ROOM_PARTICIPATES[k]).filter(Boolean);
 	const programme = sentences([
-		act('People arrive by', fragmentsWithAnd(by, 'q3')),
 		act('Deep work happens as', fragmentsWithAnd(by, 'q5c')),
-		act('They work at', fragmentsWithAnd(by, 'q4w')),
 		act('They recharge in', fragmentsWithAnd(by, 'q6r')),
 		...roomParticipates,
-		clause(fragmentsFor(by.get('q8'))),
-		clause(fragmentsFor(by.get('q10')))
+		clause(fragmentsFor(by.get('q8')))
 	]);
 
 	// Materials and the scale pick read as one clause — the scale IS the
@@ -214,14 +229,36 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// with the materials and not with the acts. q2's push reply is the two
 	// materials the table asked for in their own words; it reaches the zone
 	// prompts today and reaches this one the same way.
-	const materials = clause([...fragmentsFor(by.get('q2')), by.get('q2')?.pushReply ?? '']);
+	// q2's push reply is the OTHER free text on this path, and the same rule
+	// applies: the base path sanitizes the whole composed string and this
+	// one does not, so the two composers could otherwise carry the same
+	// typed words differently.
+	const materials = clause([...fragmentsFor(by.get('q2')), sanitizeComposed(by.get('q2')?.pushReply ?? '', FREE_TEXT_MAX)]);
 	const scale = clause(fragmentsFor(by.get('q2:and')));
-	const feel = clause(fragmentsFor(by.get('q11')));
+	// The feel is the LENS's now, not q11's — see `futures.ts`'s `lightLine`.
+	// Same source as the zone prompts use, so a table's hero and its zones
+	// cannot describe two different times of day.
+	const feel = future?.lightLine ?? '';
 	const dressing = sentences([
 		[materials, scale].filter(Boolean).join('; '),
 		feel,
 		'People small and anonymous, mid-task, two to six of them'
 	]);
+
+	// THE WILDCARD, and the reason it is here at all: it was NOT.
+	//
+	// `composeBase` (the four-zone path) has carried it since the recipe was
+	// written. This composer never read it — and under `ZONE_SET=hero`, the
+	// default, this composer IS the only prompt the room renders. So the
+	// last screen every table sees asked "what have we missed?", promised
+	// "it goes into the drawing exactly as you write it", and then the
+	// answer reached D1, the review screen, the desk and the export, and
+	// never the picture. Found in the 21 Sep end-to-end review.
+	//
+	// It sits LAST of the content, immediately before the Avoid list, which
+	// is the position `composeBase` gives it too: the table's own words are
+	// the final thing the model reads about what to draw.
+	const wildcard = wildcardFragment(by);
 
 	// One negative list, built by `layers.ts` — house terms, the 2026 tells,
 	// the lens's own, and the anti-board terms, deduped in that order. Not
@@ -236,7 +273,7 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 
 	// SINGLE_FRAME sits immediately after the acts, which are what invite a
 	// split frame in the first place, and before the dressing.
-	return sentences([frame, world, programme, SINGLE_FRAME, dressing, avoid, NO_TEXT]);
+	return sentences([frame, world, programme, SINGLE_FRAME, dressing, wildcard, avoid, NO_TEXT]);
 }
 
 /* -------------------------------------------------------------------------- */

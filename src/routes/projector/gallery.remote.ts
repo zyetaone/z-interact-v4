@@ -90,9 +90,9 @@ export const getProjectorRoom = query(async (): Promise<ProjectorRoom> => {
 			table: r.table,
 			beatState: beatStateFor(r.submittedAt, r.answeredCount, images),
 			// Clamped: `answeredCount` counts distinct answered ids — `future`,
-			// `q1` (the era chip), V4's nine questions and the wildcard — while
-			// `totalSteps` is the nine questions. Unclamped this reads "12 of 11" on a
-			// public screen.
+			// `q1` (the era chip), the four surviving questions, their "And:"
+			// rows and the wildcard — while `totalSteps` is the four questions
+			// alone. Unclamped this reads "9 of 4" on a public screen.
 			step: Math.min(r.submittedAt ? TOTAL_STEPS : r.answeredCount, TOTAL_STEPS),
 			totalSteps: TOTAL_STEPS,
 			futureKey: futures.get(r.table) ?? null,

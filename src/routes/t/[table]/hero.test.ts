@@ -10,12 +10,14 @@
  * `moodLine` would put every neo-seoul table in the dark whatever they
  * answered.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { composeHeroPrompt, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
+import { composeHeroPrompt, composePromptFor, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
 import { wordCount, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
 import { QUESTIONS, TABLE_COUNT } from '$lib/game/questions';
-import { IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
+import { HERO_ZONE, IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
 import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
 
@@ -429,5 +431,35 @@ describe('the exposure negatives', () => {
 
 	it('never says night, which the day-neutral guard forbids', () => {
 		expect(UNDEREXPOSED_NEGATIVE).not.toMatch(/\bnight\b/i);
+	});
+});
+
+describe('every submit path uses the chooser', () => {
+	// composePromptFor's own note names five submit paths that must agree.
+	// The desk's regenerate did not: it called composeZonePrompt directly, so
+	// a hero table repaired from the desk was drawn from the generic base and
+	// lost its vantage, its impossible idea and the exposure clause. Redraw is
+	// the repair tool, so that was the render most likely to happen live.
+	const SUBMITTERS = [
+		'src/routes/t/[table]/answers.remote.ts',
+		'src/routes/admin/admin.remote.ts'
+	];
+
+	it('leaves no direct composeZonePrompt call in a submit path', () => {
+		for (const rel of SUBMITTERS) {
+			const src = readFileSync(join(process.cwd(), rel), 'utf8');
+			const direct = src
+				.split('\n')
+				.map((line, i) => [i + 1, line] as const)
+				.filter(([, line]) => /(?<!compose)\bcomposeZonePrompt\s*\(/.test(line));
+			expect(direct.map(([n, l]) => `${rel}:${n} ${l.trim()}`)).toEqual([]);
+		}
+	});
+
+	it('the hero zone routes to the hero composer, whoever asks', () => {
+		const ctx = { composed: '', negative: '', answers: T10, futureKey: 'neo-seoul', era: null, table: 7 };
+		expect(composePromptFor(HERO_ZONE, ctx)).toBe(
+			composeHeroPrompt({ futureKey: 'neo-seoul', era: null, answers: T10, table: 7 })
+		);
 	});
 });

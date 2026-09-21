@@ -43,7 +43,7 @@ import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
 import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
 import { activeZones, zoneByKey } from '$lib/game/zones';
-import { composeZonePrompt, resolveZone, type AnswerLike } from '../t/[table]/layers';
+import { composeZonePrompt, eraOf, resolveZone, type AnswerLike } from '../t/[table]/layers';
 import { composePromptFor } from '../t/[table]/hero';
 import type { AdminRoom } from '$lib/ui/admin/types';
 
@@ -388,7 +388,22 @@ export const regenerateTable = command(
 		for (const z of zones) {
 			const existing = existingByZone.get(z.key);
 			if (!existing) continue;
-			const zonePrompt = composeZonePrompt(composed, resolveZone(z, answers), negative);
+			// THE CHOOSER, not `composeZonePrompt` directly. `composePromptFor`'s
+			// own note names this path as one of the five that must agree, and
+			// this one did not: under the hero default it composed the generic
+			// base and dropped the per-table vantage, the impossible idea, the
+			// exposure clause, the room-participates clauses and the no-signage
+			// terms. Redraw is the desk's repair tool, so the one render most
+			// likely to happen on the night was the one drawn from a different
+			// brief than every other.
+			const zonePrompt = composePromptFor(z, {
+				composed,
+				negative,
+				answers,
+				futureKey: regenFutures.get(table) ?? null,
+				era: eraOf(answers),
+				table
+			});
 			// Same single-statement guard the phone uses: a zone with a live
 			// attempt is skipped rather than given a second one.
 			const image = await insertQueuedImageIfIdle(

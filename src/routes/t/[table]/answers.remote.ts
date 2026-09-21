@@ -82,6 +82,7 @@ import {
   composeZonePrompt,
   resolveZone,
   type AnswerLike,
+  eraOf,
 } from "./layers";
 
 const tableNo = v.pipe(
@@ -216,12 +217,7 @@ function futureOf(answers: readonly AnswerLike[]): string | null {
   return key && FUTURES.some((f) => f.key === key) ? key : null;
 }
 
-function eraOf(answers: readonly AnswerLike[]): Era | null {
-  const key = answers.find((a) => a.questionId === "q1")?.keys[0];
-  return key && (ERA_SCALE as readonly string[]).includes(key)
-    ? (key as Era)
-    : null;
-}
+
 
 /* -------------------------------------------------------------------------- */
 /* Read — one call per poll, everything a screen needs                        */

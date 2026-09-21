@@ -352,3 +352,14 @@ export function wordCount(prompt: string): number {
 }
 
 export { ERA_SCALE };
+
+/**
+ * The table's era answer, or null when q1 is unanswered or holds something
+ * that is not an era. Lives here rather than in a route module because
+ * three submit paths need it and a second copy is how two of them start
+ * composing different prompts for the same row.
+ */
+export function eraOf(answers: readonly AnswerLike[]): Era | null {
+	const key = answers.find((a) => a.questionId === 'q1')?.keys[0];
+	return key && (ERA_SCALE as readonly string[]).includes(key) ? (key as Era) : null;
+}

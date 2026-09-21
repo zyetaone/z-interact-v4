@@ -247,16 +247,27 @@ unchanged", which is what the original scaffold already did.
   isolate, hands a double-tap an empty timer and therefore no limit. The
   third is a hard cap on the fal dashboard; it is the only one that survives
   a bug in the other two.
-- **The one model field we do not use is `system_prompt`.** `fal.ts`'s own
-  note lists nano-banana-2's inputs (verified 19 Sep against the model's API
-  page) and `system_prompt` is among them. Every house rule — no text, the
-  Avoid list, the exposure, the single-frame instruction, the camera — rides
-  inside the per-table prompt instead, where it competes with the table's
-  own answers for the model's attention and for the character budget.
-  Moving the constant half into `system_prompt` is the obvious upgrade and
-  is deliberately NOT taken here: it changes every render's composition and
-  there is no measured before/after. Generation 1 had no such field and put
-  everything in one string, which is where this shape came from.
+- **The house half of the prompt rides in `system_prompt`.** The model
+  documents the field (`fal.ts`'s schema note, checked 19 Sep) and this app
+  ignored it until 21 Sep, so every house rule — camera, lighting, the
+  no-text guard, the Avoid list — competed with the table's own answers for
+  attention and for the character budget. `prompt.ts`'s `HOUSE_SYSTEM` now
+  carries them, and `SYSTEM_PROMPT=off` is the revert.
+  **It is ADDITIVE: the composed prompt still says all of it.** The failure
+  mode `fal.ts` warns about is an unrecognised field accepted with a 200 and
+  silently dropped; moving the rules out of the prompt in the same change
+  that moved them in would strip the no-text guard and the Avoid list from
+  every render at once with nothing to read as a failure. Delete the
+  duplication only after a render proves the field lands.
+  The field earned itself immediately: a 21 Sep render came back with
+  laptops and 2020s task chairs in a frame whose Avoid list names both.
+  The negative was not failing alone — the POSITIVE half had gone silent,
+  because `ROOM_PARTICIPATES` is keyed by q7 and q7 was cut that morning,
+  so nothing said what work looks like any more. `HOUSE_SYSTEM` now says it
+  (bare timber and stone, surfaces lighting under their hands, the
+  technology in the room rather than on the desk) and the same answers
+  re-rendered without a laptop in frame. Same lesson as `SINGLE_FRAME`:
+  a negative biases, it does not forbid.
 - **Nothing reaches fal or R2 unbounded.** `fetch-image.ts` is the single
   image-fetch path for both the poll and the webhook: https-only allow-list
   of fal's hosts (the CDN is `*.fal.media`, a different domain from the

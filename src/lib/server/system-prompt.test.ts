@@ -48,6 +48,11 @@ describe('SYSTEM_PROMPT', () => {
 		expect(HOUSE_SYSTEM).toMatch(/never panels, insets, collage/i);
 		expect(HOUSE_SYSTEM).toMatch(/never text, signage, labels/i);
 		expect(HOUSE_SYSTEM).toMatch(/24mm/);
+		// The work-surface rule, added after a real render came back full of
+		// laptops. Positive first, negative second — in that order, because
+		// the negative alone is what had just been measured failing.
+		expect(HOUSE_SYSTEM).toMatch(/bare tables of timber or stone/i);
+		expect(HOUSE_SYSTEM.indexOf('bare tables')).toBeLessThan(HOUSE_SYSTEM.indexOf('Never laptops'));
 	});
 });
 

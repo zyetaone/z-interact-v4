@@ -92,6 +92,21 @@ export const HOUSE_SYSTEM =
 	'Never panels, insets, collage, grid or a divided frame. ' +
 	'Never text, signage, labels, captions, watermarks, logos or UI of any kind. ' +
 	'Never posed faces or portraits: people read small, anonymous and mid-task. ' +
+	// WHAT THE WORK LOOKS LIKE, SAID AS A POSITIVE.
+	//
+	// Measured 21 Sep on a real render: laptops and 2020s task chairs, in a
+	// frame whose Avoid list names both. Not the negative failing on its own
+	// — the POSITIVE half had gone silent. `ROOM_PARTICIPATES` (layers.ts)
+	// is keyed by q7, and q7 was cut the same day, so no table answering
+	// today contributes any clause about what the technology looks like. The
+	// prompt said nothing about work surfaces and the model filled the
+	// vacuum with 2026, which an Avoid line biases against and does not
+	// forbid — the same lesson `SINGLE_FRAME` records about collages.
+	//
+	// It belongs here rather than in a composer because it is true of every
+	// table: the house says what work looks like in a building that thinks.
+	'People work at bare tables of timber or stone, on surfaces that light up under their hands, and in the architecture itself: the technology is in the room, not on the desk. ' +
+	'Never laptops, desktop monitors, keyboards, cables or 2020s task chairs. ' +
 	'Emphasise materiality, spatial flow, and the interplay of light and form.';
 
 /**

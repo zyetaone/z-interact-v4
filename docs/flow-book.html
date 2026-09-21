@@ -33,6 +33,7 @@
 	th { color: var(--mut); font-weight:600; font-size: 8pt; text-transform: uppercase; letter-spacing:.06em; }
 	.yes { color:#1f7a44; font-weight:700; }
 	.no { color:#a33; font-weight:700; }
+	.part { color:#9a7b3f; font-weight:700; }
 	.note { color: var(--mut); font-size: 8.5pt; }
 </style>
 
@@ -128,12 +129,13 @@ wildcard: A staircase that is also a place to sit and watch the room.</pre>
 	<h2 style="margin-top:14pt">Does the picture contain the answers?</h2>
 	<table>
 		<tr><th>What the table chose</th><th>In the frame</th><th></th></tr>
-		<tr><td>Courtyards — the floor opens to the sky</td><td>Glazed roof structure, courtyards cut through the plate</td><td class="yes">yes</td></tr>
-		<tr><td>The glass dome in the forest</td><td>Geodesic dome, one person working inside it</td><td class="yes">yes</td></tr>
-		<tr><td>The water room, fully immersive</td><td>Steaming pool, two people floating</td><td class="yes">yes</td></tr>
-		<tr><td>Warm and earthy, generous scale</td><td>Rammed earth, timber, brass, terracotta paving; open floor</td><td class="yes">yes</td></tr>
-		<tr><td><b>Wildcard</b> — "a staircase that is also a place to sit and watch the room"</td><td>Stepped seating at right, two people sitting on it</td><td class="yes">yes</td></tr>
-		<tr><td>And: the AI sits "in the light"</td><td>Not legible. The autonomous cart reads as the garden city's own signature, not as this pick</td><td class="no">no</td></tr>
+		<tr><td>Earth and timber, generous scale</td><td>Rammed earth walls and timber throughout; open floor, high roof</td><td class="yes">yes</td></tr>
+		<tr><td>Courtyards — the floor opens to the sky</td><td>Green roofs and planted courtyards cut through the plate</td><td class="yes">yes</td></tr>
+		<tr><td>The dome in the rainforest</td><td>Glass dome among the trees, one person working inside it</td><td class="yes">yes</td></tr>
+		<tr><td>The water room, fully immersive</td><td>Steaming sunken pool, two people in it</td><td class="yes">yes</td></tr>
+		<tr><td><b>Wildcard</b> — "a staircase that is also a place to sit and watch the room"</td><td>A broad stair holds the centre. Read as seating in one render and as plain circulation in another, off the same prompt</td><td class="part">part</td></tr>
+		<tr><td>And: the AI sits "in the light"</td><td>Not legible as this pick. An &ldquo;And:&rdquo; chip is one short clause deep in a 1,890-character prompt</td><td class="no">no</td></tr>
+		<tr><td><b>House rule</b> — no laptops, no 2020s furniture</td><td>Held. The previous render of these same answers had laptops and task chairs; the work surfaces now light up under their hands</td><td class="yes">yes</td></tr>
 	</table>
-	<p class="note">A read of this one render, not a measurement across the room. The wildcard appearing at all is the 21 Sep fix: under the default zone set the wildcard reached the database, the review screen, the desk and the export, and never the picture.</p>
+	<p class="note">A read of two renders of the same answers, not a measurement across the room. The laptop line IS a before/after with one variable changed; the staircase line is the reason the rest are not — two renders of one prompt differ, and a single frame is evidence of what the pipeline CAN do, not of what it will do twenty times. The wildcard appearing at all is the 21 Sep fix: under the default zone set the wildcard reached the database, the review screen, the desk and the export, and never the picture.</p>
 </div>

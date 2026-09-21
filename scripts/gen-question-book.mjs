@@ -66,6 +66,22 @@ const lensCards = FUTURES.map(
 	</figure>`
 ).join('');
 
+/**
+ * The typed field under a question's options — the 21 Sep note "similar to
+ * KL, allow open text below", KL being generation 1, where every field was
+ * free text. It used to print as a "Talk" line, which reads as something
+ * said at the table and never typed; on q8 and q6r that was true and is not
+ * any more. A reply that is kept but never drawn says so.
+ */
+function openText(q) {
+	if (!q.push || !q.pushCapturesReply) return '';
+	return `<div class="open-text">
+		<h3>Open text: ${esc(q.push)}</h3>
+		<p class="meta">Optional \u2014 ${q.pushNotDrawn ? 'kept with the answers for the wall, never drawn' : 'added to the prompt word for word'}.</p>
+		<div class="field"></div>
+	</div>`;
+}
+
 function optionCard(q, o) {
 	const picture = o.open
 		? '<div class="missing">typed answer<br>no picture</div>'
@@ -94,10 +110,11 @@ const questionSections = QUESTIONS.map((q, i) => {
 			<span class="n">${i + 1} of ${QUESTIONS.length}</span>
 			<h2>${q.diamond ? '<span class="diamond">&#9670;</span> ' : ''}${esc(q.prompt)}</h2>
 			${q.lead ? `<p class="lead">${esc(q.lead)}</p>` : ''}
-			${q.push ? `<p class="push"><b>Talk</b> ${esc(q.push)}</p>` : ''}
-			<p class="meta">${esc(q.id)} · ${esc(selectLabel(q.select))} · feeds the <b>${esc(q.layer)}</b> layer${q.pushNotDrawn ? ' · the talk reply is kept for the wall, not drawn' : ''}</p>
+			${q.push && !q.pushCapturesReply ? `<p class="push"><b>Talk</b> ${esc(q.push)}</p>` : ''}
+			<p class="meta">${esc(q.id)} · ${esc(selectLabel(q.select))} · feeds the <b>${esc(q.layer)}</b> layer${q.slider ? ` · answered on a ${q.slider[0]}\u2013${q.slider[q.slider.length - 1]}% slider` : ''}</p>
 		</header>
 		<div class="grid">${q.options.map((o) => optionCard(q, o)).join('')}</div>
+		${openText(q)}
 		${and}
 	</section>`;
 }).join('');
@@ -144,6 +161,11 @@ const html = `<!doctype html>
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 		font-size: 8pt; color: var(--muted); text-align: center; }
 	.and { margin-top: 8pt; padding: 6pt 8pt; border-left: 2pt solid var(--gold); background: #faf8f4; page-break-inside: avoid; }
+	.open-text { margin-top: 8pt; padding: 6pt 8pt; border: 1pt solid var(--line); border-radius: 3pt; page-break-inside: avoid; }
+	.open-text h3 { color: var(--gold); }
+	/* A ruled box, so the printed sheet can actually be written in. */
+	.open-text .field { margin-top: 5pt; height: 13mm; border-bottom: 0.5pt solid var(--line);
+		background: repeating-linear-gradient(transparent, transparent 6mm, var(--line) 6mm, var(--line) 6.08mm); }
 	.chips { list-style: none; margin: 4pt 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4pt; }
 	.chips li { border: 1px solid var(--line); border-radius: 10pt; padding: 2pt 7pt; font-size: 8pt; }
 	/* Three across keeps all six lenses on one page; two across spilled the last pair over. */

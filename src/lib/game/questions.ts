@@ -125,13 +125,18 @@ export interface Question {
 export const QUESTIONS: Question[] = [
 	{
 		id: 'q8',
-		prompt: 'How much of the outdoors is inside?',
-		lead: 'Slide from a controlled indoor office with a little greenery to a workspace standing in the forest.',
+		// The question owner's own framing, from the 21 Sep deck's Q1 ("What is
+		// your agile workplace in cognitive city look like?", grammar settled
+		// here). The indoor/outdoor scale the deck draws beside it — "xx%
+		// Indoor / xx% Outdoor" — is the `lead` and the slider below.
+		prompt: 'What is your agile workplace in a cognitive city?',
+		lead: 'The city already thinks. Slide from a controlled indoor floor with a little greenery to a workspace standing in the forest — how much of the outdoors is inside?',
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
-		slider: [10, 30, 55, 80, 100],
+		slider: [10, 25, 40, 60, 80, 100],
 		diamond: false,
 		push: 'Singapore is hot and humid. How does your greenery cool a mind as well as a body?',
+		pushCapturesReply: true,
 		options: [
 			{
 				key: 'sparse-inside-abundant-outside',
@@ -149,6 +154,11 @@ export const QUESTIONS: Question[] = [
 				promptFragment: 'greenery threaded through the entire floor'
 			},
 			{
+				key: 'courtyards',
+				label: 'Courtyards — the floor opens to the sky; you step outside without leaving',
+				promptFragment: 'planted courtyards cut open to the sky, the floor plate broken by them'
+			},
+			{
 				key: 'landscape-indoors',
 				label: 'Landscape indoors — trees, water, rock and soil you can walk into',
 				promptFragment: 'trees, water, rock and soil indoors'
@@ -163,7 +173,7 @@ export const QUESTIONS: Question[] = [
 	{
 		id: 'q5c',
 		prompt: 'Where does deep work happen in a centaur organisation?',
-		lead: 'AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. This is the one place your table works — the workstation question is folded into it.',
+		lead: 'AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. In a cognitive city the building already thinks — so this asks what your table keeps for itself.',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
@@ -247,7 +257,8 @@ export const QUESTIONS: Question[] = [
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
-		push: 'which of the four is your organisation actually short of?',
+		push: 'Describe the kind of recharge your table is actually short of.',
+		pushCapturesReply: true,
 		options: [
 			{
 				key: 'igloo',
@@ -269,6 +280,19 @@ export const QUESTIONS: Question[] = [
 					'The tea room — tatami, paper light, a kettle; you kneel, and the room asks you to slow down',
 				promptFragment:
 					'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
+			},
+			{
+				key: 'water-room',
+				label:
+					'The water room — warm shallow water and steam; you float, and a screen cannot follow you in',
+				promptFragment:
+					'a warm shallow bathing room in daylight, steam drifting, two people floating in water up to the chest, no devices anywhere'
+			},
+			{
+				key: 'sand-room',
+				label: 'The sand room — a deep sand floor and no chairs; you sit, kneel or lie where you land',
+				promptFragment:
+					'a bright room with a deep raked sand floor and no furniture at all, people sitting and lying directly on it, tall windows above'
 			},
 			{
 				key: 'outdoors',
@@ -313,13 +337,6 @@ export const QUESTIONS: Question[] = [
 		push: 'name two materials you would actually want to touch.',
 		pushCapturesReply: true,
 		options: [
-			{
-				key: 'deep-low-lit',
-				label:
-					'Deep and low-lit — near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed',
-				promptFragment:
-					'near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed'
-			},
 			{
 				key: 'stark-clinical',
 				label: 'Stark and clinical — pure white, shadowless; seamless resin, glass, polished steel; shiny and flawless',
@@ -542,8 +559,13 @@ const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) =>
 if (DIAMOND_IDS.join(',') !== 'q5c,q6r,q2') {
 	throw new Error(`expected diamond (◆) questions q5c,q6r,q2 after the cut to five, got ${DIAMOND_IDS.join(',')}`);
 }
-if (PUSH_CAPTURE_IDS.join(',') !== 'q5c,q2') {
-	throw new Error(`expected push-capturing questions q5c,q2, got ${PUSH_CAPTURE_IDS.join(',')}`);
+// EVERY question takes typed words now, not just two of them — the 21 Sep
+// note "similar to KL, allow open text below", KL being generation 1, where
+// every field was free text. q5c's reply is the only one kept off the render
+// (`pushNotDrawn`): "what did your table refuse to automate" is a decision
+// about the table, which has nothing to paint.
+if (PUSH_CAPTURE_IDS.join(',') !== 'q8,q5c,q6r,q2') {
+	throw new Error(`expected every question to capture typed words, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 
 /**

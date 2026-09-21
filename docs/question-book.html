@@ -31,6 +31,11 @@
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 		font-size: 8pt; color: var(--muted); text-align: center; }
 	.and { margin-top: 8pt; padding: 6pt 8pt; border-left: 2pt solid var(--gold); background: #faf8f4; page-break-inside: avoid; }
+	.open-text { margin-top: 8pt; padding: 6pt 8pt; border: 1pt solid var(--line); border-radius: 3pt; page-break-inside: avoid; }
+	.open-text h3 { color: var(--gold); }
+	/* A ruled box, so the printed sheet can actually be written in. */
+	.open-text .field { margin-top: 5pt; height: 13mm; border-bottom: 0.5pt solid var(--line);
+		background: repeating-linear-gradient(transparent, transparent 6mm, var(--line) 6mm, var(--line) 6.08mm); }
 	.chips { list-style: none; margin: 4pt 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4pt; }
 	.chips li { border: 1px solid var(--line); border-radius: 10pt; padding: 2pt 7pt; font-size: 8pt; }
 	/* Three across keeps all six lenses on one page; two across spilled the last pair over. */
@@ -100,10 +105,10 @@
 	<section class="question">
 		<header>
 			<span class="n">1 of 4</span>
-			<h2>How much of the outdoors is inside?</h2>
-			<p class="lead">Slide from a controlled indoor office with a little greenery to a workspace standing in the forest.</p>
-			<p class="push"><b>Talk</b> Singapore is hot and humid. How does your greenery cool a mind as well as a body?</p>
-			<p class="meta">q8 · pick one · feeds the <b>materialsAndLight</b> layer</p>
+			<h2>What is your agile workplace in a cognitive city?</h2>
+			<p class="lead">The city already thinks. Slide from a controlled indoor floor with a little greenery to a workspace standing in the forest — how much of the outdoors is inside?</p>
+			
+			<p class="meta">q8 · pick one · feeds the <b>materialsAndLight</b> layer · answered on a 10–100% slider</p>
 		</header>
 		<div class="grid">
 	<figure class="card">
@@ -128,6 +133,13 @@
 		</figcaption>
 	</figure>
 	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-courtyards.jpg" alt="Courtyards — the floor opens to the sky; you step outside without leaving">
+		<figcaption>
+			<b>Courtyards — the floor opens to the sky; you step outside without leaving</b>
+			<p class="meta">courtyards</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
 		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q8-landscape-indoors.jpg" alt="Landscape indoors — trees, water, rock and soil you can walk into">
 		<figcaption>
 			<b>Landscape indoors — trees, water, rock and soil you can walk into</b>
@@ -141,15 +153,20 @@
 			<p class="meta">nature-as-structure</p>
 		</figcaption>
 	</figure></div>
+		<div class="open-text">
+		<h3>Open text: Singapore is hot and humid. How does your greenery cool a mind as well as a body?</h3>
+		<p class="meta">Optional — added to the prompt word for word.</p>
+		<div class="field"></div>
+	</div>
 		
 	</section>
 	<section class="question">
 		<header>
 			<span class="n">2 of 4</span>
 			<h2><span class="diamond">&#9670;</span> Where does deep work happen in a centaur organisation?</h2>
-			<p class="lead">AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. This is the one place your table works — the workstation question is folded into it.</p>
-			<p class="push"><b>Talk</b> what did your table refuse to automate?</p>
-			<p class="meta">q5c · pick one · feeds the <b>programme</b> layer · the talk reply is kept for the wall, not drawn</p>
+			<p class="lead">AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. In a cognitive city the building already thinks — so this asks what your table keeps for itself.</p>
+			
+			<p class="meta">q5c · pick one · feeds the <b>programme</b> layer</p>
 		</header>
 		<div class="grid">
 	<figure class="card">
@@ -194,6 +211,11 @@
 			<p class="meta">sealed-cell</p>
 		</figcaption>
 	</figure></div>
+		<div class="open-text">
+		<h3>Open text: what did your table refuse to automate?</h3>
+		<p class="meta">Optional — kept with the answers for the wall, never drawn.</p>
+		<div class="field"></div>
+	</div>
 		<div class="and">
 				<h3>And: where does the AI sit?</h3>
 				<p class="meta">Optional — never blocks the way forward.</p>
@@ -205,7 +227,7 @@
 			<span class="n">3 of 4</span>
 			<h2><span class="diamond">&#9670;</span> Where do people recharge?</h2>
 			<p class="lead">AI-supported work adds cognitive load, not less. These rooms exist to get people off a screen and into a different posture.</p>
-			<p class="push"><b>Talk</b> which of the four is your organisation actually short of?</p>
+			
 			<p class="meta">q6r · pick one · feeds the <b>programme</b> layer</p>
 		</header>
 		<div class="grid">
@@ -231,12 +253,31 @@
 		</figcaption>
 	</figure>
 	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-water-room.jpg" alt="The water room — warm shallow water and steam; you float, and a screen cannot follow you in">
+		<figcaption>
+			<b>The water room — warm shallow water and steam; you float, and a screen cannot follow you in</b>
+			<p class="meta">water-room</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
+		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-sand-room.jpg" alt="The sand room — a deep sand floor and no chairs; you sit, kneel or lie where you land">
+		<figcaption>
+			<b>The sand room — a deep sand floor and no chairs; you sit, kneel or lie where you land</b>
+			<p class="meta">sand-room</p>
+		</figcaption>
+	</figure>
+	<figure class="card">
 		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q6r-outdoors.jpg" alt="Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors">
 		<figcaption>
 			<b>Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors</b>
 			<p class="meta">outdoors</p>
 		</figcaption>
 	</figure></div>
+		<div class="open-text">
+		<h3>Open text: Describe the kind of recharge your table is actually short of.</h3>
+		<p class="meta">Optional — added to the prompt word for word.</p>
+		<div class="field"></div>
+	</div>
 		<div class="and">
 				<h3>And: how far does it go?</h3>
 				<p class="meta">Optional — never blocks the way forward.</p>
@@ -248,17 +289,10 @@
 			<span class="n">4 of 4</span>
 			<h2><span class="diamond">&#9670;</span> What is your material world?</h2>
 			
-			<p class="push"><b>Talk</b> name two materials you would actually want to touch.</p>
+			
 			<p class="meta">q2 · pick one · feeds the <b>materialsAndLight</b> layer</p>
 		</header>
 		<div class="grid">
-	<figure class="card">
-		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-deep-low-lit.jpg" alt="Deep and low-lit — near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed">
-		<figcaption>
-			<b>Deep and low-lit — near-black and charcoal; smoked glass, blackened metal, dark timber; sleek and shadowed</b>
-			<p class="meta">deep-low-lit</p>
-		</figcaption>
-	</figure>
 	<figure class="card">
 		<img class="" src="file:///Users/rick.d/Developer/zyetaone/z-interact-v4/static/visuals/opt/q2-stark-clinical.jpg" alt="Stark and clinical — pure white, shadowless; seamless resin, glass, polished steel; shiny and flawless">
 		<figcaption>
@@ -301,6 +335,11 @@
 			<p class="meta">undersea</p>
 		</figcaption>
 	</figure></div>
+		<div class="open-text">
+		<h3>Open text: name two materials you would actually want to touch.</h3>
+		<p class="meta">Optional — added to the prompt word for word.</p>
+		<div class="field"></div>
+	</div>
 		<div class="and">
 				<h3>And: what scale?</h3>
 				<p class="meta">Optional — never blocks the way forward.</p>

@@ -12,8 +12,13 @@
 <p class="eyebrow">Survival Adventure</p>
 <h1 class="stem">Draw the workspace your table would actually want.</h1>
 <hr class="rule" />
+<!-- The cognitive city is named HERE, before the first question, rather than
+     explained at the third. The 21 Sep note asked how the centaur framework
+     weaves into it: the city is the frame, and q5c's lead is the human half
+     of it — what a table keeps for itself once the building thinks. -->
 <p class="hint">
-	A future city, four questions and one open reply — one screen each. Answer as a table, not as
+	You are designing inside a <b>cognitive city</b> — a city that senses, learns and answers back.
+	One future city, four questions and one open reply, one screen each. Answer as a table, not as
 	yourself. Nothing is saved on this phone — pick it up on another one and you will be exactly here.
 </p>
 

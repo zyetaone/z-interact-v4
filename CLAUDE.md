@@ -129,7 +129,7 @@ src/lib/server/
   fake-d1.ts   # an in-memory D1Database for the tests; no test talks to a real binding
 src/lib/game/
   questions.ts # the FOUR surviving questions (q8, q5c, q6r, q2) + wildcard; `slider` on q8
-  futures.ts   # the six named futures (V4's Q1, "Choose your future city") + era + lightLine
+  futures.ts   # the six named futures (V4's Q1, the lens screen) + era + lightLine
   zones.ts     # the zone sets behind ZONE_SETS (+ RETIRED_ZONES for historical rows)
   era.ts       # the era scale + allowedEras/nudge rules
   config.ts    # content-side flags (ENABLE_PROPOSED_QUESTIONS), not env knobs
@@ -426,7 +426,8 @@ What is actually still open:
   a range fires `input` only when its value CHANGES and the middle stop is
   where the untouched thumb already sits.
 - **The opening screen is "Survival Adventure"**, its button says *Start
-  here*, and Q1 asks you to *Choose your future city* (minutes §1).
+  here*, and Q1 asks *How do you imagine your future cognitive city?*
+  (minutes §1; the cognitive-city wording is the 21 Sep note).
 
 - **The exposure is said on every render, not just the hero.** `EXPOSURE`
   ("bright overall exposure, daylight filling the volume, open shadows") and

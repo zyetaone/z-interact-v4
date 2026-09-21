@@ -64,7 +64,7 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem" id="lens-stem">Choose your future city</h1>
+<h1 class="stem" id="lens-stem">How do you imagine your future cognitive city?</h1>
 <p class="hint">It sets the building, the skyline and the light.</p>
 <p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 

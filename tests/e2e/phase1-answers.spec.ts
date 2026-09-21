@@ -22,7 +22,7 @@ for (const table of ALL_TABLES) {
 		await t.screenshot(dir, '01-landing');
 
 		await t.begin();
-		await expect(t.heading).toContainText('Choose your lens');
+		await expect(t.heading).toContainText('cognitive city');
 		await t.screenshot(dir, '02-lens');
 
 		await t.pickFutureAndAdvance(table.future, dir);

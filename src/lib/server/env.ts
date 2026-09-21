@@ -55,6 +55,15 @@ export interface Env {
 	ADMIN_TICK_BUDGET?: string;
 	/** fal render resolution (`0.5K`/`1K`/`2K`/`4K`). Unset or unrecognised falls back to `1K`, fal's own default. The single biggest cost lever in the app — see NEW-EVENT.md. */
 	FAL_RESOLUTION?: string;
+	/**
+	 * `off` sends fal no `system_prompt` at all and the app renders exactly
+	 * as it did before the house rules moved into that field. Anything else
+	 * (including unset) sends `prompt.ts`'s `HOUSE_SYSTEM`. The one knob to
+	 * reach for on the night if the renders come back worse rather than
+	 * better — the composed prompt still carries every house rule itself,
+	 * so turning this off loses nothing.
+	 */
+	SYSTEM_PROMPT?: string;
 	/** Total renders one table may spend across the whole event — first submit plus every regenerate. Parsed by `limits.ts`'s `maxRendersPerTable`, which falls back to 12 rather than to "no cap". */
 	MAX_RENDERS_PER_TABLE?: string;
 }

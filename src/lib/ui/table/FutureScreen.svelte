@@ -18,7 +18,7 @@
 	 * brightness, the chosen one at 100% with a gold border and a check.
 	 * The cards are a `radiogroup`: exactly one future, announced as such.
 	 */
-	import { FUTURES } from '$lib/game/futures';
+	import { FUTURES, LENS_STEM } from '$lib/game/futures';
 	import { LENS_IMAGE } from '$lib/game/visuals';
 	import { eraVerdict, nudge, type Era } from '$lib/game/era';
 
@@ -64,7 +64,7 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem" id="lens-stem">How do you imagine your future cognitive city?</h1>
+<h1 class="stem" id="lens-stem">{LENS_STEM}</h1>
 <p class="hint">It sets the building, the skyline and the light.</p>
 <p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 

@@ -55,6 +55,55 @@ export const NO_COLLAGE = 'collage, grid, split screen, labels';
  * have; bounded is still bounded, and a payload is no more possible at
  * 1,500 than at 1,200.
  */
+/**
+ * THE HOUSE HALF OF THE PROMPT, IN THE MODEL'S OWN SYSTEM FIELD.
+ *
+ * nano-banana-2 documents a `system_prompt` input (fal.ts's note lists the
+ * schema, checked 19 Sep). Until now every house rule — no text, the Avoid
+ * list, the exposure, the single-frame instruction, the camera — rode
+ * inside the per-table prompt, where it competes with the table's own
+ * answers for the model's attention and for the 1,500-character budget.
+ * Generation 1 had no such field and put everything in one string, which is
+ * where that shape came from; this is that generation's constant tail
+ * (camera, lighting, style, composition, the no-text guard) lifted into the
+ * field that exists for it.
+ *
+ * ADDITIVE ON PURPOSE, AND THIS IS THE WHOLE DESIGN OF THE CHANGE.
+ *
+ * The composed prompt still says all of this itself. Nothing was removed
+ * from it. The failure mode fal.ts warns about two screens up is that an
+ * unrecognised field is accepted with a 200 and silently dropped — and if
+ * this app had moved the house rules OUT of the prompt in the same change
+ * that moved them IN to `system_prompt`, a silently-dropped field would
+ * mean every render losing the no-text guard and the Avoid list at once,
+ * with a 200 on every submit and nothing to read as a failure. Days before
+ * an event that is not a trade worth making for some characters back.
+ *
+ * So: say it twice, confirm from a real render that the field lands, and
+ * only then delete the duplication and reclaim the budget. The prompt
+ * already says NO_TEXT at both ends by the same reasoning — a house rule
+ * repeated is a house rule reinforced, not a bug.
+ */
+export const HOUSE_SYSTEM =
+	'You are an architectural visualiser. Every image you return is one photorealistic architectural photograph of one continuous space. ' +
+	'Hyperrealistic architectural photography; wide-angle 24mm lens holding the full spatial context; natural daylight with subtle artificial accents; ' +
+	'balanced exposure holding both the bright areas and the shadows open; premium architectural-digest quality; sharp focus throughout, with shallow depth of field only for atmosphere; ' +
+	'composed on the thirds, with strong leading lines drawing the eye through the space. ' +
+	'Never panels, insets, collage, grid or a divided frame. ' +
+	'Never text, signage, labels, captions, watermarks, logos or UI of any kind. ' +
+	'Never posed faces or portraits: people read small, anonymous and mid-task. ' +
+	'Emphasise materiality, spatial flow, and the interplay of light and form.';
+
+/**
+ * `SYSTEM_PROMPT` — the revert. Anything but `off` sends `HOUSE_SYSTEM`;
+ * `off` sends no system field at all and the app behaves exactly as it did
+ * before this landed, which is what the desk needs on the night if the
+ * renders turn out worse rather than better.
+ */
+export function systemPromptFrom(raw: string | undefined): string | undefined {
+	return raw?.trim().toLowerCase() === 'off' ? undefined : HOUSE_SYSTEM;
+}
+
 export const MAX_COMPOSED_CHARS = 1500;
 
 /**

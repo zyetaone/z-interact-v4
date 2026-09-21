@@ -61,6 +61,8 @@ export interface SubmitZoneImageInput {
 	webhookUrl?: string;
 	/** fal's own result retention. Explicit — see module note. */
 	retentionSeconds?: number;
+	/** The house half of the prompt (`prompt.ts`'s `HOUSE_SYSTEM`). Omitted entirely when undefined — `SYSTEM_PROMPT=off`. */
+	systemPrompt?: string;
 	/** Idempotency: this app's own key (`${table}:${zone}`), sent through as metadata, not fal's request_id. */
 	requestKey: string;
 }
@@ -107,6 +109,10 @@ export async function submitZoneImage(input: SubmitZoneImageInput): Promise<Subm
 
 	const requestBody: Record<string, unknown> = {
 		prompt: input.prompt,
+		// Spread rather than a null: an explicit `system_prompt: undefined`
+		// serialises away anyway, but an empty STRING would not, and an empty
+		// system prompt is a different instruction from no system prompt.
+		...(input.systemPrompt ? { system_prompt: input.systemPrompt } : {}),
 		aspect_ratio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
 		resolution: input.resolution ?? DEFAULT_RESOLUTION,
 		// JPEG, not PNG: a 1K render is ~1.6 MB as PNG and ~300 KB as JPEG, and twenty

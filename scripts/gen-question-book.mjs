@@ -28,10 +28,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 register('./ts-ext-loader.mjs', import.meta.url);
 const ROOT = join(__dirname, '..');
 
-const { FUTURES } = await import('../src/lib/game/futures.ts');
+const { FUTURES, LENS_STEM } = await import('../src/lib/game/futures.ts');
 const { QUESTIONS, WILDCARD, TABLE_COUNT } = await import('../src/lib/game/questions.ts');
 
-const args = new Map(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')));
+// `--out=path`, not `--out path`: the split-on-'=' form silently dropped a
+// spaced value and wrote to the default, which looks exactly like a
+// regenerated file that did not change.
+const argv = process.argv.slice(2);
+for (const a of argv) {
+	if (a.startsWith('--') && !a.includes('=')) {
+		console.error(`${a} needs to be written ${a}=<value>`);
+		process.exit(1);
+	}
+}
+const args = new Map(argv.map((a) => a.replace(/^--/, '').split('=')));
 const OUT = resolve(ROOT, args.get('out') ?? 'docs/question-book.pdf');
 
 /** `SelectKind` is a tagged union, not a string — printing it raw gave "pick [object Object]". */
@@ -179,7 +189,7 @@ const html = `<!doctype html>
 		<p class="meta">Generated from questions.ts, futures.ts and the pictures on disk by scripts/gen-question-book.mjs. Re-run it after any change to either.</p>
 	</div>
 
-	<h1 class="section-title">First: choose your lens</h1>
+	<h1 class="section-title">First: ${esc(LENS_STEM)}</h1>
 	<p class="meta">A worldview, not a character. It sets what surrounds the table: the building, the skyline, the light. One per table; a table may also skip it.</p>
 	<div class="lenses">${lensCards}</div>
 

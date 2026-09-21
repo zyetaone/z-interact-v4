@@ -87,6 +87,19 @@ export interface Future {
  * future's own `negativeFragment` too (so one future can be tuned without touching the
  * others) — exported separately for a consumer that wants to dedupe or state it once.
  */
+/**
+ * SCREEN ONE'S STEM, in one place because it was in two and they drifted.
+ * The phone said "Choose your future city", the printed book said "First:
+ * choose your lens", and the e2e spec asserted a third string ("Choose
+ * your lens") that neither had said since V4 — so the spec matched nothing
+ * and the book contradicted the screen in the question owner's own hands.
+ *
+ * It lives HERE rather than in `questions.ts` because the lens is not a
+ * `Question`: it has no options array, no layer and no push line — it is
+ * `FUTURES` itself, and this is that file.
+ */
+export const LENS_STEM = 'How do you imagine your future cognitive city?';
+
 export const HOUSE_NEGATIVE = 'personas, stark white, posed faces';
 
 function future(f: Omit<Future, 'eraAllowed'>): Future {

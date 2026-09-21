@@ -35,6 +35,7 @@ import {
 	pollStatus as pollFalStatus,
 	fetchResult as fetchFalResult
 } from './fal';
+import { systemPromptFrom } from './prompt';
 import { imageKey, putImage } from './r2';
 import { extForContentType, fetchImageBytes } from './fetch-image';
 import { ANCHOR_ZONE, absoluteUrl, decideReferences, referenceModeFrom } from './reference';
@@ -66,7 +67,7 @@ export interface TickableImageRow {
 
 /** The real fal + R2 backed deps — used by the phone/admin pollers. `webhookUrl`, when the caller can build one (see `env.ts`'s `requestOrigin`), registers this app's `/api/fal-webhook` as fal's push notification for this submit — the poll-based deps above still resume the row if that push never arrives. */
 export function realGenerateDeps(
-	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION' | 'REFERENCE_MODE'>,
+	env: Pick<Env, 'FAL_KEY' | 'IMAGES' | 'FAL_WEBHOOK_SECRET' | 'FAL_RESOLUTION' | 'REFERENCE_MODE' | 'SYSTEM_PROMPT'>,
 	event: string,
 	table: number,
 	zone: string,
@@ -102,6 +103,7 @@ export function realGenerateDeps(
 				falKey,
 				model,
 				prompt,
+				systemPrompt: systemPromptFrom(env.SYSTEM_PROMPT),
 				referenceUrls,
 				resolution: resolutionFrom(env.FAL_RESOLUTION),
 				requestKey,

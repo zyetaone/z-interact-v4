@@ -14,7 +14,7 @@
  * lands on the same step with no session to restore. The cursor only
  * exists so *Back* can walk behind the resume point.
  */
-import { ACTIVE_QUESTIONS, WILDCARD } from "$lib/game/questions";
+import { ACTIVE_QUESTIONS, FUTURE_ID, STEP_IDS, WILDCARD } from "$lib/game/questions";
 import type { Era } from "$lib/game/era";
 
 export interface StatusAnswer {
@@ -63,7 +63,8 @@ export function allRendersSettled(status: Pick<TableStatus, "images">): boolean 
 }
 
 /** The pseudo-question id the future pick is stored under (mirrors answers.remote.ts). */
-export const FUTURE_ID = "future";
+/** Re-exported from `game/questions.ts`, which is where the room-wide reads get it too. */
+export { FUTURE_ID };
 
 /** Every question after the lens screen (plus q12 when
  *  `ENABLE_PROPOSED_QUESTIONS` is on). The era is a chip on the lens screen,
@@ -101,12 +102,16 @@ export function indexOfStep(key: string): number {
   return INDEX_OF.get(key) ?? 0;
 }
 
-/** The ids that count toward "12 of 12", in the order they are asked. */
-export const ANSWER_IDS = [
-  FUTURE_ID,
-  ...FLOW_QUESTIONS.map((q) => q.id),
-  WILDCARD.id,
-];
+/**
+ * The ids that count toward "n of N", in the order they are asked.
+ *
+ * `STEP_IDS` in `game/questions.ts` is the same list, and it is the one the
+ * wall, the desk and the front page count against too — they used to count
+ * a different set against a different denominator, and a table that had
+ * only picked its lens read "2 of 4" on the projector while its own phone
+ * said "1 of 6". Kept as a re-export rather than a second array.
+ */
+export const ANSWER_IDS = STEP_IDS;
 
 function answered(answers: readonly StatusAnswer[], id: string): boolean {
   const a = answers.find((x) => x.questionId === id);

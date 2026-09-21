@@ -24,11 +24,12 @@
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
 import { getAdminRoomRows, getBeat, getTableFutures, type AdminImageState } from '$lib/server/room';
-import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
+import { TABLE_COUNT, STEP_IDS } from '$lib/game/questions';
 import { activeZones } from '$lib/game/zones';
 import type { ProjectorRoom, TableBeatState, TableView, ZoneImageState } from '$lib/ui/projector/types';
 
-const TOTAL_STEPS = QUESTIONS.length;
+/** The phone's own scale, so the wall and the phone in a table's hand never disagree. */
+const TOTAL_STEPS = STEP_IDS.length;
 
 function toZoneView(zoneKey: string, row: AdminImageState | undefined): { zone: string; state: ZoneImageState; url: string | null } {
 	if (!row) return { zone: zoneKey, state: 'none', url: null };

@@ -40,7 +40,7 @@ import { tickImageRow, tickRowSafely } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';
 import { FAL_MODEL } from '$lib/server/fal';
-import { TABLE_COUNT, QUESTIONS } from '$lib/game/questions';
+import { TABLE_COUNT, STEP_IDS } from '$lib/game/questions';
 import { activeZones, zoneByKey } from '$lib/game/zones';
 import { composeZonePrompt, eraOf, resolveZone, type AnswerLike } from '../t/[table]/layers';
 import { composePromptFor } from '../t/[table]/hero';
@@ -69,7 +69,8 @@ function adminTickBudget(raw: string | undefined): number {
 
 /** How settled a row must be before the DESK's ticker touches it — the phone's own 2 s poll gets first refusal on a row its table is watching. */
 const ADMIN_TICK_COOLDOWN_MS = 3000;
-const TOTAL_STEPS = QUESTIONS.length;
+/** The phone's own scale — see `STEP_IDS`. The desk and the wall read the same number a table is looking at. */
+const TOTAL_STEPS = STEP_IDS.length;
 
 // One per isolate, separate from the phone's own throttle instance in
 // answers.remote.ts — regenerate applies the same per-table rule

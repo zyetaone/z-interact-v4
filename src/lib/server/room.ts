@@ -1272,6 +1272,11 @@ export async function getAdminRoomRows(d: D1Database, eventId: string, tableCoun
 		// is part of its parent's step, not a step of its own — without this a
 		// table on its third question reads "6 of 9" on the wall.
 		if (r.question_id.endsWith(':and')) continue;
+		// Nor is `q1`: it is the era CHIP on the lens screen, not a screen of
+		// its own, and the phone has never counted it (`FLOW_QUESTIONS`). It
+		// is counted against `STEP_IDS` now, which is the phone's own scale —
+		// see that constant for what the two disagreeing counts cost.
+		if (r.question_id === 'q1') continue;
 		let set = answeredByTable.get(r.table_no);
 		if (!set) answeredByTable.set(r.table_no, (set = new Set()));
 		set.add(r.question_id);

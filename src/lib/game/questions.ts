@@ -497,6 +497,38 @@ export interface TableAnswers {
  */
 export const V4_IDS = ['q8', 'q5c', 'q6r', 'q2'] as const;
 
+/** The pseudo-question id the lens pick is stored under. `q1` stores the era. */
+export const FUTURE_ID = 'future';
+
+/**
+ * WHAT COUNTS AS A STEP — the ONE scale, for the phone and for the room.
+ *
+ * There were two, and they disagreed. The phone counted the lens, the four
+ * questions and the wildcard (six). The wall, the desk and the front page
+ * counted `QUESTIONS.length` (four) as the denominator while the numerator
+ * counted every distinct answered id — which includes `future`, `q1` (the
+ * era chip) and `wildcard`. A table that had answered NOTHING but picked
+ * its lens already read "2 of 4" on the wall, and it saturated at "4 of 4"
+ * the moment it answered the second of four questions. For most of a
+ * session the wall would have said every table was finished while they were
+ * halfway.
+ *
+ * It was survivable at nine questions — the three extra ids were noise
+ * against a denominator of nine, and `room.ts`'s own comment records the
+ * milder symptom it caused then ("a table on its third question reads 6 of
+ * 9"). The 21 Sep cut to four made the noise nearly as large as the scale.
+ *
+ * `q1` is not here because it is the era CHIP on the lens screen, not a
+ * screen of its own — the phone's `FLOW_QUESTIONS` has always filtered it.
+ * An "And:" row is part of its parent's step, which `room.ts` already
+ * handles where it counts.
+ */
+export const STEP_IDS: readonly string[] = [
+	FUTURE_ID,
+	...QUESTIONS.filter((q) => q.id !== 'q1').map((q) => q.id),
+	WILDCARD.id
+];
+
 if (QUESTIONS.map((q) => q.id).join(',') !== V4_IDS.join(',')) {
 	throw new Error(
 		`questions are not V4's set in her order (${V4_IDS.join(',')}), got ${QUESTIONS.map((q) => q.id).join(',')}`

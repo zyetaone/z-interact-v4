@@ -210,6 +210,11 @@
 				<button disabled={busy} onclick={doSeed}>Seed 20 tables</button>
 			{/if}
 			<button disabled={busy} onclick={doExport}>Export</button>
+			<!-- Both of these existed and neither was reachable from here: a
+			     facilitator had to know the URL to reprint a lost QR card or
+			     to read the room. The token rides along, as it does everywhere. -->
+			<a class="desk-link" href="/admin/cards?token={token}">Table cards</a>
+			<a class="desk-link" href="/admin/analytics?token={token}">Readout</a>
 		</div>
 		</header>
 	</div>
@@ -332,6 +337,19 @@
 	.action-banner {
 		border-left: 3px solid var(--teal);
 		background: var(--card-solid);
+	}
+
+	.desk-link {
+		min-height: var(--desk-tap);
+		padding: 0 14px;
+		display: inline-flex;
+		align-items: center;
+		border-radius: 10px;
+		border: 1px solid var(--line-strong);
+		background: var(--card-solid);
+		color: var(--ink);
+		font: inherit;
+		text-decoration: none;
 	}
 
 	.desk-bar {

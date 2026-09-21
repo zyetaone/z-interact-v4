@@ -74,7 +74,17 @@ import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import { ZONES, impossibleIdea, type Zone } from '$lib/game/zones';
-import { FRAME_HEAD, NO_COLLAGE, composeLayers, houseBase, sanitizeComposed, type LayerInputs, type ZoneRef } from '$lib/server/prompt';
+import {
+	FRAME_HEAD,
+	NO_COLLAGE,
+	UNDEREXPOSED_NEGATIVE,
+	composeLayers,
+	houseBase,
+	sanitizeComposed,
+	wantsBrightExposure,
+	type LayerInputs,
+	type ZoneRef
+} from '$lib/server/prompt';
 
 /** The house base's year label per era chip value — the frame line reads the
  *  table's actual era chip, so a nudge toward 2040 (or back to 1930s) shows
@@ -214,12 +224,22 @@ export const ZONE_OWNED_IDS: ReadonlySet<string> = new Set(ZONES.flatMap((z) => 
 export const NO_2026 = 'paper notebooks, coffee mugs, 2020s office furniture, laptops';
 const NO_2026_KEEP_PAPER = NO_2026.replace('paper notebooks, ', '');
 
-/** The layout guard first, the house terms, the 2026 tells, then the future's own; duplicates dropped, order preserved. */
-export function composeNegative(futureNegative: string | undefined, paperChosen = false): string {
+/**
+ * The layout guard first, the house terms, the 2026 tells, then the future's
+ * own; duplicates dropped, order preserved.
+ *
+ * `bright` appends the underexposure terms. Saying the exposure from both
+ * sides is what actually moved the luminance when the hero was brightened
+ * (see `hero.ts`) — the positive clause alone did not carry it. Default
+ * false so the hero's own call, which appends the same terms itself, does
+ * not say them twice.
+ */
+export function composeNegative(futureNegative: string | undefined, paperChosen = false, bright = false): string {
 	const seen = new Set<string>();
 	const out: string[] = [];
 	const no2026 = paperChosen ? NO_2026_KEEP_PAPER : NO_2026;
-	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${no2026}, ${futureNegative ?? ''}`.split(',')) {
+	const dark = bright ? `, ${UNDEREXPOSED_NEGATIVE}` : '';
+	for (const term of `${NO_COLLAGE}, ${HOUSE_NEGATIVE}, ${no2026}, ${futureNegative ?? ''}${dark}`.split(',')) {
 		const t = term.trim();
 		if (!t || seen.has(t.toLowerCase())) continue;
 		seen.add(t.toLowerCase());
@@ -238,7 +258,11 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	// future's NAME never enters the prompt.
 	const eraAnswer = by.get('q1');
 	const era = input.era ?? ((eraAnswer?.keys[0] as Era | undefined) ?? future?.eraDefault ?? null);
-	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035']);
+	// The table's own feel words can still opt a render out of the
+	// brightening (`DARK_FEEL_KEYS`, empty today) — the same switch the hero
+	// reads, so a table's four zones and its hero agree about the light.
+	const bright = wantsBrightExposure(by.get('q11')?.keys ?? []);
+	const base = houseBase(ERA_YEAR[era ?? 'recognisably-2035'], bright);
 	const window = future ? future.worldOutside : HOUSE_REGISTER;
 	// Recipe v2: the lens's styleDna (its card's visual signatures) right
 	// after the frame — so it lands directly after the zone's moment once
@@ -295,7 +319,7 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	const wildcard = wildcardText ? fragmentOf(WILDCARD.options[0], wildcardText) : undefined;
 
 	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
-	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen) };
+	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen, bright) };
 }
 
 /**

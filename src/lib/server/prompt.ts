@@ -41,10 +41,21 @@ export const NO_COLLAGE = 'collage, grid, split screen, labels';
  * The ceiling on the table-editable prompt. Screen 15's textarea is free
  * text that becomes the ENTIRE prompt sent to a paid third-party API and
  * then shown on a public screen, so it had to stop being unbounded. Long
- * enough for a real edit of the composed base (which runs a few hundred
- * characters), short enough that it cannot be used as a payload.
+ * enough for a real edit of the composed base, short enough that it cannot
+ * be used as a payload.
+ *
+ * It was 1,200, and "a few hundred characters" was wrong about the base: a
+ * fully answered table already composed to ~1,150 and sat fifty characters
+ * from being silently cut. Adding the exposure clause (~112 characters,
+ * said from both sides) pushed all four zones past it, and what
+ * `sanitizeComposed` drops off the end is the Avoid list and the closing
+ * no-text guard — the two things the composition exists to guarantee.
+ * Measured before raising it: 1,116-1,153 without the clause, 1,228-1,265
+ * with. 1,500 restores the headroom the original number was assumed to
+ * have; bounded is still bounded, and a payload is no more possible at
+ * 1,500 than at 1,200.
  */
-export const MAX_COMPOSED_CHARS = 1200;
+export const MAX_COMPOSED_CHARS = 1500;
 
 /**
  * What a table is allowed to put in the prompt: printable text, one line's
@@ -94,8 +105,77 @@ export function negativeClause(negative: string | undefined): string {
  */
 export const FRAME_HEAD = 'A film still, a';
 
-export function houseBase(year: string): string {
-	return `${FRAME_HEAD} ${year} workplace: anamorphic 35 mm, volumetric light, no logos`;
+/**
+ * THE ROOM CAME BACK DARK.
+ *
+ * Every lens contributes surfaces rather than light — neo-seoul's "dark
+ * surfaces", the house window's "moody rather than stark, pooled light,
+ * shadow held deliberately" — and the model reads a stack of those as a
+ * night interior. The frame already says "volumetric daylight"; on its own
+ * that lost to the rest of the prompt. This says it as an EXPOSURE, which
+ * is the word a model reads as a camera setting rather than as weather.
+ */
+export const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
+
+/**
+ * The same instruction as a negative. Measured on one table with identical
+ * answers: the positive clause alone moved mean luminance 108 -> 117 on a
+ * 0-255 scale, and the frame still sat in shade; saying it from both sides
+ * is what made the glasshouse read as daylit. It deliberately does NOT say
+ * "night": a lens has to hold its identity at any hour, and the day-neutral
+ * guard in the tests forbids the word anywhere in a hero prompt, Avoid list
+ * included. Suppressed together with EXPOSURE, since a table that asked for
+ * the dark asked for gloom too.
+ */
+export const UNDEREXPOSED_NEGATIVE = 'underexposed, murky, crushed blacks, gloom';
+
+/**
+ * The knob that lets a feel word opt out of the brightening, and why it is
+ * empty.
+ *
+ * It was `['quiet', 'focused', 'sacred']`, on the reasoning that a table
+ * which asked for the dark should keep it. Measuring the two branches on
+ * production showed what that cost: a suppressed frame sat at mean
+ * luminance 80 with 27% of it below 40, against 113 and 11% for a brightened
+ * one, and `focused` is a common enough pick to put a real share of the wall
+ * in the first group. The owner's complaint was about the wall as a whole.
+ *
+ * The better fix was upstream. Those three fragments (`questions.ts` q11)
+ * used to describe how little light there was; they now describe WHERE the
+ * light is — a bright pool on the work, a shaft into a light-filled room, a
+ * soft and unhurried foreground. A table's choice still shapes the light. It
+ * no longer dims the building, so there is nothing left to suppress.
+ *
+ * Kept as a knob rather than deleted: if the dress run shows a lens that
+ * needs its dark back, putting its key here restores the old behaviour with
+ * no other change.
+ */
+export const DARK_FEEL_KEYS: readonly string[] = [];
+
+/**
+ * True when nothing the table chose asks for night or deep shadow.
+ *
+ * `dark` is a parameter only so a test can prove the knob still works while
+ * `DARK_FEEL_KEYS` is empty; every caller uses the default.
+ */
+export function wantsBrightExposure(
+	feelKeys: readonly string[],
+	dark: readonly string[] = DARK_FEEL_KEYS
+): boolean {
+	return !feelKeys.some((k) => dark.includes(k));
+}
+
+/**
+ * The house frame every ZONE render opens with.
+ *
+ * `bright` defaults to true: a zone prompt says the exposure the same way a
+ * hero prompt does, because a wall of four dark tiles per table is the thing
+ * that was actually complained about. Pass false to get the old frame back
+ * for one render without touching anything else.
+ */
+export function houseBase(year: string, bright = true): string {
+	const exposure = bright ? `, ${EXPOSURE}` : '';
+	return `${FRAME_HEAD} ${year} workplace: anamorphic 35 mm, volumetric light${exposure}, no logos`;
 }
 
 export interface LayerInputs {

@@ -29,7 +29,7 @@
  * zone prompts: once inside the opening frame sentence, once as the last
  * thing the model reads.
  */
-import { NO_TEXT } from '$lib/server/prompt';
+import { NO_TEXT, EXPOSURE, UNDEREXPOSED_NEGATIVE, DARK_FEEL_KEYS, wantsBrightExposure } from '$lib/server/prompt';
 import { impossibleIdea, vantageFor } from '$lib/game/zones';
 import type { Era } from '$lib/game/era';
 import type { Zone } from '$lib/game/zones';
@@ -110,64 +110,14 @@ export const SINGLE_FRAME =
 	'All of this in one single photograph of one continuous space, seen from one camera at one moment — never panels, insets or a divided frame';
 
 /**
- * THE ROOM CAME BACK DARK.
- *
- * Every lens contributes surfaces rather than light — neo-seoul's "dark
- * surfaces", the house window's "moody rather than stark, pooled light,
- * shadow held deliberately" — and the model reads a stack of those as a
- * night interior. The frame already says "volumetric daylight"; on its own
- * that lost to the rest of the prompt. This says it as an EXPOSURE, which
- * is the word a model reads as a camera setting rather than as weather.
+ * The brightening lives in `$lib/server/prompt` now, because the four ZONE
+ * renders need the same clause the hero does — that is where the owner's
+ * "not dark" complaint actually lands, four frames per table against the
+ * hero's one. Re-exported here unchanged: this file is still where the
+ * reasoning and the measurements are written down.
  */
-export const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
+export { EXPOSURE, UNDEREXPOSED_NEGATIVE, DARK_FEEL_KEYS, wantsBrightExposure };
 
-/**
- * The same instruction as a negative. Measured on one table with identical
- * answers: the positive clause alone moved mean luminance 108 -> 117 on a
- * 0-255 scale, and the frame still sat in shade; saying it from both sides
- * is what made the glasshouse read as daylit. It deliberately does NOT say
- * "night": a lens has to hold its identity at any hour, and the day-neutral
- * guard in the tests forbids the word anywhere in a hero prompt, Avoid list
- * included. Suppressed together with EXPOSURE, since a table that asked for
- * the dark asked for gloom too.
- */
-export const UNDEREXPOSED_NEGATIVE = 'underexposed, murky, crushed blacks, gloom';
-
-/**
- * The knob that lets a feel word opt out of the brightening, and why it is
- * empty.
- *
- * It was `['quiet', 'focused', 'sacred']`, on the reasoning that a table
- * which asked for the dark should keep it. Measuring the two branches on
- * production showed what that cost: a suppressed frame sat at mean
- * luminance 80 with 27% of it below 40, against 113 and 11% for a brightened
- * one, and `focused` is a common enough pick to put a real share of the wall
- * in the first group. The owner's complaint was about the wall as a whole.
- *
- * The better fix was upstream. Those three fragments (`questions.ts` q11)
- * used to describe how little light there was; they now describe WHERE the
- * light is — a bright pool on the work, a shaft into a light-filled room, a
- * soft and unhurried foreground. A table's choice still shapes the light. It
- * no longer dims the building, so there is nothing left to suppress.
- *
- * Kept as a knob rather than deleted: if the dress run shows a lens that
- * needs its dark back, putting its key here restores the old behaviour with
- * no other change.
- */
-export const DARK_FEEL_KEYS: readonly string[] = [];
-
-/**
- * True when nothing the table chose asks for night or deep shadow.
- *
- * `dark` is a parameter only so a test can prove the knob still works while
- * `DARK_FEEL_KEYS` is empty; every caller uses the default.
- */
-export function wantsBrightExposure(
-	feelKeys: readonly string[],
-	dark: readonly string[] = DARK_FEEL_KEYS
-): boolean {
-	return !feelKeys.some((k) => dark.includes(k));
-}
 
 /** Drops empties, trims trailing punctuation, joins as sentences — `layers.ts`'s `joinClauses`, which is private there. */
 function sentences(parts: readonly (string | undefined)[]): string {

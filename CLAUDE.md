@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # z-interact-v4
 
 A fresh SvelteKit app for a 20-table interactive workshop: each table scans a
@@ -18,7 +22,9 @@ live in `NEW-EVENT.md`'s checklist, filled in outside this repo.
 | `wrangler` | 4.135.0 |
 | `vitest` | 5.0.1 |
 | `qrcode` | 1.5.4 |
-| `@cloudflare/workers-types` | pinned to latest at scaffold time |
+| `@cloudflare/workers-types` | 5.20260919.1 |
+| `clsx` | 2.1.1 |
+| `@playwright/test` | ^1.63.0 (e2e only) |
 
 Remote functions (`query`/`command`/`form` from `$app/server`) are the RPC
 layer, opted into via `svelte.config.js`'s `kit.experimental.remoteFunctions`
@@ -33,9 +39,27 @@ kit (plain CSS).
 npm install
 npm run dev          # vite dev, platformProxy emulates D1/R2 locally
 npm run check         # svelte-kit sync + svelte-check
-npm run test          # vitest --run
+npm run test          # vitest --run (the `server` project: src/**/*.test.ts, node env)
+npm run test:unit     # same, in watch mode
+npx vitest --run src/lib/server/secret.test.ts   # one file
+npx vitest --run -t 'ticking a stored row'       # one test by name
 npm run build         # vite build -> .svelte-kit/cloudflare
+wrangler pages dev .svelte-kit/cloudflare        # exercise the built output, not vite dev
 ```
+
+`cp .dev.vars.example .dev.vars` before the first `npm run dev` — it lists
+every variable and what unsetting it does.
+
+E2E (Playwright, `tests/e2e/`, not part of `npm run test`):
+```bash
+npx playwright test                              # all
+npx playwright test tests/e2e/phase1-answers.spec.ts
+```
+The phone specs drive a dev server you start yourself on **5173**;
+`projector-screens.spec.ts` boots its OWN on **5273** with `--strictPort`
+and no reuse — the config comment records why (an earlier run photographed a
+different worktree's 5173 and the captures showed code this branch does not
+contain). `docs/screens/` and `docs/fidelity/` are the committed output.
 
 Deploy (manual, not wired to CI yet):
 ```bash
@@ -63,6 +87,24 @@ All three secrets above FAIL CLOSED when unset in production.
 `wrangler secret put` (no `pages`) does **not** reach a Pages project — it
 leaves the key unset in production, which then looks exactly like a dead key.
 
+### The knobs, in one place
+
+`NEW-EVENT.md` is authoritative; this is the index.
+
+| Variable | Absent means |
+|---|---|
+| `FAL_KEY` / `FAL_WEBHOOK_SECRET` / `ADMIN_TOKEN` | fail closed in production |
+| `EVENT_ID` | the `event_id` stamped on every row |
+| `MAX_RENDERS_PER_TABLE` | falls back to 12, never to "no cap" |
+| `REFERENCE_MODE` | `none` \| `lens` \| `chain`; unrecognised falls back to `none` |
+| `ADMIN_TICK_BUDGET` | rows the admin read advances in `waitUntil`, default 8 |
+| `SIMULATE_ENABLED` | `/simulate` rejects unless `'true'` |
+| `FAL_FAKE=1` / `AI_FAKE=1` | the two dev fakes — no image call, no Workers AI call |
+
+**`platformProxy` proxies the `AI` binding to the REAL remote one under
+`npm run dev`** (D1 and R2 are local). `AI_FAKE=1` is what keeps a local run
+off it; `FAL_FAKE=1` is the same trick for renders.
+
 ## Folder map
 
 ```
@@ -81,18 +123,37 @@ src/lib/server/
   fetch-image.ts # the ONE place image bytes come off the internet: host allow-list, byte cap, type sniff
   secret.ts    # constant-time secret compare, hand-written (no Cloudflare-only API)
   simulate.ts  # the PURE rehearsal plan (seeded); the route drives it through the real commands
+  analytics.ts # PURE: summarise(exportRoomRows) -> answer distribution, lens split, progress, spend
+  reference.ts # REFERENCE_MODE — how much the chosen lens picture decides the render
+  fake-d1.ts   # an in-memory D1Database for the tests; no test talks to a real binding
 src/lib/game/
   questions.ts # VERSION 4's nine questions (q2..q11, with "And:" sub-questions) + wildcard
   futures.ts   # the six named futures (V4's Q1, "Choose your lens") + era fields
   zones.ts     # both candidate zone sets behind ZONE_SETS, defaulting to `book`
   era.ts       # the era scale + allowedEras/nudge rules
+  config.ts    # content-side flags (ENABLE_PROPOSED_QUESTIONS), not env knobs
+  visuals.ts + visuals-manifest.ts # which picture belongs to which lens/option (static/visuals/)
+src/lib/ui/    # every screen lives HERE, not in routes/ — the +page.svelte files wire, they don't draw
+  table/       # LandingScreen, FutureScreen, QuestionScreen, WildcardScreen, ReviewScreen,
+               # DrawingScreen, ImagesScreen, DoneScreen, OptionList, Topbar
+  projector/   # Lobby, Progress, Reveal, TableSequence, Finale, Ledger + aspect.ts/grouping.ts/tokens.ts
+  admin/       # types.ts + fixtures.ts (the desk's screen is still routes/admin/+page.svelte)
 src/lib/
   poll.svelte.ts       # ported from z-presence: 3-missed-reads staleness rule
   state/table.svelte.ts
+scripts/        # gen-visuals.mjs / gen-contact-sheet.mjs — the lens+option pictures, run by hand
+migrations/     # 0001_narrative.sql, OPTIONAL — ensureTable() still creates it; the code is the source of truth
 src/routes/
   t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, built +page.svelte (268 lines: questions, images, retry, draw again)
+                       #   plus hero.ts, layers.ts, prompt-store.ts, narrative.ts (the done screen's
+                       #   Workers AI paragraph: `AI` binding, append-only `narrative` table, AI_FAKE=1)
+                       #   and img/[id]/+server.ts, which serves the render from R2
   projector/           # gallery.remote.ts, built +page.svelte (185 lines: beats, layouts, manual-override badge)
   admin/                # admin.remote.ts — ADMIN_TOKEN shared-secret gate on every command AND the poll itself (see admin.remote.ts's module note; this is not "no auth", it is a shared-secret gate, not a login), built +page.svelte (507 lines: the full desk), polls `adminRoom`
+  admin/cards/          # the printable table cards (QR + code), reprintable per table
+  admin/analytics/      # the room readout — analytics.remote.ts (one query, no commands, ticks and spends NOTHING)
+  projector/img/[...key]/ # the projector's R2 read path
+  health/               # GET /health?token=<ADMIN_TOKEN> — JSON, fail-closed, ticks NOTHING on purpose
   api/fal-webhook/      # +server.ts: token (fail-closed, constant-time) + image_id + request_id match, then the shared ticker inside waitUntil
   simulate/             # +server.ts: POST, drives N tables through the REAL remote commands (SIMULATE_ENABLED + ADMIN_TOKEN, both fail closed)
 ```
@@ -189,8 +250,12 @@ unchanged", which is what the original scaffold already did.
   of fal's hosts (the CDN is `*.fal.media`, a different domain from the
   `*.fal.ai` API), an 8 MB cap enforced by the read loop, and `image/*`
   required as both declared type and sniffed bytes. The composed prompt is
-  capped at 1,200 characters and stripped of control characters, and the
-  house negative is always appended.
+  capped at 1,500 characters and stripped of control characters, and the
+  house negative is always appended. The cap was 1,200 and its comment
+  assumed a composed base of "a few hundred characters"; a fully answered
+  table measured 1,116-1,153, fifty characters from being silently cut —
+  and what `sanitizeComposed` drops off the end is the Avoid list and the
+  closing no-text guard.
 - **Secrets fail closed.** `ADMIN_TOKEN`, `FAL_WEBHOOK_SECRET` and
   `SIMULATE_ENABLED` all reject when unset in production; `secretEquals`
   treats a missing expected value as "not equal" so a forgotten variable
@@ -257,13 +322,34 @@ What is actually still open:
   exist, the hard-reset paths do not.
 - **Listen mode and the vote phase** — neither is started (schema.draft.ts's
   `clip`/`transcript`/`extraction`/`vote` tables are not created).
-- **The zone set.** `ZONES` defaults to `book`; `questions` is implemented
-  behind `ZONE_SETS` and the lead's call is a one-line change.
+- **The zone set.** `ZONE_SET` defaults to **`hero`** — ONE main workspace
+  image per table (`HERO_ZONES`, owner decision 20 Sep), composed by
+  `hero.ts`'s `composeHeroPrompt`, not by `composeLayers`. `four` renders
+  the four-zone set and `all` renders both. This file used to say the
+  default was `book`; it is not, and the difference decides which composer
+  a change to the prompt actually reaches.
 - **`event_table` has no `current_step` column** — step is still derived from
   the answer count. The batched admin/projector read now gives a real count,
   so this only matters for resume semantics with skipped questions.
 
 ### Recently closed, with the defaults they set
+
+- **The exposure is said on every render, not just the hero.** `EXPOSURE`
+  ("bright overall exposure, daylight filling the volume, open shadows") and
+  `UNDEREXPOSED_NEGATIVE` moved from `hero.ts` to `prompt.ts`; `houseBase`
+  takes a `bright` flag (default on) and `composeNegative` takes one too, so
+  a four-zone render says it from both sides exactly as the hero does.
+  `hero.ts` re-exports them and still holds the reasoning and the luminance
+  measurements. Under the `hero` default this changes nothing about what the
+  room renders today — it is the `four`/`all` sets that were left behind.
+- **The room readout** (`/admin/analytics?token=…`). Answer distribution per
+  question, lens split, typed replies, table-by-table progress, and spend
+  against the cap — computed by the PURE `analytics.ts` from the rows
+  `exportRoomRows` already returns, so the append-only "latest wins" rule and
+  the reset watermark are honoured rather than re-implemented in SQL. Spend
+  comes from `getRenderBudget`, the same counter `limits.ts` caps against.
+  The desk now links to it, and to `/admin/cards`, which was equally
+  unreachable.
 
 - **The retry UI hooks are wired, both ends.** The phone's failed tile calls
   `retryZone` (`onretry` in `routes/t/[table]/+page.svelte`) and the desk's

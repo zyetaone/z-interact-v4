@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { FUTURES } from '$lib/game/futures';
 import { QUESTIONS } from '$lib/game/questions';
 import { IMPOSSIBLE_IDEAS, ZONE_SETS, impossibleIdea } from '$lib/game/zones';
-import { NO_TEXT, houseBase } from '$lib/server/prompt';
+import { sanitizeComposed, NO_TEXT, houseBase } from '$lib/server/prompt';
 import {
 	FEEL_IDS,
 	MATERIAL_IDS,
@@ -29,7 +29,9 @@ import {
 
 const ABUNDANT = FUTURES.find((f) => f.key === 'solarpunk')!;
 const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
-const FRAME_2040 = 'A film still, a 2040 workplace: anamorphic 35 mm, volumetric light, no logos';
+const FRAME_2040 =
+	'A film still, a 2040 workplace: anamorphic 35 mm, volumetric light, ' +
+	'bright overall exposure, daylight filling the volume, open shadows, no logos';
 
 /** A fully answered table: every question, every And, both push replies, the wildcard, a nudged era. */
 const ANSWERS: AnswerLike[] = [
@@ -224,7 +226,8 @@ describe('buildLayerInputs', () => {
 	it('puts the layout guard first, the house terms, the 2026-office tells, then the futures own, without duplicates', () => {
 		expect(built.negative).toBe(
 			'collage, grid, split screen, labels, personas, stark white, posed faces, ' +
-				'paper notebooks, coffee mugs, 2020s office furniture, laptops, neon signage, dead plants'
+				'paper notebooks, coffee mugs, 2020s office furniture, laptops, neon signage, dead plants, ' +
+				'underexposed, murky, crushed blacks, gloom'
 		);
 	});
 
@@ -363,17 +366,31 @@ describe('composeBase / composeZonePrompt', () => {
 describe('word budget', () => {
 	const base = composeBase(built);
 
-	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is within the 180-word budget and contains its moment', (key) => {
+	/**
+	 * The budget was 180, and the exposure clause cost 14 words of it: nine in
+	 * the frame (`EXPOSURE`) and five in the Avoid list
+	 * (`UNDEREXPOSED_NEGATIVE`), said from both sides because the positive
+	 * alone did not move the luminance when the hero was measured. 195 is 180
+	 * plus that and a word to spare, not a budget quietly relaxed.
+	 *
+	 * The word count is a style guard. The one that actually bites is
+	 * `MAX_COMPOSED_CHARS`: a prompt over it is TRUNCATED by
+	 * `sanitizeComposed`, and what falls off the end is the Avoid list and the
+	 * closing no-text guard. So each case asserts it is not truncated too —
+	 * a fully answered table now sits around 1,100 of the 1,200 characters.
+	 */
+	it.each(ZONE_SETS.book.map((z) => z.key))('a fully answered tables %s prompt is within the 195-word budget, untruncated, and contains its moment', (key) => {
 		const zone = ZONE_SETS.book.find((z) => z.key === key)!;
 		const resolved = resolveZone(zone, ANSWERS);
 		const prompt = composeZonePrompt(base, resolved, built.negative);
-		expect(wordCount(prompt)).toBeLessThanOrEqual(180);
+		expect(sanitizeComposed(prompt), 'truncated — the Avoid list and the closing guard fall off the end').toBe(prompt);
+		expect(wordCount(prompt)).toBeLessThanOrEqual(195);
 		expect(wordCount(prompt)).toBeGreaterThan(90);
 		expect(prompt).toContain(resolved.renderSuffix);
 		expect(prompt).toContain(zone.moment.split(/[:;]/)[0]); // the subject, before its slot
 	});
 
-	it('stays at or under 205 words even with the longest option of every question stacked', () => {
+	it('stays at or under 220 words even with the longest option of every question stacked', () => {
 		const longest: AnswerLike[] = QUESTIONS.flatMap((q) => {
 			const n = q.select.kind === 'pick' ? q.select.n : 1;
 			const byLength = (a: { promptFragment: string }, b: { promptFragment: string }) =>
@@ -389,7 +406,7 @@ describe('word budget', () => {
 		for (const future of FUTURES) {
 			const b = buildLayerInputs({ futureKey: future.key, era: 'hyperfuturistic-2040', answers: longest });
 			for (const zone of ZONE_SETS.book) {
-				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(205);
+				expect(wordCount(composeZonePrompt(composeBase(b), resolveZone(zone, longest), b.negative)), `${future.key}/${zone.key}`).toBeLessThanOrEqual(220);
 			}
 		}
 	});

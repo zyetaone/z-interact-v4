@@ -15,7 +15,8 @@
 import { describe, expect, it } from 'vitest';
 import { QUESTIONS } from '$lib/game/questions';
 import { ZONE_SETS } from '$lib/game/zones';
-import { composeHeroPrompt } from './hero';
+import { NO_TEXT } from '$lib/server/prompt';
+import { composeHeroPrompt, MAX_HERO_CHARS } from './hero';
 import { buildLayerInputs, composeBase, composeZonePrompt, resolveZone, type AnswerLike } from './layers';
 
 /** One question whose typed reply IS drawn, by the owner's instruction. */
@@ -48,5 +49,46 @@ describe('a typed reply is never drawn, except where the owner said so', () => {
 				expect(present, `${q.id} typed reply in the ${zone.key} prompt`).toBe(q.id === DRAWN);
 			}
 		}
+	});
+});
+
+/**
+ * q2's reply IS drawn, so it is the one place a table's keystrokes reach a
+ * paid render — and, until every question got a box, the only one anybody
+ * had to think about. The zone path was stripped and capped; the hero path
+ * did not pass through that code at all.
+ */
+describe('the one typed reply that is drawn is still sanitised', () => {
+	const hero = (reply: string) =>
+		composeHeroPrompt({
+			table: 4,
+			futureKey: 'solarpunk',
+			era: 'hyperfuturistic-2040',
+			answers: [{ questionId: 'q2', keys: ['deep-low-lit'], pushReply: reply }]
+		});
+
+	it('strips control characters and folded whitespace out of q2s reply', () => {
+		const prompt = hero('brass\u0000 and\n\n\tcracked   terrazzo\u001b');
+		expect(prompt).toContain('brass and cracked terrazzo');
+		expect(prompt).not.toMatch(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/);
+		expect(prompt).not.toMatch(/\s{2}/);
+	});
+
+	/**
+	 * The ceiling cuts from the END, and the Avoid clause is at the end — so
+	 * the clause survives only because the boundary caps the reply first.
+	 * 500 (`SaveAnswerInput`) on top of a ~1,860-character hero leaves room
+	 * under 2,400. This is the assertion that fails if either number moves.
+	 */
+	it('keeps the Avoid clause with the longest reply the boundary will accept', () => {
+		const prompt = hero('m'.repeat(500));
+		expect(prompt.length).toBeLessThanOrEqual(MAX_HERO_CHARS);
+		expect(prompt).toContain('Avoid:');
+		expect(prompt.endsWith(NO_TEXT)).toBe(true);
+	});
+
+	it('cuts from the end when a reply arrives longer than the boundary allows', () => {
+		const prompt = hero('marble '.repeat(600));
+		expect(prompt.length).toBeLessThanOrEqual(MAX_HERO_CHARS);
 	});
 });

@@ -29,7 +29,7 @@
  * zone prompts: once inside the opening frame sentence, once as the last
  * thing the model reads.
  */
-import { NO_TEXT } from '$lib/server/prompt';
+import { sanitizeComposed, NO_TEXT } from '$lib/server/prompt';
 import { impossibleIdea, vantageFor } from '$lib/game/zones';
 import type { Era } from '$lib/game/era';
 import type { Zone } from '$lib/game/zones';
@@ -85,6 +85,9 @@ export const HERO_WORD_TARGET = { min: 150, max: 310, briefAsked: { min: 150, ma
  * prompt's own section labels painted on the walls.
  */
 export const NO_SIGNAGE_TEXT = 'no signage text, no wayfinding words, no captions';
+
+/** The hero's character ceiling — see the note where it is applied. */
+export const MAX_HERO_CHARS = 2400;
 
 /**
  * THE ROOM CAME BACK DARK.
@@ -249,7 +252,15 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// does, and the first render used it.
 	const avoid = `Avoid: ${composeNegative(future?.negativeFragment, paperChosen)}, ${NO_SIGNAGE_TEXT}`;
 
-	return sentences([frame, world, programme, dressing, avoid, NO_TEXT]);
+	// The last thing before it leaves: q2's typed reply rides in `materials`
+	// (the owner asked for those two materials word for word), and since
+	// every question now offers a box, that is table free text reaching a
+	// paid render. The zone path has always been stripped and capped here
+	// via `composeZonePrompt`; the hero path was not, because it never
+	// passed through it. Its own ceiling, not `MAX_COMPOSED_CHARS`: one
+	// image per table is a longer brief by design, measured at ~1,860
+	// characters, and a 1,200 cut would take the Avoid clause off the end.
+	return sanitizeComposed(sentences([frame, world, programme, dressing, avoid, NO_TEXT]), MAX_HERO_CHARS);
 }
 
 /* -------------------------------------------------------------------------- */

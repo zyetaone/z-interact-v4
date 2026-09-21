@@ -93,17 +93,45 @@ function openText(q) {
 }
 
 function optionCard(q, o) {
-	const picture = o.open
-		? '<div class="missing">typed answer<br>no picture</div>'
-		: img(`/visuals/opt/${q.id}-${o.key}.jpg`, o.label);
 	return `
 	<figure class="card">
-		${picture}
+		${img(`/visuals/opt/${q.id}-${o.key}.jpg`, o.label)}
 		<figcaption>
 			<b>${esc(o.label)}</b>
-			<p class="meta">${esc(o.key)}${o.open ? ' · open' : ''}</p>
+			<p class="meta">${esc(o.key)}</p>
 		</figcaption>
 	</figure>`;
+}
+
+/**
+ * An `open` option is a WRITING SPACE, not a picture with nothing in it.
+ * Rendered inside the grid it was a dashed "typed answer / no picture" tile
+ * that made a five-option question read as three across and two, and made
+ * the reader look for a missing image. It belongs with the other ruled box.
+ */
+function openOptionBox(q) {
+	const open = q.options.filter((o) => o.open);
+	if (open.length === 0) return '';
+	return open
+		.map(
+			(o) => `<div class="open-text">
+		<h3>Or: ${esc(o.label)}</h3>
+		<p class="meta">Optional — ${esc(o.key)} · typed, and drawn word for word.</p>
+		<div class="field"></div>
+	</div>`
+		)
+		.join('');
+}
+
+/**
+ * SIX ACROSS IN TWO ROWS, OR FOUR IN TWO ROWS — never three and a lone
+ * fourth, which is the layout the 21 Sep note objected to on the recharge
+ * page. Cutting a question to four options recreated exactly that on the
+ * materials page, so the column count follows the option count instead of
+ * being fixed at three.
+ */
+function gridColumns(pictured) {
+	return pictured <= 4 ? 2 : 3;
 }
 
 const questionSections = QUESTIONS.map((q, i) => {
@@ -123,7 +151,11 @@ const questionSections = QUESTIONS.map((q, i) => {
 			${q.push && !q.pushCapturesReply ? `<p class="push"><b>Talk</b> ${esc(q.push)}</p>` : ''}
 			<p class="meta">${esc(q.id)} · ${esc(selectLabel(q.select))} · feeds the <b>${esc(q.layer)}</b> layer${q.slider ? ` · answered on a ${q.slider[0]}\u2013${q.slider[q.slider.length - 1]}% slider` : ''}</p>
 		</header>
-		<div class="grid">${q.options.map((o) => optionCard(q, o)).join('')}</div>
+		<div class="grid" style="grid-template-columns: repeat(${gridColumns(q.options.filter((o) => !o.open).length)}, 1fr)">${q.options
+			.filter((o) => !o.open)
+			.map((o) => optionCard(q, o))
+			.join('')}</div>
+		${openOptionBox(q)}
 		${openText(q)}
 		${and}
 	</section>`;

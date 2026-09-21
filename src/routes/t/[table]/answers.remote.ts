@@ -91,6 +91,18 @@ const tableNo = v.pipe(
   v.minValue(1),
   v.maxValue(TABLE_COUNT),
 );
+/**
+ * The ceiling on every free-text field a phone can send.
+ *
+ * The wildcard already had 140 and the screen-15 rewrite has 1200. These
+ * two did not have one at all: `pushReply` on saveEra/saveAnswer, and the
+ * `text` map behind an open option. Both reach the image prompt verbatim
+ * through `layers.ts`, so an unbounded string was an unbounded prompt on a
+ * wall in front of the room. 140 matches the wildcard, which is the same
+ * kind of field and the length a table actually types.
+ */
+const FREE_TEXT_MAX = 140;
+
 const eraSchema = v.picklist(ERA_SCALE);
 
 /** The pseudo-question id the future pick is stored under. `q1` stores the era. */
@@ -425,7 +437,7 @@ export const saveEra = command(
   v.object({
     table: tableNo,
     era: eraSchema,
-    pushReply: v.optional(v.string()),
+    pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
   }),
   async ({ table, era, pushReply }) =>
     withTableLock(table, async () => {
@@ -463,9 +475,11 @@ const SaveAnswerInput = v.object({
   /** A question id, or `<qid>:and` for a V4 "And:" sub-question's own row (game/questions.ts's `andId`). */
   questionId: v.string(),
   keys: v.array(v.string()),
-  text: v.optional(v.record(v.string(), v.string())),
+  text: v.optional(
+    v.record(v.string(), v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
+  ),
   /** Where the Push line doubles as a typed capture field (V4: q2, q5c). */
-  pushReply: v.optional(v.string()),
+  pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
 });
 
 export const saveAnswer = command(SaveAnswerInput, async (input) =>

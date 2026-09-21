@@ -75,6 +75,8 @@ const TOTAL_STEPS = QUESTIONS.length;
 // One per isolate, separate from the phone's own throttle instance in
 // answers.remote.ts — regenerate applies the same per-table rule
 // (game-flow.md §8), keyed here rather than shared across modules.
+import { secretEquals } from '$lib/server/secret';
+
 const throttle = createThrottle();
 
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
@@ -82,7 +84,11 @@ type Env = NonNullable<ReturnType<typeof requestEnv>>;
 function checkToken(env: Env, token: string): boolean {
 	const expected = env.ADMIN_TOKEN;
 	if (!expected) return dev; // unset: open in dev, closed in production
-	return token === expected;
+	// `secretEquals`, not `===`. Every other token check in this codebase
+	// already used it and this one did not, which made the desk the single
+	// place the repo broke its own rule. The timing channel is thin over a
+	// network; the inconsistency is the actual defect.
+	return secretEquals(token, expected);
 }
 
 function emptyRoom(): AdminRoom {

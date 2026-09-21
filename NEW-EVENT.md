@@ -397,3 +397,41 @@ round-trip.
 
 The client's standing format, unchanged across events, is one board and one A4 sheet per table with
 the table number and the QR code, kept as simple as possible. Do not redesign it.
+
+## Two probes to run on the morning, before anyone arrives
+
+**Is the image account alive?** This has taken a gallery down twice at this client's events, most
+recently two nights before the September symposium, and it looks like the app is broken when it is
+not. Ask the queue for a request that cannot exist:
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Key $FAL_KEY" \
+  https://queue.fal.run/fal-ai/nano-banana-2/requests/00000000-0000-0000-0000-000000000000/status
+```
+
+`404` is the answer you want: the key authenticated and the request genuinely does not exist. `401`
+means the key is wrong or unset. `403` means the account is locked or out of balance, which is the
+failure that has actually happened, and no amount of retrying inside the app will fix it. The probe
+costs nothing because it never submits a render.
+
+Also open the provider's dashboard and confirm a hard spend cap is set. It is the only ceiling that
+survives a bug or a leaked admin token in this app.
+
+**Does the wall fit the wall?** Measured across six geometries against the live site, the projector
+picks five tiles per page on a wide band and four on a conventional screen, and never overflows in
+either direction:
+
+| Viewport | Tiles per page | Table number |
+|---|---|---|
+| 5760x1080 | 5 | 119 px |
+| 4800x1080 | 5 | 119 px |
+| 3840x1080 | 5 | 119 px |
+| 2560x1440 | 4 | 158 px |
+| 1920x1080 | 4 | 119 px |
+| 1366x768 | 4 | 84 px |
+
+So the exact pixel size of the venue's wall is not a risk to the layout. Open `/projector` on the
+real wall during the tech window anyway, and check the two things a measurement cannot: that the
+tiles reach the edges of the physical panel rather than sitting in a letterbox, and that the table
+numbers read from the far side of the room.

@@ -34,7 +34,7 @@
 </script>
 
 <h1 class="stem">Being drawn.</h1>
-<p class="hint">This takes a couple of minutes. You can put the phone down.</p>
+<p class="hint">A couple of minutes. Put the phone down.</p>
 
 {#if beat.stale}
 	<p class="banner">

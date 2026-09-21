@@ -17,9 +17,7 @@
      weaves into it: the city is the frame, and q5c's lead is the human half
      of it — what a table keeps for itself once the building thinks. -->
 <p class="hint">
-	You are designing inside a <b>cognitive city</b> — a city that senses, learns and answers back.
-	One future city, four questions and one open reply, one screen each. Answer as a table, not as
-	yourself. Nothing is saved on this phone — pick it up on another one and you will be exactly here.
+	You are designing inside a <b>cognitive city</b>. Six screens. Answer as a table.
 </p>
 
 {#if closed}

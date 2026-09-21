@@ -129,97 +129,91 @@ export const QUESTIONS: Question[] = [
 		// your agile workplace in cognitive city look like?", grammar settled
 		// here). The indoor/outdoor scale the deck draws beside it — "xx%
 		// Indoor / xx% Outdoor" — is the `lead` and the slider below.
-		prompt: 'What is your agile workplace in a cognitive city?',
-		lead: 'The city already thinks. Slide from a controlled indoor floor with a little greenery to a workspace standing in the forest — how much of the outdoors is inside?',
+		prompt: 'Your workplace in a cognitive city',
+		lead: 'How much of the outdoors is inside?',
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
 		slider: [10, 25, 40, 60, 80, 100],
 		diamond: false,
-		push: 'Singapore is hot and humid. How does your greenery cool a mind as well as a body?',
+		push: 'How does your greenery cool a mind, not just a body?',
 		pushCapturesReply: true,
 		options: [
 			{
 				key: 'sparse-inside-abundant-outside',
-				label: 'Sparse inside, abundant outside — the greenery is beyond the glass',
+				label: 'Sparse inside, green outside',
 				promptFragment: 'sparse planting inside, abundant greenery beyond the glass'
 			},
 			{
 				key: 'deliberate-pockets',
-				label: 'Pockets — deliberate, placed moments of planting',
+				label: 'Pockets of planting',
 				promptFragment: 'deliberate pockets of greenery'
 			},
 			{
 				key: 'saturated',
-				label: 'Saturated — greenery threaded through the entire floor',
+				label: 'Saturated',
 				promptFragment: 'greenery threaded through the entire floor'
 			},
 			{
 				key: 'courtyards',
-				label: 'Courtyards — the floor opens to the sky; you step outside without leaving',
+				label: 'Courtyards',
 				promptFragment: 'planted courtyards cut open to the sky, the floor plate broken by them'
 			},
 			{
 				key: 'landscape-indoors',
-				label: 'Landscape indoors — trees, water, rock and soil you can walk into',
+				label: 'Landscape indoors',
 				promptFragment: 'trees, water, rock and soil indoors'
 			},
 			{
 				key: 'nature-as-structure',
-				label: 'Nature as structure — terraces and open-air floors; the building is the garden',
+				label: 'Nature as structure',
 				promptFragment: 'planted terraces and open-air floors, the building a garden'
 			}
 		]
 	},
 	{
 		id: 'q5c',
-		prompt: 'Where does deep work happen in a centaur organisation?',
-		lead: 'AI brings speed, pattern and scale. People bring judgement, ethics, creativity and context. In a cognitive city the building already thinks — so this asks what your table keeps for itself.',
+		prompt: 'Where does deep work happen?',
+		lead: 'The building already thinks. What does your table keep for itself?',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
-		push: 'what did your table refuse to automate?',
+		push: 'What did your table refuse to automate?',
 		pushCapturesReply: true,
 		pushNotDrawn: true,
 		options: [
 			{
 				key: 'glass-dome',
-				label:
-					'The glass dome in the forest — one transparent room standing in the trees, alone with the work',
+				label: 'The glass dome in the forest',
 				promptFragment:
 					'a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane'
 			},
 			{
 				key: 'garden-cafe',
-				label:
-					'The garden café — many settings in one planted room: benches, booths, counters, chosen by mood',
+				label: 'The garden café',
 				promptFragment:
 					'a large planted indoor cafe of mixed settings, long benches, deep booths and counters between raised planters, people working across all of them'
 			},
 			{
 				key: 'open-garden',
-				label:
-					'Open garden seating — no walls at all; work happens outdoors under planting and sky',
+				label: 'Open garden seating',
 				promptFragment:
 					'outdoor seating in a planted terrace, tables under trees and pergola, no enclosure, people working in the open air'
 			},
 			{
 				key: 'immersive-chamber',
-				label:
-					'The immersive chamber — a room that becomes somewhere else; deep sea, canopy, orbit',
+				label: 'The immersive chamber',
 				promptFragment:
 					'a sealed immersive chamber whose curved walls and floor become another place entirely, deep-sea light rippling over one working figure'
 			},
 			{
 				key: 'reconfigurable-pod',
-				label:
-					'The reconfigurable pod — one room that changes its size, acoustics and light to suit the task',
+				label: 'The reconfigurable pod',
 				promptFragment:
 					'a pod with movable walls and shifting light visibly reconfiguring itself around its occupant, the previous arrangement still half in motion'
 			},
 			{
 				key: 'sealed-cell',
-				label:
-					'The sealed cell — four walls, a door you close, no AI in the room at all',
+				label: 'The sealed cell',
 				promptFragment:
 					'a small sealed acoustic room, no screens and no devices, one person working by hand at a plain desk'
 			}
@@ -253,51 +247,46 @@ export const QUESTIONS: Question[] = [
 	{
 		id: 'q6r',
 		prompt: 'Where do people recharge?',
-		lead: 'AI-supported work adds cognitive load, not less. These rooms exist to get people off a screen and into a different posture.',
+		lead: 'Off a screen, into a different posture.',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
-		push: 'Describe the kind of recharge your table is actually short of.',
+		push: 'What recharge is your table short of?',
 		pushCapturesReply: true,
 		options: [
 			{
 				key: 'igloo',
-				label:
-					'The igloo — a low white dome you crawl into; curved, quiet, no corners and no screen',
+				label: 'The igloo',
 				promptFragment:
 					'a smooth white domed room entered on hands and knees, curved seamless walls, one person lying back in soft indirect light'
 			},
 			{
 				key: 'mud-hut',
-				label:
-					'The earth room — thick cool mud walls, a low doorway, deep shade and a beaten floor you sit on',
+				label: 'The earth room',
 				promptFragment:
 					'a round room of thick hand-built earth walls, a low doorway, woven mats on a beaten floor, people sitting on the ground'
 			},
 			{
 				key: 'tea-room',
-				label:
-					'The tea room — tatami, paper light, a kettle; you kneel, and the room asks you to slow down',
+				label: 'The tea room',
 				promptFragment:
 					'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
 			},
 			{
 				key: 'water-room',
-				label:
-					'The water room — warm shallow water and steam; you float, and a screen cannot follow you in',
+				label: 'The water room',
 				promptFragment:
 					'a warm shallow bathing room in daylight, steam drifting, two people floating in water up to the chest, no devices anywhere'
 			},
 			{
 				key: 'sand-room',
-				label: 'The sand room — a deep sand floor and no chairs; you sit, kneel or lie where you land',
+				label: 'The sand room',
 				promptFragment:
 					'a bright room with a deep raked sand floor and no furniture at all, people sitting and lying directly on it, tall windows above'
 			},
 			{
 				key: 'outdoors',
-				label:
-					'Outdoors — no room at all; grass, wind and open horizon, the work left behind indoors',
+				label: 'Outdoors',
 				promptFragment:
 					'an open grassland terrace under a wide sky, wind moving the grass, people walking and stretching away from any building'
 			}
@@ -334,45 +323,42 @@ export const QUESTIONS: Question[] = [
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
 		diamond: true,
-		push: 'name two materials you would actually want to touch.',
+		push: 'Name two materials you would want to touch.',
 		pushCapturesReply: true,
 		options: [
 			{
 				key: 'stark-clinical',
-				label: 'Stark and clinical — pure white, shadowless; seamless resin, glass, polished steel; shiny and flawless',
+				label: 'Stark and clinical',
 				promptFragment:
 					'pure white and shadowless; seamless resin, glass, polished steel; shiny and flawless'
 			},
 			{
 				key: 'soft-pastel',
-				label: 'Soft and pastel — blush, sage, butter; felt, bouclé, painted timber, matte ceramic; soft and tactile',
+				label: 'Soft and pastel',
 				promptFragment:
 					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
 			},
 			{
 				key: 'raw-elemental',
-				label:
-					'Raw and elemental — grey, sand, ochre; board-marked concrete, stone, rough timber; rugged and unpolished',
+				label: 'Raw and elemental',
 				promptFragment:
 					'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished'
 			},
 			{
 				key: 'warm-earthy',
-				label:
-					'Warm and earthy — terracotta, clay, olive, bronze; rammed earth, rattan, aged brass, linen; woven and textured',
+				label: 'Warm and earthy',
 				promptFragment:
 					'terracotta, clay, olive and bronze; rammed earth, rattan, aged brass, linen; woven and textured'
 			},
 			{
 				key: 'jewel-lacquer',
-				label: 'Jewel and lacquer — emerald, oxblood on black; lacquered wood, velvet, marble, brass; glossy and deep',
+				label: 'Jewel and lacquer',
 				promptFragment:
 					'emerald and oxblood on black; lacquered wood, velvet, marble, brass; glossy and deep'
 			},
 			{
 				key: 'undersea',
-				label:
-					'Undersea — teal and deep blue-green, light rippling from above; curved glass, wet-look surfaces; fluid and slick',
+				label: 'Undersea',
 				promptFragment:
 					'teal and deep blue-green, light rippling from above; curved glass, wet-look surfaces; fluid and slick'
 			}

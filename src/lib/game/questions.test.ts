@@ -65,11 +65,45 @@ describe('V4 shape', () => {
 		}
 	});
 
-	it('gives every question a push line except the three-words pick, in her words', () => {
+	it('gives every question a push line except the three-words pick', () => {
 		for (const q of QUESTIONS) expect(!!q.push, q.id).toBe(q.id !== 'q11');
-		expect(QUESTIONS.find((q) => q.id === 'q8')?.push).toBe(
-			'Singapore is hot and humid. How does your greenery cool a mind as well as a body?'
-		);
+	});
+
+	/**
+	 * THE SCREEN IS THE PICTURE, NOT THE CAPTION.
+	 *
+	 * Every option renders as an illustrated 1:1 tile with its label
+	 * beneath it, so a label that re-describes the picture is text the
+	 * table reads instead of looking. The em-dash glosses were up to 108
+	 * characters ("Stark and clinical — pure white, shadowless; seamless
+	 * resin, glass, polished steel; shiny and flawless") — three lines of
+	 * caption under a thumbnail, six times per screen.
+	 *
+	 * These are ceilings on the words a table READS. `promptFragment` is
+	 * deliberately not capped here: it is what the model reads, it is not
+	 * on screen, and shortening it would change what gets drawn. That is
+	 * the whole distinction this test exists to hold.
+	 */
+	it('keeps every word on screen short enough to scan', () => {
+		for (const q of QUESTIONS) {
+			expect(q.prompt.length, `${q.id} stem`).toBeLessThanOrEqual(48);
+			if (q.lead) expect(q.lead.length, `${q.id} lead`).toBeLessThanOrEqual(72);
+			if (q.push) expect(q.push.length, `${q.id} push`).toBeLessThanOrEqual(56);
+			for (const o of q.options) {
+				expect(o.label.length, `${q.id}:${o.key}`).toBeLessThanOrEqual(32);
+				expect(o.label, `${q.id}:${o.key}`).not.toContain('—');
+			}
+			for (const o of q.and?.options ?? []) {
+				expect(o.label.length, `${q.id}:and:${o.key}`).toBeLessThanOrEqual(24);
+			}
+		}
+	});
+
+	it('leaves the drawn fragments long — they are not on screen', () => {
+		// The counterweight to the test above: if a future trim reaches the
+		// prompt fragments, the renders change and nothing on screen does.
+		const longest = Math.max(...QUESTIONS.flatMap((q) => q.options.map((o) => o.promptFragment.length)));
+		expect(longest).toBeGreaterThan(100);
 	});
 
 	it('asks the wildcard as "What have we missed?"', () => {

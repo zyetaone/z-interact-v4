@@ -65,7 +65,7 @@
 </script>
 
 <h1 class="stem" id="lens-stem">Choose your future city</h1>
-<p class="hint">A worldview, not a character. It sets what surrounds you: the building, the skyline, the light.</p>
+<p class="hint">It sets the building, the skyline and the light.</p>
 <p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 
 <ul class="futures" role="radiogroup" aria-labelledby="lens-stem">

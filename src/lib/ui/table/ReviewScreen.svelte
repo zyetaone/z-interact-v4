@@ -69,8 +69,8 @@
 	]);
 </script>
 
-<h1 class="stem">Read it back before we draw it.</h1>
-<p class="hint">Tap any line to change it. The prompt underneath is what the model is actually given.</p>
+<h1 class="stem">Read it back.</h1>
+<p class="hint">Tap any line to change it.</p>
 
 <ul class="rows">
 	{#each rows as row (row.key)}

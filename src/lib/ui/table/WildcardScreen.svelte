@@ -21,7 +21,7 @@
 </script>
 
 <h1 class="stem">{WILDCARD.prompt}</h1>
-<p class="hint">Whatever it is, it goes into the drawing exactly as you write it.</p>
+<p class="hint">It goes into the drawing word for word.</p>
 
 <textarea
 	class="field"

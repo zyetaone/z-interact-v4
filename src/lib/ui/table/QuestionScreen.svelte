@@ -94,6 +94,11 @@
 	</section>
 {/if}
 
+<!-- EVERY question takes words, not only the two the owner wrote a PUSH line
+     for. The two she did keep their own wording and their own "drawn" hint;
+     the rest get a plain box whose text is kept for the wall and the export
+     and is never composed into a render — `layers.ts` reads `pushReply` for
+     q2 and the era chip alone, and `never-drawn.test.ts` holds that line. -->
 {#if question.pushCapturesReply && question.push}
 	<section class="push-field">
 		<label class="field-label" for="push">{question.push}</label>
@@ -108,6 +113,20 @@
 		<p class="count note">
 			{question.pushNotDrawn ? 'Optional — kept with your answers for the wall, not drawn.' : 'Optional — added to the prompt word for word.'}
 		</p>
+	</section>
+{:else}
+	<section class="push-field">
+		<label class="field-label" for="push">In your own words</label>
+		<textarea
+			id="push"
+			class="field"
+			rows="2"
+			maxlength="280"
+			placeholder="Anything the options missed"
+			value={pushReply}
+			onchange={(e) => onpush(e.currentTarget.value)}
+		></textarea>
+		<p class="count note">Optional — kept with your answers for the wall, not drawn.</p>
 	</section>
 {/if}
 

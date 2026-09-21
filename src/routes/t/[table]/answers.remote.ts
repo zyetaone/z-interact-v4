@@ -468,8 +468,15 @@ const SaveAnswerInput = v.object({
   questionId: v.string(),
   keys: v.array(v.string()),
   text: v.optional(v.record(v.string(), v.string())),
-  /** Where the Push line doubles as a typed capture field (V4: q2, q5c). */
-  pushReply: v.optional(v.string()),
+  /**
+   * The table's own words for this question. The owner wrote a PUSH line for
+   * two of them (q2, q5c); every other question now offers the same box with
+   * a plain label. Capped here rather than in the component, because the
+   * component is a hint and this is the boundary — 500 is well clear of the
+   * 280 the textarea allows and well under the 1,200-character ceiling on a
+   * composed prompt.
+   */
+  pushReply: v.optional(v.pipe(v.string(), v.maxLength(500))),
 });
 
 export const saveAnswer = command(SaveAnswerInput, async (input) =>

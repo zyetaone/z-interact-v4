@@ -8,6 +8,13 @@
  * Idempotent: any output file that already exists on disk is skipped, so a
  * partial run (budget cutoff, a flaky call) can be safely re-run.
  *
+ * Run it as `node --no-network-family-autoselection scripts/gen-visuals.mjs`.
+ * This Mac's resolver hands Node a synthesised NAT64 address for `fal.run`
+ * alongside the real A record, Node's happy-eyeballs tries it, and the 250 ms
+ * attempt timer fires as `fetch failed` / `ETIMEDOUT` in ~270 ms — every call,
+ * indistinguishable from fal being down, while `curl` to the same host works.
+ * Measured 2026-09-21; the flag made six dead jobs succeed on the next run.
+ *
  * FAL_KEY is read from a .dev.vars file (path given by --keyfile, default
  * the sibling _deploy checkout) with a two-line reader — no dotenv
  * dependency, no logging of the key at any point.
@@ -107,11 +114,44 @@ const { QUESTIONS } = await import('../src/lib/game/questions.ts');
 const NO_PEOPLE_POSITIVE = 'no visible human figures; at most distant, blurred silhouettes; no faces';
 const NO_PEOPLE_NEGATIVE = 'crowds, people in focus, sharp faces, posed figures, identifiable persons';
 
+/**
+ * THE SELECTION ART WAS DIM, AND IT WAS NOT THE FUTURE.
+ *
+ * Measured on the fifty-three option thumbnails as first generated: median
+ * luminance 47 of 255, with thirty-eight below 70, against 113 for the wall
+ * renders. And the pictures themselves were medieval — stone arches, castle
+ * corridors, a Victorian panelled door — or else a present-day office.
+ *
+ * Both came from one line. The option frame was "a single architectural
+ * detail, close, moody, photoreal", which asks for dimness in so many words
+ * and never mentions the year, so the model had nothing pulling it forward
+ * and a word pulling it dark. The lens pictures had their own version of
+ * the same problem: they were composed from `moodLine`, the pre-recipe-v2
+ * mood paragraph, which for the dense and lit city literally reads "Night
+ * ... no daylight anywhere". That is the lens-by-day problem the render
+ * prompts fixed weeks ago and the selection art never received.
+ *
+ * So the selection art now uses the same three ideas the renders use — a
+ * stated year, an exposure, and a lens described by its style rather than
+ * its weather — and the negatives name the two drifts that actually
+ * happened rather than a generic list.
+ */
+const EXPOSURE = 'bright overall exposure, daylight filling the volume, open shadows';
+const NOT_DIM = 'underexposed, murky, crushed blacks, gloom';
+/** The period drift, named from what came back: it really did draw castles. */
+const NOT_PERIOD =
+	'medieval, gothic arches, castle, crypt, carved stone, stone vaulting, Victorian panelling, period drama, ruins';
+/** The other direction: today's office is not the future either. */
+const NOT_TODAY = 'present-day office, 2020s office furniture, cubicles, drop ceiling, fluorescent panels';
+
 function lensJobs() {
 	return FUTURES.map((f) => ({
 		kind: 'lens',
 		outPath: join(ROOT, 'static/visuals/lens', `${f.key}.jpg`),
-		prompt: `A workplace of 2035 in its city, seen through the lens of ${f.name}: ${f.moodLine} ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}.`,
+		// `styleDna` + `worldOutside` + `insideCue`, NOT `moodLine`. Those three
+		// are what recipe v2 split out precisely so a lens keeps its identity
+		// at any hour; `moodLine` still carries the night and the weather.
+		prompt: `A workplace of 2040 seen from inside, ${f.styleDna}. ${f.worldOutside}. ${f.insideCue}. Photoreal film still, ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`,
 		aspect_ratio: '4:3',
 		resolution: '1K'
 	}));
@@ -127,9 +167,12 @@ function optionJobs() {
 				outPath: join(ROOT, 'static/visuals/opt', `${q.id}-${o.key}.jpg`),
 				prompt:
 					q.layer === 'feel'
-						? // Feel words are light and weather, not objects: frame them as a room in one mood.
-							`A film still of one 2040 workplace room, anamorphic, photoreal, its whole mood: ${o.promptFragment}. ${NO_PEOPLE_POSITIVE}. Avoid: carved stone, ornament, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}.`
-						: `A single architectural detail, close, moody, photoreal: ${o.promptFragment}. Avoid: ${HOUSE_NEGATIVE}.`,
+						? // Feel words are light, not objects: frame them as a whole room.
+							`A film still inside one workplace of 2040, anamorphic, photoreal, its whole mood: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`
+						: // Everything else: the thing the option names, INSIDE a workplace of
+							// 2040 and lit. "A single architectural detail, close, moody" is what
+							// produced the castle corridors and the dim brown thumbnails.
+							`A film still inside one workplace of 2040, photoreal: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`,
 				aspect_ratio: '1:1',
 				resolution: '0.5K'
 			});
@@ -214,10 +257,31 @@ let consecutiveErrors = 0;
 let done = 0;
 const oversized = [];
 
+/**
+ * `fetch failed` — a dropped connection, not an HTTP status — arrives from fal
+ * often enough that a single one used to end a whole run: two in a row tripped
+ * the budget guard, and a 59-image regeneration needed four manual restarts.
+ * Three attempts with a widening pause turns that into a pause. A real refusal
+ * (a 4xx from submit, a locked account) still throws on the last attempt and
+ * still counts toward the two-strike guard, which is the thing worth stopping
+ * for. ponytail: fixed backoff, no jitter — one client, nothing to stampede.
+ */
+async function runJobWithRetries(job, attempts = 3) {
+	for (let i = 1; ; i++) {
+		try {
+			return await runJob(job);
+		} catch (err) {
+			if (i >= attempts) throw err;
+			process.stdout.write(`(${err.message}, retry ${i}) `);
+			await new Promise((r) => setTimeout(r, i * 5000));
+		}
+	}
+}
+
 for (const job of jobs) {
 	process.stdout.write(`${job.kind} ${job.outPath.replace(ROOT + '/', '')} ... `);
 	try {
-		const bytes = await runJob(job);
+		const bytes = await runJobWithRetries(job);
 		consecutiveErrors = 0;
 		done++;
 		const kb = (bytes / 1024).toFixed(0);

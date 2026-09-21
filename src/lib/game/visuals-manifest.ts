@@ -10,7 +10,6 @@ export const VISUAL_FILES: readonly string[] = [
 	'lens/broadacre-city.jpg',
 	'lens/garden-city.jpg',
 	'lens/neo-seoul.jpg',
-	'lens/pragmatist-retrofit.jpg',
 	'lens/retrofuturism.jpg',
 	'lens/solarpunk.jpg',
 	'opt/q10-adapts-as-needs-change.jpg',

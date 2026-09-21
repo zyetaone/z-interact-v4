@@ -7,7 +7,7 @@
  * admin poll this is a read a human refreshes by hand, and a probe that
  * spends fal money is a probe nobody runs twice.
  *
- * FAILS CLOSED, always — `secretEquals` refuses a missing expected value,
+ * FAILS CLOSED, always — `adminTokenOk` with no `devOpen` refuses a missing expected value,
  * so an unset `ADMIN_TOKEN` rejects every request rather than opening the
  * route. That is `/simulate`'s rule, not `/admin`'s dev-open one: `/admin`
  * is behind a hidden URL a human types, this is a URL that would otherwise
@@ -15,7 +15,7 @@
  */
 import { json } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
-import { secretEquals } from '$lib/server/secret';
+import { adminTokenOk } from '$lib/server/admin-gate';
 import { getBeat, getHealthCounts } from '$lib/server/room';
 import { TABLE_COUNT } from '$lib/game/questions';
 import type { RequestHandler } from './$types';
@@ -25,7 +25,9 @@ const FAILED_WINDOW_MS = 10 * 60 * 1000;
 
 export const GET: RequestHandler = async ({ url, platform }) => {
 	const env = envOf(platform);
-	if (!env || !secretEquals(env.ADMIN_TOKEN, url.searchParams.get('token'))) {
+	// No `devOpen`: an ops endpoint with an unset token stays shut on a
+	// laptop too. Same rule as `/simulate`, now said in one file.
+	if (!env || !adminTokenOk(env.ADMIN_TOKEN, url.searchParams.get('token'))) {
 		return json({ ok: false, reason: 'unauthorized' }, { status: 401 });
 	}
 

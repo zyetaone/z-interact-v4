@@ -21,6 +21,8 @@
  * Images binding) in the webhook/tick path and always pass `tileBytes`.
  */
 
+import { sniffImageType } from './fetch-image';
+
 export interface ImageKeyParts {
 	event: string;
 	table: number;
@@ -56,4 +58,43 @@ export async function putImage({ bucket, key, bytes, contentType, tile }: PutIma
 
 export async function getImage(bucket: R2Bucket, key: string): Promise<R2ObjectBody | null> {
 	return bucket.get(key);
+}
+
+/* -------------------------------------------------------------------------- */
+/* SERVING THE BYTES — one implementation, two routes                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE TWO IMAGE ROUTES HAD DIVERGED, and the front page inherited the
+ * weaker one (21 Sep route review).
+ *
+ * `/t/[table]/img/[id]` (the phone) sniffed the type off the bytes and
+ * served `immutable` for an hour. `/projector/img/[...key]` (the wall, and
+ * now `/` as well) served `object.httpMetadata.contentType` as-is with a
+ * 5-minute cache. Every object written before the sniffing fix is still in
+ * the bucket labelled `image/webp` whatever it actually is — so a JPEG from
+ * before that fix renders on a phone and does not render on the wall, which
+ * is the screen the whole room is looking at. CLAUDE.md meanwhile claims
+ * objects are "keyed and labelled from sniffed bytes, both written and
+ * served"; that was only half true.
+ *
+ * So both routes call this. It costs a buffered read rather than a streamed
+ * one — sniffing means holding the first bytes — which `fetch-image.ts`
+ * already caps at 8 MB on the way in.
+ *
+ * `immutable` is the default and correct for both: every key carries the
+ * image row's id (`imageKey`), and a regenerate is a NEW row and therefore
+ * a new key. Nothing at one of these URLs ever changes.
+ */
+export async function imageResponse(object: R2ObjectBody, immutable = true): Promise<Response> {
+	const bytes = await object.arrayBuffer();
+	return new Response(bytes, {
+		headers: {
+			// Sniff first, then what the bucket says, then a type a browser
+			// will render anyway if we are wrong: a mislabelled JPEG still
+			// draws, a mislabelled `webp` does not.
+			'content-type': sniffImageType(new Uint8Array(bytes.slice(0, 12))) ?? object.httpMetadata?.contentType ?? 'image/jpeg',
+			'cache-control': immutable ? 'public, max-age=3600, immutable' : 'public, max-age=300'
+		}
+	});
 }

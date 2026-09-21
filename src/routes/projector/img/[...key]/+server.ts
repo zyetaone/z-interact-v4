@@ -11,7 +11,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
-import { getImage } from '$lib/server/r2';
+import { getImage, imageResponse } from '$lib/server/r2';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, platform }) => {
@@ -34,10 +34,10 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const object = await getImage(env.IMAGES, key);
 	if (!object) error(404, 'not found');
 
-	return new Response(object.body, {
-		headers: {
-			'content-type': object.httpMetadata?.contentType ?? 'image/jpeg',
-			'cache-control': 'public, max-age=300'
-		}
-	});
+	// THE SAME SERVE AS THE PHONE'S. This route used to hand back
+	// `httpMetadata.contentType` untouched, which mislabels every object
+	// written before the sniffing fix — on the wall, where the whole room
+	// is looking. `imageResponse` sniffs, and marks the object immutable
+	// because the key carries the image row's id.
+	return imageResponse(object);
 };

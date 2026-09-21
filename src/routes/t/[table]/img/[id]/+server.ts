@@ -13,30 +13,8 @@
 import { error } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
 import { getImageById } from '$lib/server/room';
-import { getImage } from '$lib/server/r2';
-import { sniffImageType } from '$lib/server/fetch-image';
+import { getImage, imageResponse } from '$lib/server/r2';
 import type { RequestHandler } from './$types';
-
-/**
- * WHAT THE BYTES ARE, NOT WHAT SOMETHING ONCE ASSUMED THEY WERE.
- *
- * Every object used to be written under a hardcoded `image/webp`, so this
- * route carried a PNG-only sniffer and an `image/webp` fallback to undo
- * that at read time. The write path now stores the sniffed type and keys
- * the object by the matching extension, so the stored metadata is right —
- * but objects written before that fix are still in the bucket wearing the
- * old label, and the fallback would go on mislabelling anything that is
- * not a PNG.
- *
- * So: sniff first, using the same signature table the write path uses
- * rather than a second private copy of it; fall back to the stored
- * metadata; and only then to a type. `image/jpeg` rather than
- * `image/webp` as the last resort, because a browser handed the wrong
- * label for a JPEG still renders it and a wrong `webp` label does not.
- */
-function contentTypeFor(bytes: ArrayBuffer, stored: string | undefined): string {
-	return sniffImageType(new Uint8Array(bytes.slice(0, 12))) ?? stored ?? 'image/jpeg';
-}
 
 export const GET: RequestHandler = async ({ params, platform }) => {
 	const env = envOf(platform);
@@ -49,12 +27,8 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const object = await getImage(env.IMAGES, row.r2Key);
 	if (!object) error(404, 'not in the bucket');
 
-	const bytes = await object.arrayBuffer();
-	return new Response(bytes, {
-		headers: {
-			'content-type': contentTypeFor(bytes, object.httpMetadata?.contentType),
-			// Immutable: a regenerate is a new row and therefore a new URL.
-			'cache-control': 'public, max-age=3600, immutable'
-		}
-	});
+	// Sniffing, the type fallbacks and the immutable cache all live in
+	// `r2.ts`'s `imageResponse` now — the projector's route serves the same
+	// bytes and had drifted to a weaker rule. See that function's note.
+	return imageResponse(object);
 };

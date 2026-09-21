@@ -98,3 +98,60 @@ describe('GET /t/[table]/img/[id]', () => {
 		expect(res.headers.get('cache-control')).toContain('immutable');
 	});
 });
+
+/**
+ * THE WALL AND THE PHONE MUST AGREE. `/projector/img/[...key]` serves the
+ * same objects to the projector and, since the front page was rebuilt, to
+ * `/` as well — and it used to hand back `httpMetadata.contentType`
+ * untouched. A pre-fix object labelled `image/webp` therefore rendered on
+ * a phone and did not render on the wall. Both routes call `r2.ts`'s
+ * `imageResponse` now; this is the guard that they still do.
+ */
+describe('both image routes serve the same bytes the same way', () => {
+	const KEY = `${EVENT}/9/workspace/img-1.jpg`;
+
+	async function viaProjector(bytes: Uint8Array, storedContentType?: string) {
+		const { GET: projectorGet } = await import('../../../../projector/img/[...key]/+server');
+		const bucket = bucketWith(new Map([[KEY, { bytes, contentType: storedContentType }]]));
+		return projectorGet({
+			params: { key: KEY },
+			platform: { env: { IMAGES: bucket, EVENT_ID: EVENT } }
+		} as never);
+	}
+
+	it('sniffs the bytes on the projector route too, not the stale bucket label', async () => {
+		const res = await viaProjector(JPEG, 'image/webp');
+		expect(res.headers.get('content-type')).toBe('image/jpeg');
+	});
+
+	it('agrees with the phone route on every case the phone route covers', async () => {
+		for (const [bytes, label, expected] of [
+			[PNG, 'image/webp', 'image/png'],
+			[JPEG, 'image/webp', 'image/jpeg'],
+			[PNG, undefined, 'image/png']
+		] as const) {
+			const wall = await viaProjector(bytes, label);
+			const phone = await served(bytes, label);
+			expect(wall.headers.get('content-type'), `${expected} via the wall`).toBe(expected);
+			expect(phone.headers.get('content-type'), `${expected} via the phone`).toBe(expected);
+		}
+	});
+
+	it('marks the object immutable on both, since a regenerate is a new key', async () => {
+		const wall = await viaProjector(JPEG);
+		const phone = await served(JPEG);
+		expect(wall.headers.get('cache-control')).toContain('immutable');
+		expect(phone.headers.get('cache-control')).toBe(wall.headers.get('cache-control'));
+	});
+
+	it('still refuses a key from another event', async () => {
+		const { GET: projectorGet } = await import('../../../../projector/img/[...key]/+server');
+		const bucket = bucketWith(new Map([['other-event/9/workspace/img-1.jpg', { bytes: JPEG }]]));
+		await expect(
+			projectorGet({
+				params: { key: 'other-event/9/workspace/img-1.jpg' },
+				platform: { env: { IMAGES: bucket, EVENT_ID: EVENT } }
+			} as never)
+		).rejects.toMatchObject({ status: 404 });
+	});
+});

@@ -13,9 +13,9 @@
 	 * goes missing, gets a drink spilled on it, or a table is added, and
 	 * someone needs one sheet now.
 	 *
-	 * ponytail: drawn client-side, like generation 1 did. `qrcode` reaches
-	 * for canvas and node APIs on some paths, and none of that has to work
-	 * in a Worker if the browser does the drawing.
+	 * The codes come from `$lib/ui/qr`, shared with the front page's grid —
+	 * see that module for why they are drawn in the browser and what the
+	 * scanning options are for.
 	 *
 	 * The token rides on the URL exactly as it does for the desk. Nothing
 	 * here reads the database — the codes are a pure function of the origin
@@ -24,7 +24,7 @@
 	 */
 	import '../../../app.css';
 	import { page } from '$app/state';
-	import QRCode from 'qrcode';
+	import { drawTableCodes } from '$lib/ui/qr';
 	import { TABLE_COUNT } from '$lib/game/questions';
 
 	const origin = $derived(page.url.origin);
@@ -35,20 +35,9 @@
 
 	$effect(() => {
 		let cancelled = false;
-		(async () => {
-			const out: Record<number, string> = {};
-			for (const t of tables) {
-				// High correction, generous quiet zone: a card on a banquet
-				// table gets creased and photographed at an angle.
-				out[t] = await QRCode.toDataURL(urlFor(t), {
-					errorCorrectionLevel: 'H',
-					margin: 4,
-					width: 900,
-					color: { dark: '#0b1020ff', light: '#ffffffff' }
-				});
-			}
+		drawTableCodes(tables, urlFor, 900).then((out) => {
 			if (!cancelled) codes = out;
-		})();
+		});
 		return () => {
 			cancelled = true;
 		};

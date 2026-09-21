@@ -595,6 +595,34 @@ export async function insertQueuedImageIfIdle(
  * (`limits.ts`) are derived from this rather than from an in-isolate timer,
  * which an isolate recycle or a second isolate would silently reset.
  */
+/**
+ * EVERY RENDER'S (table, createdAt) FOR THE EVENT, in ONE query.
+ *
+ * `getRenderBudget` above answers for one table against one watermark,
+ * which is exactly right for the cap: the caller is about to spend for
+ * that table and nobody else. The READOUT wants the same number for all
+ * twenty at once, and each table has its OWN reset watermark, so it was
+ * doing twenty sequential awaits of `getRenderBudget` — in a file whose
+ * own comment worries about an invocation's ~1,000-call ceiling.
+ *
+ * Twenty tables at the 12-render cap is 240 rows at worst, so the counting
+ * is cheaper done in the caller against whatever watermark it holds than
+ * as twenty round trips with twenty different `created_at >` bounds.
+ */
+export async function getRenderStamps(
+	d: D1Database,
+	eventId: string,
+	maxTable: number
+): Promise<{ table: number; createdAt: number }[]> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return [];
+	const { results } = await db
+		.prepare(`SELECT table_no, created_at FROM image WHERE event_id = ? AND table_no <= ?`)
+		.bind(eventId, maxTable)
+		.all<{ table_no: number; created_at: number }>();
+	return (results ?? []).map((r) => ({ table: r.table_no, createdAt: r.created_at }));
+}
+
 export async function getRenderBudget(
 	d: D1Database,
 	eventId: string,

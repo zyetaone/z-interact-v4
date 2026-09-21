@@ -12,11 +12,10 @@
  */
 import * as v from 'valibot';
 import { query } from '$app/server';
-import { dev } from '$app/environment';
 import { requestEnv, eventId } from '$lib/server/env';
-import { exportRoomRows, getRenderBudget } from '$lib/server/room';
+import { exportRoomRows, getRenderStamps } from '$lib/server/room';
 import { summarise, type Analytics } from '$lib/server/analytics';
-import { secretEquals } from '$lib/server/secret';
+import { adminTokenOk } from '$lib/server/admin-gate';
 import { maxRendersPerTable } from '$lib/server/limits';
 import { QUESTIONS, WILDCARD, TABLE_COUNT } from '$lib/game/questions';
 import { FUTURES } from '$lib/game/futures';
@@ -24,11 +23,9 @@ import { activeZones } from '$lib/game/zones';
 
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
-/** The desk's rule, verbatim: unset is open in dev and closed in production. */
+/** The desk's rule, from the one place that states it. */
 function checkToken(env: Env, token: string): boolean {
-	const expected = env.ADMIN_TOKEN;
-	if (!expected) return dev;
-	return secretEquals(token, expected);
+	return adminTokenOk(env.ADMIN_TOKEN, token, { devOpen: true });
 }
 
 export type AnalyticsResult = { ok: true; analytics: Analytics } | { ok: false; reason: string };
@@ -51,13 +48,18 @@ export const roomAnalytics = query(v.object({ token: v.string() }), async ({ tok
 	// twice paid for rows the export no longer shows. Counted from each
 	// table's reset watermark, exactly as `limits.ts` counts it, so a table
 	// the desk reset starts its allowance again here too.
-	// `row.resetAt` is the watermark the export already read — asking D1 for
-	// it again would be twenty more queries against the ~1,000-call ceiling
-	// one invocation has (see `/simulate`'s note on splitting a room in half).
+	//
+	// ONE QUERY, NOT TWENTY. `row.resetAt` is the watermark the export
+	// already read, so this never asks D1 for it again — but the first
+	// version of this block then awaited `getRenderBudget` once per table,
+	// which is twenty sequential round trips against the ~1,000-call
+	// ceiling one invocation has (see `/simulate`'s note on splitting a
+	// room in half). `getRenderStamps` is the same rows in a single read
+	// and the per-table watermark is applied here.
+	const stamps = await getRenderStamps(env.DB, event, TABLE_COUNT);
 	const rendersByTable = new Map<number, number>();
 	for (const row of rows) {
-		const { used } = await getRenderBudget(env.DB, event, row.table, row.resetAt);
-		rendersByTable.set(row.table, used);
+		rendersByTable.set(row.table, stamps.filter((s) => s.table === row.table && s.createdAt > row.resetAt).length);
 	}
 
 	return {

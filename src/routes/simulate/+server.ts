@@ -19,14 +19,14 @@
  * whole loop with no fal call at all.
  *
  * Two gates, both fail closed: `SIMULATE_ENABLED` must be the string
- * `true`, and `ADMIN_TOKEN` must be set AND match (`secretEquals` refuses a
+ * `true`, and `ADMIN_TOKEN` must be set AND match (`adminTokenOk` refuses a
  * missing expected value, so forgetting the variable closes the route
  * rather than opening it).
  */
 import { json } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { envOf, eventId } from '$lib/server/env';
-import { secretEquals } from '$lib/server/secret';
+import { adminTokenOk } from '$lib/server/admin-gate';
 import { planRoom, WILDCARD } from '$lib/server/simulate';
 import { getTableState } from '$lib/server/room';
 import { TABLE_COUNT } from '$lib/game/questions';
@@ -138,7 +138,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	if (!parsed.success) return json({ ok: false, reason: 'invalid body' }, { status: 400 });
 	const body = parsed.output;
 
-	if (!secretEquals(env.ADMIN_TOKEN, body.token)) {
+	// Deliberately NOT `devOpen`: this one spends with a live key.
+	if (!adminTokenOk(env.ADMIN_TOKEN, body.token)) {
 		return json({ ok: false, reason: 'bad token' }, { status: 401 });
 	}
 

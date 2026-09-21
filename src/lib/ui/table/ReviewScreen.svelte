@@ -13,6 +13,7 @@
 	let {
 		answers,
 		prompt,
+		editable = false,
 		missing,
 		canSubmit,
 		gateReason,
@@ -23,6 +24,12 @@
 	}: {
 		answers: Map<string, StatusAnswer>;
 		prompt: string;
+		/**
+		 * Whether rewriting the prompt would reach the render. False in a
+		 * hero room, where `composePromptFor` builds from the answers and
+		 * never reads the edit — see `prompt-edit.test.ts`.
+		 */
+		editable?: boolean;
 		missing: string[];
 		canSubmit: boolean;
 		gateReason: string;
@@ -69,7 +76,7 @@
 	]);
 </script>
 
-<h1 class="stem">Read it back.</h1>
+<h1 class="stem">Our answers</h1>
 <p class="hint">Tap any line to change it.</p>
 
 <ul class="rows">
@@ -83,11 +90,29 @@
 	{/each}
 </ul>
 
-<section class="prompt-box">
-	<label class="field-label" for="composed">The prompt for our workspace</label>
-	<textarea id="composed" class="field" rows="10" value={prompt} onchange={(e) => onprompt(e.currentTarget.value)}
-	></textarea>
-</section>
+<!-- COLLAPSED BY DEFAULT. This was a ten-row textarea, open, between the
+     answers and the only button on the screen — so the last thing a table
+     saw before drawing was 1,900 characters of machine instructions, and
+     the submit button was pushed off the bottom of a 390x844 phone.
+
+     Read-only unless an edit could actually reach the render: in a hero
+     room the composer builds from the answers and throws the edited string
+     away, after storing it and flagging the row `editedByTable`. Showing
+     an editable box there is the screen telling the table something the
+     renderer does not honour. -->
+<details class="prompt-box">
+	<summary>
+		<span class="field-label">The prompt for our workspace</span>
+		<span class="note">{editable ? 'tap to read or rewrite' : 'tap to read'}</span>
+	</summary>
+	{#if editable}
+		<textarea id="composed" class="field" rows="10" value={prompt} onchange={(e) => onprompt(e.currentTarget.value)}
+		></textarea>
+	{:else}
+		<p id="composed" class="prompt-read">{prompt}</p>
+		<p class="note">Built from the answers above — change an answer and this changes with it.</p>
+	{/if}
+</details>
 
 {#if !canSubmit && gateReason}
 	<p class="banner">{gateReason}</p>
@@ -150,5 +175,29 @@
 
 	.prompt-box {
 		margin-bottom: 18px;
+	}
+	/* A 44px row, not a 13px inline caret: this is tapped on a passed phone. */
+	.prompt-box summary {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 10px;
+		min-height: 44px;
+		padding: 10px 0;
+		cursor: pointer;
+		border-top: 1px solid var(--line);
+	}
+
+	.prompt-box summary .note {
+		color: var(--gold);
+		font-size: 13px;
+		letter-spacing: 0.04em;
+	}
+
+	.prompt-read {
+		margin: 0 0 8px;
+		font-size: 14px;
+		line-height: 1.5;
+		opacity: 0.8;
 	}
 </style>

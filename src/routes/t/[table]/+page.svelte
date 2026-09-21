@@ -207,6 +207,7 @@
 		<ReviewScreen
 			answers={answersById}
 			prompt={promptText}
+			editable={flow.status.promptEditable}
 			missing={flow.missing}
 			canSubmit={flow.status.canSubmit}
 			gateReason={flow.status.gateReason}
@@ -214,7 +215,13 @@
 			onprompt={(text) => (draftPrompt = text)}
 			onedit={(key) => flow.go(key)}
 			onsubmit={async () => {
-				const edited = draftPrompt && draftPrompt !== flow.status.prompt ? draftPrompt : undefined;
+				// Never send an edit the renderer would throw away: in a hero
+				// room `composePromptFor` ignores it, so sending it only writes
+				// a misleading `editedByTable: true` on the prompt row.
+				const edited =
+					flow.status.promptEditable && draftPrompt && draftPrompt !== flow.status.prompt
+						? draftPrompt
+						: undefined;
 				if (await run(() => finishTable({ table, composed: edited }), false)) flow.go('drawing');
 			}}
 		/>

@@ -31,6 +31,8 @@ export interface TableStatus {
   answers: StatusAnswer[];
   prompt: string;
   promptEdited: boolean;
+  /** False when the room renders the hero, whose composer builds from the answers and ignores an edit. */
+  promptEditable: boolean;
   images: {
     zoneKey: string;
     state: string;

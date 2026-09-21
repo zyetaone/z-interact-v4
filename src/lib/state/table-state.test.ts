@@ -23,6 +23,7 @@ function status(
 		answers: [{ questionId: 'future', keys: ['solarpunk'] }],
 		prompt: 'a prompt',
 		promptEdited: false,
+	promptEditable: false,
 		images,
 		narrative: null,
 		submittedAt: submitted ? 1 : null,

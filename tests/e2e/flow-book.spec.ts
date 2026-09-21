@@ -105,9 +105,21 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await shoot(page, '08-wildcard');
 	await page.getByRole('button', { name: 'Add' }).click();
 
-	await expect(page.locator('#composed')).toBeVisible({ timeout: 15_000 });
-	const composed = await page.locator('#composed').inputValue();
+	// The prompt is COLLAPSED by default now, so the review screen is the
+	// answers and the button. Shot closed first, because that is the screen a
+	// table actually sees, then opened for the book's second capture.
+	await expect(page.getByRole('button', { name: 'Draw our workspace' })).toBeVisible({ timeout: 15_000 });
 	await shoot(page, '09-review');
+
+	await page.locator('details.prompt-box summary').click();
+	await expect(page.locator('#composed')).toBeVisible({ timeout: 10_000 });
+	// Read-only in a hero room (a <p>), a textarea in a four-zone one.
+	const box = page.locator('#composed');
+	const composed =
+		(await box.evaluate((el) => el.tagName)) === 'TEXTAREA'
+			? await box.inputValue()
+			: ((await box.textContent()) ?? '');
+	await shoot(page, '09b-review-prompt');
 
 	await page.getByRole('button', { name: 'Draw our workspace' }).click();
 	await page.waitForTimeout(2500);

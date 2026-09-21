@@ -117,7 +117,8 @@ const html = `<!doctype html>
 
 <div class="page">
 	<div class="strip">
-		${shot('09-review', 'Review', 'every answer editable; the prompt shown as it will be sent')}
+		${shot('09-review', 'Review', 'the answers and the button, one viewport, no scrolling')}
+		${shot('09b-review-prompt', 'Review — prompt opened', 'read-only in a hero room: the composer builds from the answers and ignores an edit')}
 		${shot('10-drawing', 'Drawing', 'polls every 2s; the phone can be put down')}
 		${shot('11-done', 'Done', 'the render, and the table’s answers written back as a paragraph')}
 	</div>

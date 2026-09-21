@@ -247,6 +247,7 @@ export const tableStatus = query(
         answers: [] as AnswerLike[],
         prompt: "",
         promptEdited: false,
+        promptEditable: false,
         images: [] as {
           zoneKey: string;
           state: string;
@@ -401,6 +402,16 @@ export const tableStatus = query(
       // zones the stored base is the thing to show.
       prompt: shown.length === 1 ? preview : (stored?.composed ?? preview),
       promptEdited: stored?.editedByTable ?? false,
+      // WHETHER EDITING IT WOULD DO ANYTHING. Under `ZONE_SET=hero` — the
+      // default — `composePromptFor` answers a hero zone with
+      // `composeHeroPrompt(answers)` and never reads the edited string, so
+      // screen 15 was offering a ten-row textarea whose contents were
+      // stored, exported, shown back, and then thrown away at render time.
+      // The screen asks for this rather than inferring it from the image
+      // count, because "one zone" and "the edit is ignored" are two facts
+      // that happen to coincide today and need not tomorrow.
+      // `prompt-edit.test.ts` pins the behaviour either way.
+      promptEditable: activeZones(env.ZONE_SET).length > 1,
       images,
       narrative,
       submittedAt: state.submittedAt,

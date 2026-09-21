@@ -11,8 +11,10 @@
  * Run it as `node --no-network-family-autoselection scripts/gen-visuals.mjs`.
  * This Mac's resolver hands Node a synthesised NAT64 address for `fal.run`
  * alongside the real A record, Node's happy-eyeballs tries it, and the 250 ms
- * attempt timer fires as `fetch failed` / `ETIMEDOUT` in ~270 ms — every call,
- * indistinguishable from fal being down, while `curl` to the same host works.
+ * attempt timer fires as `fetch failed` / `ETIMEDOUT` in ~270 ms. It is
+ * intermittent, not constant — one run made 38 images before the same code
+ * path died six times running — and it is indistinguishable from fal being
+ * down, while `curl` to the same host keeps working throughout.
  * Measured 2026-09-21; the flag made six dead jobs succeed on the next run.
  *
  * FAL_KEY is read from a .dev.vars file (path given by --keyfile, default

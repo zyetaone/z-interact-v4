@@ -36,7 +36,7 @@ import {
 } from './fal';
 import { imageKey, putImage } from './r2';
 import { extForContentType, fetchImageBytes } from './fetch-image';
-import { ANCHOR_ZONE, absoluteUrl, decideReferences, referenceModeFrom } from './reference';
+import { ANCHOR_ZONE, absoluteUrl, decideReferences, referenceModeFrom, withReferenceInstruction } from './reference';
 import { lensImagePath } from '$lib/game/visuals';
 
 /** Builds this app's own webhook URL for one image row — `image_id` is how the webhook route finds the D1 row (fal's own `request_id` isn't known until after submit). Returns undefined if the caller has no origin (outside a request, or the secret isn't set) so callers fall back to poll-only. */
@@ -267,7 +267,11 @@ export async function tickImageRow(ctx: TickContext, row: TickableImageRow, prom
 	await tickAndPersist(
 		ctx.db,
 		row,
-		prompt,
+		// Added at SUBMIT, not at compose: the stored prompt stays the table's
+		// own brief (what the desk shows, what a per-zone retry replays), and
+		// the instruction is re-added by this same path on every resubmit,
+		// so a retry cannot lose it.
+		withReferenceInstruction(prompt, decision.referenceUrls),
 		realGenerateDeps(
 			ctx.env,
 			ctx.event,

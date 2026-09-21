@@ -10,6 +10,8 @@ import {
 	absoluteUrl,
 	decideReferences,
 	referenceModeFrom,
+	REFERENCE_INSTRUCTION,
+	withReferenceInstruction,
 	type AnchorState
 } from './reference';
 import { ZONES } from '$lib/game/zones';
@@ -134,5 +136,28 @@ describe('absoluteUrl', () => {
 describe('ANCHOR_ZONE', () => {
 	it('tracks the active zone set rather than naming a zone that may not exist', () => {
 		expect(ANCHOR_ZONE).toBe(ZONES[0].key);
+	});
+});
+
+/**
+ * The instruction is the whole difference between "the lens picture sets the
+ * register" and "the lens picture IS the picture" — see its note. It is
+ * applied at submit, so it is tested at the same seam: references present
+ * means it leads, references absent means the prompt is untouched.
+ */
+describe('the recompose instruction', () => {
+	it('leads the prompt when references go with the submit', () => {
+		const out = withReferenceInstruction('Design a workplace…', ['https://example.test/lens.jpg']);
+		expect(out.startsWith(REFERENCE_INSTRUCTION)).toBe(true);
+		expect(out).toContain('Design a workplace…');
+	});
+
+	it('leaves a text-to-image prompt exactly as composed', () => {
+		expect(withReferenceInstruction('Design a workplace…', [])).toBe('Design a workplace…');
+	});
+
+	it('is applied to whatever `none` mode decides, which is nothing', () => {
+		const decision = decideReferences(ANCHOR_ZONE, state(), 'none');
+		expect(decision.ready && withReferenceInstruction('p', decision.referenceUrls)).toBe('p');
 	});
 });

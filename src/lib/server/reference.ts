@@ -152,6 +152,32 @@ export function decideReferences(zoneKey: string, state: AnchorState, mode: Refe
 	return { ready: false, reason: `waiting for the ${ANCHOR_ZONE} render to land` };
 }
 
+/**
+ * WHAT THE REFERENCE IS ALLOWED TO DECIDE, said to the model.
+ *
+ * Without this line the edit endpoint reproduces the reference's FRAMING:
+ * measured 20 Sep, four zones came back as the same composition as the lens
+ * picture with small edits. The same run confirmed the fix — the identical
+ * card, plus this instruction, recomposed into a genuinely different room.
+ *
+ * It matters more under `ZONE_SET=hero` than it did under four zones: one
+ * image per table means twenty tables sharing six lens pictures, so a
+ * framing lock would hand the judges six compositions to choose between
+ * instead of twenty. The vantage and the impossible idea differentiate the
+ * TEXT; this is what stops the picture overruling them.
+ *
+ * It leads rather than trails: it governs how the reference is read, and a
+ * model that has already read a full brief treats a closing line as one
+ * more detail of the scene.
+ */
+export const REFERENCE_INSTRUCTION =
+	'Use the reference image only for palette, materials and signage style; compose a completely new scene.';
+
+/** Prefixes {@link REFERENCE_INSTRUCTION} when, and only when, references are actually going with the submit. */
+export function withReferenceInstruction(prompt: string, referenceUrls: readonly string[]): string {
+	return referenceUrls.length ? `${REFERENCE_INSTRUCTION} ${prompt}` : prompt;
+}
+
 /** Makes a root-relative asset path absolute, which is what fal needs — it fetches references itself. */
 export function absoluteUrl(origin: string | undefined, path: string | null): string | null {
 	if (!origin || !path) return null;

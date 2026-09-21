@@ -327,17 +327,44 @@ export const tableStatus = query(
       });
     }
 
-    // The prompt the review screen shows: the stored row once one exists,
-    // otherwise a live preview composed from whatever is answered so far.
+    // "What we asked for" HAS TO BE WHAT WE ASKED FOR.
+    //
+    // This used to be `composeBase(...)`, the shared base clause, which is
+    // not what any renderer receives. Under the hero default the difference
+    // was the whole prompt: the panel showed a comma-separated list of
+    // fragments beginning "A film still, a 2035 workplace", while the image
+    // was drawn from "Design a workplace that is relevant in 2035 for a team
+    // that chose..." in full sentences. So the one screen that explains the
+    // system to a table described a system that does not exist, and it is
+    // the artifact the question owner asked for when she asked what goes in
+    // and what comes out.
+    //
+    // It now runs the same chooser every submit path runs. When the room
+    // renders one image per table there is exactly one prompt and the panel
+    // shows it verbatim. Under a multi-zone set the zones differ only by
+    // their own suffix, so the shared base is still the honest summary and
+    // the panel falls back to it rather than picking one zone to speak for
+    // the other three.
     const stored = await getLatestPrompt(env.DB, event, table);
-    const preview = composeBase(
-      buildLayerInputs({
-        futureKey: futureOf(answers),
-        era: eraOf(answers),
-        answers,
-        table,
-      }),
-    );
+    const layers = buildLayerInputs({
+      futureKey: futureOf(answers),
+      era: eraOf(answers),
+      answers,
+      table,
+    });
+    const base = composeBase(layers);
+    const shown = activeZones(env.ZONE_SET);
+    const preview =
+      shown.length === 1
+        ? composePromptFor(shown[0], {
+            composed: stored?.composed ?? base,
+            negative: stored?.negative ?? "",
+            answers,
+            futureKey: futureOf(answers),
+            era: eraOf(answers),
+            table,
+          })
+        : base;
 
     // THE DONE SCREEN'S PARAGRAPH. Read only — a poll never waits on a
     // model, the same rule that took the admin read off the fal path. If
@@ -369,7 +396,10 @@ export const tableStatus = query(
       future: futureOf(answers),
       era: eraOf(answers),
       answers,
-      prompt: stored?.composed ?? preview,
+      // `preview` already folds in the stored row under a single-zone room
+      // (it composes FROM `stored.composed`), so it wins there. With several
+      // zones the stored base is the thing to show.
+      prompt: shown.length === 1 ? preview : (stored?.composed ?? preview),
       promptEdited: stored?.editedByTable ?? false,
       images,
       narrative,

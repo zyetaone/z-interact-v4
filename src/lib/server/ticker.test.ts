@@ -13,7 +13,7 @@ import { fakeD1 } from './fake-d1';
 import { insertQueuedImage, getImageById, getImageDetail, insertQueuedImageIfIdle } from './room';
 import { MAX_TICKS_TO_TERMINAL } from './generate';
 import { tickAndPersist, tickImageRow, tickRowSafely, type TickableImageRow } from './ticker';
-import { STALE_CLAIM_MS } from './generate';
+import { RENDER_DEADLINE_MS, STALE_CLAIM_MS } from './generate';
 import { FAL_MODEL } from './fal';
 import { ZONES } from '$lib/game/zones';
 import type { GenerateDeps } from './generate';
@@ -129,6 +129,47 @@ describe('tickAndPersist — compare-and-swap', () => {
 
 		const after = await getImageById(db, row.id);
 		expect(after?.state).toBe('failed');
+	});
+
+	it('a render fal never finishes is failed past the deadline, so a redraw is possible', async () => {
+		// The gap this closes: with fal answering IN_PROGRESS for ever, the row
+		// stayed `requested`, and a `requested` row makes both the table's "Draw
+		// again" and the desk's Redraw refuse as still drawing. Reset was the
+		// only lever, and it makes the table re-answer all eleven questions.
+		const db = fakeD1();
+		const row = await queuedRow(db);
+		await db.prepare(`UPDATE image SET state = 'requested' WHERE id = ?`).bind(row.id).run();
+		const d = deps();
+		d.pollStatus = async () => ({ status: 'IN_PROGRESS' as const });
+		const stuck = {
+			...tickable(row),
+			state: 'requested' as const,
+			falRequestId: 'req-that-never-finishes',
+			createdAt: Date.now() - RENDER_DEADLINE_MS - 1
+		};
+		await tickAndPersist(db, stuck, 'a prompt', d);
+
+		const after = await getImageById(db, row.id);
+		expect(after?.state).toBe('failed');
+		expect(after?.error ?? '').toContain('took too long');
+	});
+
+	it('a slow render inside the deadline is left to finish', async () => {
+		const db = fakeD1();
+		const row = await queuedRow(db);
+		await db.prepare(`UPDATE image SET state = 'requested' WHERE id = ?`).bind(row.id).run();
+		const d = deps();
+		d.pollStatus = async () => ({ status: 'IN_PROGRESS' as const });
+		const slow = {
+			...tickable(row),
+			state: 'requested' as const,
+			falRequestId: 'req-still-working',
+			createdAt: Date.now() - (RENDER_DEADLINE_MS - 60_000)
+		};
+		await tickAndPersist(db, slow, 'a prompt', d);
+
+		const after = await getImageById(db, row.id);
+		expect(after?.state).toBe('requested');
 	});
 
 	it('a fresh claim with no request id is left alone — a submit may still be in flight', async () => {

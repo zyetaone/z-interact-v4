@@ -44,6 +44,28 @@ export const STALE_CLAIM_MS = 2 * 60 * 1000;
  */
 export const MAX_TICKS_TO_TERMINAL = 2;
 
+/**
+ * How long a row may sit `requested` with fal still answering "in queue" or
+ * "in progress" before it is failed so the table can draw again.
+ *
+ * There was no such ceiling, and the gap it left was the worst recovery
+ * path in the app. `STALE_CLAIM_MS` only covers a row with no request id —
+ * a claimer that died before submitting. Once fal has accepted a request
+ * and simply never finishes it, nothing aged the row out: the `requested`
+ * branch returned "not ready yet" for ever. And because
+ * `insertQueuedImageIfIdle` refuses to start a second attempt while a row
+ * is `queued` or `requested`, BOTH repair buttons — the table's "Draw
+ * again" and the desk's per-zone Redraw — were refused as still drawing.
+ * The only lever left was Reset, which also discards the table's answers
+ * and makes them answer all eleven questions again, live, in the room.
+ *
+ * Five minutes is deliberately generous. A real render lands in well under
+ * a minute, so this cannot cut off a slow-but-working one; it exists to
+ * turn "stuck for ever with no button that works" into "failed, with a
+ * Redraw that does".
+ */
+export const RENDER_DEADLINE_MS = 5 * 60 * 1000;
+
 export interface GenerationRow {
 	id: string;
 	state: GenerationState;
@@ -116,6 +138,16 @@ export async function tick(row: GenerationRow, deps: GenerateDeps, now: number =
 				};
 			}
 			if (status.status !== 'COMPLETED') {
+				// Still working is fine, up to a point. Past the deadline the row
+				// is failed rather than left pending, because a pending row blocks
+				// every non-destructive repair (see RENDER_DEADLINE_MS).
+				if (row.createdAt != null && now - row.createdAt > RENDER_DEADLINE_MS) {
+					return {
+						handled: true,
+						nextState: 'failed',
+						reason: 'the drawing took too long and was given up on — draw again'
+					};
+				}
 				return { handled: false, reason: `fal status is ${status.status}, not ready yet` };
 			}
 			const { imageUrl } = await deps.fetchResult(row.falRequestId);

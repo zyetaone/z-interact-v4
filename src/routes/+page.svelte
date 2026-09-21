@@ -1,46 +1,51 @@
 <script lang="ts">
 	/**
-	 * THE FRONT PAGE — the instruction, then every table's code.
+	 * THE FRONT PAGE IS THE ROOM, NOT A LEAFLET.
 	 *
-	 * Attendees are not supposed to arrive here: every table has a card with
-	 * its own QR. But a mistyped URL, a shared screenshot or a curious phone
-	 * lands here, and it used to greet them with the repo's name and a
-	 * developer's test link.
+	 * Generation 1's front page was its gallery: twenty square tiles, one
+	 * per table, each showing that table's picture once it existed and its
+	 * QR code until then. No headline, no explanation — the grid IS the
+	 * instruction, and it fills in through the session so the screen at the
+	 * front of the room is worth looking at from the first scan to the last
+	 * render. This page now does the same.
 	 *
-	 * Generation 1 put a QR grid on its front page and this page now does the
-	 * same, because the grid is what makes the page useful to the person
-	 * standing at the front of the room: open it on the desk laptop or a
-	 * spare screen and any table can scan its own code without anyone
-	 * hunting for a reprint.
+	 * What it replaces: a headline, a lede, a help line and a second section
+	 * of six lens cards with their blurbs — four blocks of prose above a
+	 * grid that says all of it by being a grid. The lens cards in particular
+	 * were the menu a table is about to be shown on its own phone, printed
+	 * on the wall before they choose.
+	 *
+	 * IT READS THE PROJECTOR'S OWN QUERY. `getProjectorRoom` is already a
+	 * public, unauthenticated, batched read of every table's state and
+	 * stored image (the wall runs on it), so this page needs no endpoint of
+	 * its own, no new auth surface and no second copy of the "which image is
+	 * current" rule. It ignores `beat` — the desk drives the wall, not this.
 	 *
 	 * TAPPING A TILE ENLARGES IT; IT DOES NOT NAVIGATE. That is deliberate,
-	 * and it is generation 1's own behaviour (its grid opened a QR modal).
-	 * `/t/[table]` has no cookie and no login — the URL IS the credential —
-	 * so a phone that taps the wrong tile becomes that table and submits
-	 * over its answers. A code you have to point a camera at is a choice
-	 * made while looking at the number on the furniture, which is the only
-	 * place the right answer is written. A facilitator can still hand out a
-	 * link directly; see `/admin/cards` for the printable version.
+	 * and it is generation 1's own behaviour. `/t/[table]` has no cookie and
+	 * no login — the URL IS the credential — so a phone that taps the wrong
+	 * tile would become that table and submit over its answers. A code you
+	 * have to point a camera at is a choice made while looking at the number
+	 * on the furniture, which is the only place the right answer is written.
 	 *
 	 * Nothing here is secret: `/t/1`..`/t/20` are guessable by construction
 	 * and the range is public by design, so drawing them costs no privacy.
 	 *
-	 * ponytail: drawn client-side, like `/admin/cards` does, for the same
-	 * reason — `qrcode` reaches for canvas and node APIs on some paths and
-	 * none of that has to work in a Worker if the browser draws.
+	 * The codes come from `$lib/ui/qr`, shared with `/admin/cards` — the two
+	 * pages had drifted to different quiet zones for codes scanned in the
+	 * same room. That module's note carries the reasoning.
 	 */
 	// THE HOUSE STYLESHEET WAS NEVER IMPORTED HERE. Every other built screen
 	// imports it; this page relied on `var(--ink, #f4ede0)` fallbacks, which
 	// read as deliberate in the source and rendered cream text on a white
-	// ground in the browser — the one page a lost attendee reaches, and it
-	// was close to unreadable. `app.css` sets the navy ground the fallbacks
-	// were always assuming.
+	// ground in the browser.
 	import '../app.css';
-	import QRCode from 'qrcode';
+	import { drawTableCodes } from '$lib/ui/qr';
 	import { page } from '$app/state';
+	import { poll } from '$lib/poll.svelte';
 	import { TABLE_COUNT } from '$lib/game/questions';
-	import { FUTURES } from '$lib/game/futures';
-	import { LENS_IMAGE } from '$lib/game/visuals';
+	import { getProjectorRoom } from './projector/gallery.remote';
+	import type { ProjectorRoom, TableView } from '$lib/ui/projector/types';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -50,26 +55,42 @@
 	const tables = Array.from({ length: TABLE_COUNT }, (_, i) => i + 1);
 	const urlFor = (t: number) => `${origin}/t/${t}`;
 
+	// Top-level `await` (svelte.config.js's `compilerOptions.experimental.async`),
+	// as the projector does — first paint does not wait for the first tick.
+	let room = $state.raw<ProjectorRoom>(await getProjectorRoom());
+
+	poll(5000, async () => {
+		// `.refresh()` IS THE POLL. A remote query caches by (function,
+		// args), so a bare `await getProjectorRoom()` on the second tick
+		// returns the first tick's value from memory and issues no request
+		// at all — a frozen screen that reports itself healthy. The
+		// projector's own note records the sixteen seconds this cost on the
+		// wall before the line existed.
+		const q = getProjectorRoom();
+		await q.refresh();
+		room = (await q) as ProjectorRoom;
+	});
+
+	const byTable = $derived(new Map(room.tables.map((t) => [t.table, t])));
+
+	/** The one picture to show for a table: its first stored zone, or null. */
+	function shotOf(view: TableView | undefined): string | null {
+		if (!view) return null;
+		const done = view.images.find((i) => (i.state === 'stored' || i.state === 'done') && i.url);
+		return done?.url ?? null;
+	}
+
+	const drawn = $derived(tables.filter((t) => shotOf(byTable.get(t))).length);
+
 	let codes = $state.raw<Record<number, string>>({});
-	/** The table whose code is enlarged, or null. */
+	/** The table whose tile is enlarged, or null. */
 	let zoomed = $state<number | null>(null);
 
 	$effect(() => {
 		let cancelled = false;
-		(async () => {
-			const out: Record<number, string> = {};
-			for (const t of tables) {
-				// High correction and a generous quiet zone, as on the printed
-				// cards: this gets photographed at an angle off a screen.
-				out[t] = await QRCode.toDataURL(urlFor(t), {
-					errorCorrectionLevel: 'H',
-					margin: 3,
-					width: 600,
-					color: { dark: '#0b1020ff', light: '#ffffffff' }
-				});
-			}
+		drawTableCodes(tables, urlFor, 600).then((out) => {
 			if (!cancelled) codes = out;
-		})();
+		});
 		return () => {
 			cancelled = true;
 		};
@@ -79,80 +100,67 @@
 <svelte:head><title>{title}</title></svelte:head>
 
 <main>
-	<p class="eyebrow">{title}</p>
-	<h1>Find the card on your table</h1>
-	<p class="lede">
-		Scan its QR code to begin. Each table has its own card, and one phone answers for the whole
-		table.
-	</p>
-	<p class="help">No card? Scan your table's code below — the number on it must match the number on your table.</p>
+	<!-- The only text on the page: whose room this is, and how much of it
+	     has been drawn. v1 carried a progress bar in the same position for
+	     the same reason — it is the one number an operator glances up for. -->
+	<header>
+		<p class="eyebrow">{title}</p>
+		<p class="tally">{drawn} of {TABLE_COUNT} drawn</p>
+	</header>
+	<div class="bar" role="presentation"><span style="width: {(drawn / TABLE_COUNT) * 100}%"></span></div>
 
 	<ul class="grid">
 		{#each tables as t (t)}
+			{@const view = byTable.get(t)}
+			{@const shot = shotOf(view)}
 			<li>
 				<button
 					type="button"
 					class="tile"
-					aria-label={`Enlarge the QR code for table ${t}`}
+					class:filled={!!shot}
+					aria-label={shot ? `Enlarge table ${t}'s workspace` : `Enlarge the QR code for table ${t}`}
 					onclick={() => (zoomed = t)}
 				>
-					<span class="num">{t}</span>
-					{#if codes[t]}
-						<img src={codes[t]} alt={`QR code for table ${t}`} />
+					{#if shot}
+						<img class="shot" src={shot} alt={`Table ${t}'s workspace`} />
+					{:else if codes[t]}
+						<img class="qr" src={codes[t]} alt={`QR code for table ${t}`} />
 					{:else}
 						<span class="placeholder" aria-hidden="true"></span>
+					{/if}
+					<span class="num">{t}</span>
+					<!-- A table mid-flow gets a step count over its code, so the
+					     grid shows the room moving before any picture exists. -->
+					{#if !shot && view && view.step !== null && view.step > 0}
+						<span class="step">{view.step} of {view.totalSteps}</span>
 					{/if}
 				</button>
 			</li>
 		{/each}
 	</ul>
-
-	<!-- WHAT THE ROOM IS CHOOSING BETWEEN. The same six cards a table taps on
-	     its own phone at Q1, with the picture and the one-line blurb it sees
-	     there — no new information, so nothing is given away by showing them
-	     here. It is the `blurb` and NOT `moodLine`: `moodLine` is the
-	     pre-recipe mood paragraph, the one that reads "Night ... no daylight
-	     anywhere" and was what made the lens art dim in the first place. It
-	     is not shown to anyone.
-
-	     WHICH table chose which lens stays hidden, as it is on the wall —
-	     this is the menu, never the room's answers. -->
-	<section class="lenses">
-		<h2>Six futures, one per table</h2>
-		<p class="sub">Each table chooses the world its workspace stands in.</p>
-		<ul class="lens-grid">
-			{#each FUTURES as f (f.key)}
-				<li class="lens">
-					{#if LENS_IMAGE[f.key]}
-						<img src={LENS_IMAGE[f.key]} alt="" loading="lazy" />
-					{/if}
-					<h3>{f.name}</h3>
-					<p>{f.blurb}</p>
-				</li>
-			{/each}
-		</ul>
-	</section>
 </main>
 
 {#if zoomed !== null}
+	{@const shot = shotOf(byTable.get(zoomed))}
 	<!-- The modal is the scannable one: a tile in a 20-up grid is too small
 	     to read off a screen at arm's length. -->
 	<div
 		class="overlay"
 		role="dialog"
 		aria-modal="true"
-		aria-label={`QR code for table ${zoomed}`}
+		aria-label={shot ? `Table ${zoomed}'s workspace` : `QR code for table ${zoomed}`}
 		tabindex="-1"
 		onclick={() => (zoomed = null)}
 		onkeydown={(e) => e.key === 'Escape' && (zoomed = null)}
 	>
-		<div class="zoom">
-			<p class="eyebrow">TABLE</p>
-			<p class="big">{zoomed}</p>
-			{#if codes[zoomed]}
-				<img src={codes[zoomed]} alt={`QR code for table ${zoomed}`} />
+		<div class="zoom" class:wide={!!shot}>
+			<p class="eyebrow">TABLE {zoomed}</p>
+			{#if shot}
+				<img class="big-shot" src={shot} alt={`Table ${zoomed}'s workspace`} />
+			{:else if codes[zoomed]}
+				<img class="big-qr" src={codes[zoomed]} alt={`QR code for table ${zoomed}`} />
+				<p class="url">{urlFor(zoomed).replace(/^https?:\/\//, '')}</p>
 			{/if}
-			<p class="url">{urlFor(zoomed).replace(/^https?:\/\//, '')}</p>
 			<p class="dismiss">Tap anywhere to close</p>
 		</div>
 	</div>
@@ -163,130 +171,155 @@
 		min-height: 100svh;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		gap: 16px;
-		padding: 32px 24px 48px;
-		max-width: 60rem;
+		gap: 10px;
+		padding: 20px 16px 28px;
+		max-width: 100rem;
 		margin-inline: auto;
-		text-align: center;
 	}
+
+	header {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
 	.eyebrow {
 		margin: 0;
 		font-size: 13px;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
-		color: var(--muted, #8b8f9c);
-	}
-	h1 {
-		margin: 0;
-		font-size: clamp(1.75rem, 6vw, 2.5rem);
-		line-height: 1.15;
-		text-wrap: balance;
-		color: var(--ink, #f4ede0);
-	}
-	.lede {
-		margin: 0;
-		font-size: 1.05rem;
-		line-height: 1.5;
-		color: var(--ink, #f4ede0);
-		max-width: 34rem;
-		margin-inline: auto;
-	}
-	.help {
-		margin: 8px 0 0;
-		font-size: 0.9rem;
-		color: var(--muted, #8b8f9c);
+		color: var(--muted);
 	}
 
+	.tally {
+		margin: 0;
+		font-size: 13px;
+		letter-spacing: 0.08em;
+		color: var(--gold);
+	}
+
+	.bar {
+		height: 2px;
+		border-radius: 2px;
+		background: var(--line);
+		overflow: hidden;
+	}
+
+	.bar span {
+		display: block;
+		height: 100%;
+		background: var(--gold);
+		transition: width 0.4s ease;
+	}
+
+	/* Two across on a phone, five on the desk laptop — v1's own breakpoints,
+	   and five columns is what puts twenty tables on one screen.
+
+	   THE WIDTH IS CAPPED BY THE HEIGHT, which is the only way square tiles
+	   fit a viewport without scrolling: at five across, twenty tiles are
+	   four rows, so each tile may be at most a quarter of the space left
+	   under the header, and the grid may be at most five of those wide. A
+	   plain `max-width: 88rem` overflowed the bottom row on a laptop, which
+	   is the row a front-of-room screen most needs to show. */
 	.grid {
 		list-style: none;
-		margin: 20px 0 0;
+		margin: 6px auto 0;
 		padding: 0;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-		gap: 12px;
-	}
-	.tile {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 10px;
 		width: 100%;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 6px;
-		padding: 10px 8px;
-		border-radius: 12px;
-		border: 1px solid var(--line, rgba(244, 237, 224, 0.14));
-		background: var(--card-solid, #141a2c);
+		/* `margin: auto` does not centre a stretched flex item that is held
+		   narrower by `max-width` — it stays at flex-start. This does. */
+		align-self: center;
+	}
+
+	@media (min-width: 640px) {
+		.grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.grid {
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			/* header + rule + paddings ≈ 92px; 4 rows, 3 gaps of 10px. */
+			max-width: calc((100svh - 92px - 30px) / 4 * 5 + 40px);
+		}
+	}
+
+	.tile {
+		position: relative;
+		width: 100%;
+		aspect-ratio: 1;
+		display: block;
+		padding: 0;
+		overflow: hidden;
+		border-radius: var(--radius);
+		border: 1px solid var(--line);
+		background: var(--card-solid);
 		color: inherit;
 		font: inherit;
 		cursor: pointer;
-	}
-	.tile:hover,
-	.tile:focus-visible {
-		border-color: var(--gold, #c9a05a);
-	}
-	.num {
-		font-size: 13px;
-		letter-spacing: 0.08em;
-		color: var(--muted, #8b8f9c);
-	}
-	.tile img,
-	.placeholder {
-		width: 100%;
-		aspect-ratio: 1;
-		border-radius: 6px;
-		background: #fff;
-	}
-	.placeholder {
-		background: rgba(244, 237, 224, 0.08);
+		transition:
+			border-color 0.12s ease,
+			transform 0.12s ease;
 	}
 
-	.lenses {
-		margin-top: 40px;
-		padding-top: 28px;
-		border-top: 1px solid var(--line, rgba(244, 237, 224, 0.14));
+	.tile:hover,
+	.tile:focus-visible {
+		border-color: var(--gold);
+		transform: scale(1.02);
 	}
-	h2 {
-		margin: 0;
-		font-family: var(--display, Georgia, serif);
-		font-size: 1.35rem;
-		color: var(--gold, #c9a05a);
-	}
-	.sub {
-		margin: 6px 0 0;
-		font-size: 0.9rem;
-		color: var(--muted, #8b8f9c);
-	}
-	.lens-grid {
-		list-style: none;
-		margin: 18px 0 0;
-		padding: 0;
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-		gap: 14px;
-		text-align: left;
-	}
-	.lens {
-		border-radius: 12px;
-		overflow: hidden;
-		border: 1px solid var(--line, rgba(244, 237, 224, 0.14));
-		background: var(--card-solid, #141a2c);
-	}
-	.lens img {
+
+	.shot,
+	.qr,
+	.placeholder {
+		position: absolute;
+		inset: 0;
 		width: 100%;
-		aspect-ratio: 4 / 3;
-		object-fit: cover;
+		height: 100%;
 		display: block;
 	}
-	.lens h3 {
-		margin: 12px 14px 0;
-		font-size: 0.98rem;
-		color: var(--ink, #f4ede0);
+
+	.shot {
+		object-fit: cover;
 	}
-	.lens p {
-		margin: 6px 14px 14px;
-		font-size: 0.85rem;
-		line-height: 1.45;
-		color: var(--muted, #8b8f9c);
+
+	/* The code is the thing being photographed, so it keeps its quiet zone
+	   and its white ground rather than being cropped to fill. */
+	.qr {
+		object-fit: contain;
+		background: #fff;
+		padding: 6%;
+	}
+
+	.placeholder {
+		background: rgba(244, 237, 224, 0.06);
+	}
+
+	/* Legible over a white QR and over a photograph, without knowing which. */
+	.num,
+	.step {
+		position: absolute;
+		top: 6px;
+		border-radius: 6px;
+		background: rgba(10, 16, 32, 0.82);
+		color: var(--ink);
+		font-size: 12px;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		padding: 5px 7px;
+	}
+
+	.num {
+		left: 6px;
+	}
+
+	.step {
+		right: 6px;
+		color: var(--gold);
 	}
 
 	.overlay {
@@ -295,39 +328,51 @@
 		display: grid;
 		place-items: center;
 		padding: 24px;
-		background: rgba(10, 16, 32, 0.92);
+		background: rgba(10, 16, 32, 0.94);
 		z-index: 10;
 	}
+
 	.zoom {
 		text-align: center;
 		max-width: min(90vw, 460px);
-		/* A panel, not bare text: without it the number and the URL float
-		   over the headline behind them and both become hard to read. */
-		padding: 20px 20px 16px;
-		border-radius: var(--radius, 14px);
-		border: 1px solid var(--line, rgba(244, 237, 224, 0.14));
-		background: var(--ground-deep, #0a1020);
+		padding: 16px 16px 12px;
+		border-radius: var(--radius);
+		border: 1px solid var(--line);
+		background: var(--ground-deep);
 	}
-	.big {
-		margin: 2px 0 12px;
-		font-size: clamp(2.5rem, 12vw, 4rem);
-		line-height: 1;
-		color: var(--gold, #c9a05a);
+
+	/* An explicit WIDTH, not just a max: the panel is shrink-to-fit, so a
+	   `width: 100%` image inside it resolves against the image's own
+	   intrinsic size and a small render opened as a small modal. */
+	.zoom.wide {
+		width: min(94vw, 1100px);
+		max-width: min(94vw, 1100px);
 	}
-	.zoom img {
+
+	.big-qr {
 		width: 100%;
 		border-radius: 10px;
 		background: #fff;
 	}
+
+	.big-shot {
+		width: 100%;
+		max-height: 76svh;
+		object-fit: contain;
+		border-radius: 10px;
+		display: block;
+	}
+
 	.url {
 		margin: 12px 0 0;
 		font-size: 0.85rem;
-		color: var(--muted, #8b8f9c);
+		color: var(--muted);
 		word-break: break-all;
 	}
+
 	.dismiss {
-		margin: 6px 0 0;
+		margin: 8px 0 0;
 		font-size: 0.8rem;
-		color: var(--muted, #8b8f9c);
+		color: var(--muted);
 	}
 </style>

@@ -59,9 +59,23 @@
 	const current = $derived(pages[pageIndex] ?? []);
 
 	$effect(() => {
+		// `at` is read HERE, in the effect body, and that is the whole point:
+		// it makes `cursor` a dependency, so turning a page re-runs this
+		// effect and schedules the next turn.
+		//
+		// It used to be `cursor += 1` inside the callback and nothing read
+		// `cursor` in the body. A `setTimeout` callback runs outside the
+		// tracking context, so the write was invisible to the effect, the
+		// effect never re-ran, and no second timeout was ever scheduled:
+		// measured on the fixture wall, the beat advanced from page 1 to
+		// page 2 at 8 s and then held page 2 for ever. With twenty tables at
+		// four a page that is five pages, of which the room would have seen
+		// two. `Finale` has the same shape and survives only by accident —
+		// its body reads `turnSeconds`, which derives from `cursor`.
+		const at = cursor;
 		if (pages.length <= 1) return;
 		const id = setTimeout(() => {
-			cursor += 1;
+			cursor = at + 1;
 		}, PAGE_SECONDS * 1000);
 		return () => clearTimeout(id);
 	});

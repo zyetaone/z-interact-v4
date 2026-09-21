@@ -38,6 +38,7 @@
 		onnext: () => void;
 	} = $props();
 
+
 	/** Her PUSH line for Q1, verbatim — spoken at the table, never typed. */
 	const PUSH = 'what do you see through the window?';
 
@@ -63,7 +64,7 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
-<h1 class="stem" id="lens-stem">Choose your lens</h1>
+<h1 class="stem" id="lens-stem">Choose your future city</h1>
 <p class="hint">A worldview, not a character. It sets what surrounds you: the building, the skyline, the light.</p>
 <p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 
@@ -127,6 +128,18 @@
 
 <div class="grow"></div>
 
+<!-- THE WAY FORWARD HAS TO ARRIVE WITH THE CHOICE.
+     Six full-bleed 3:2 cards make this screen ~2,000 px on a 390x844 phone,
+     so `Next` — which only exists once a lens is chosen — sat about 1,200 px
+     below the fold. Tapping a card showed a check and, as far as the table
+     could see, nothing else. This is the first interaction of the night.
+
+     Sticky, not `scrollIntoView`: the scroll was tried and LOST A RACE. It
+     fired (scrollY 0 -> 962) and then the era chip rendered, the page grew
+     by ~110 px, and the button ended up 883 px down a 844 px viewport
+     again. Sticky has no race to lose. Scoped to this screen — `.actions`
+     is shared by every screen in `app.css` and the others are short enough
+     to reach. -->
 <div class="actions">
 	{#if chosen}
 		<button class="btn" onclick={onnext}>Next</button>
@@ -136,6 +149,18 @@
 </div>
 
 <style>
+	.actions {
+		position: sticky;
+		bottom: 0;
+		/* Opaque, not the scrim: a card scrolling under a translucent bar put
+		   a photograph behind the one control that must never be ambiguous. */
+		background: var(--ground-deep);
+		padding-bottom: max(12px, env(safe-area-inset-bottom));
+		margin-inline: calc(var(--gutter) * -1);
+		padding-inline: var(--gutter);
+		z-index: 2;
+	}
+
 	.futures {
 		display: flex;
 		flex-direction: column;

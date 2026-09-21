@@ -28,6 +28,7 @@ import {
 } from './room';
 import {
 	FAL_MODEL,
+	falFake,
 	submitZoneImage,
 	isRetryableFailure,
 	resolutionFrom,
@@ -78,6 +79,25 @@ export function realGenerateDeps(
 	const model = FAL_MODEL;
 	return {
 		async submit(prompt, requestKey) {
+			// AN UNSET KEY IS A CONFIG FAILURE, NOT A PROVIDER ONE.
+			//
+			// `?? ''` above used to send `Authorization: Key ` with nothing
+			// after it, and fal answers that with `401 Cannot access
+			// application "<model>". Authentication is required` — which reads
+			// exactly like a dead or unfunded account, and sent one event
+			// looking at the provider's dashboard for a key that had simply
+			// never been set on the deploy. The runbook's morning probe
+			// distinguishes them (404 alive, 401 unset/wrong, 403 locked or
+			// out of balance); the app should not need the probe to say which
+			// of its own variables is missing. Refusing here also saves a
+			// request that cannot succeed.
+			if (!falKey && !falFake()) {
+				throw new Error(
+					'FAL_KEY is not set, so nothing was sent to the image provider. ' +
+						'On Pages: wrangler pages secret put FAL_KEY --project-name <project> ' +
+						'("wrangler secret put" does not reach a Pages project). Locally: put it in .dev.vars.'
+				);
+			}
 			const { requestId } = await submitZoneImage({
 				falKey,
 				model,

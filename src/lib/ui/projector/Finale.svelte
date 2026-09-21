@@ -45,9 +45,14 @@
 	);
 
 	$effect(() => {
+		// Read in the body ON PURPOSE, so the next turn is scheduled. This
+		// effect happened to work already because `turnSeconds` below derives
+		// from `cursor` — an accident one refactor away from the bug that was
+		// live in `Reveal`, where nothing in the body read it.
+		const at = cursor;
 		if (shown.length <= 1) return;
 		const id = setTimeout(() => {
-			cursor += 1;
+			cursor = at + 1;
 		}, turnSeconds * 1000);
 		return () => clearTimeout(id);
 	});

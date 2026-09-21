@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fakeD1 } from './fake-d1';
 import { insertQueuedImage, getImageById, getImageDetail, insertQueuedImageIfIdle } from './room';
 import { MAX_TICKS_TO_TERMINAL } from './generate';
-import { tickAndPersist, tickImageRow, tickRowSafely, type TickableImageRow } from './ticker';
+import { realGenerateDeps, tickAndPersist, tickImageRow, tickRowSafely, type TickableImageRow } from './ticker';
 import { RENDER_DEADLINE_MS, STALE_CLAIM_MS } from './generate';
 import { FAL_MODEL } from './fal';
 import { ZONES } from '$lib/game/zones';
@@ -494,5 +494,46 @@ describe('tickRowSafely', () => {
 			reasons.push(out.reason);
 		}
 		expect(reasons).toHaveLength(4);
+	});
+});
+
+/**
+ * The 401 that is not the provider's fault.
+ *
+ * With `FAL_KEY` unset the deps used to send `Authorization: Key ` and fal
+ * replied `401 Cannot access application "<model>". Authentication is
+ * required` — indistinguishable, on the phone and in the readout, from an
+ * account that is locked or out of balance. The runbook's morning probe
+ * tells those apart; the app should not need it to name its own missing
+ * variable.
+ */
+describe('an unset FAL_KEY', () => {
+	const deps = (env: Record<string, unknown>) =>
+		realGenerateDeps(env as never, EVENT, 1, ZONES[0].key, 'image-1');
+
+	it('refuses to submit and names the variable and the command that sets it', async () => {
+		await expect(deps({}).submit('a prompt', 'key-1')).rejects.toThrow(/FAL_KEY is not set/);
+		await expect(deps({}).submit('a prompt', 'key-1')).rejects.toThrow(/pages secret put/);
+	});
+
+	it('still submits when a key IS set, so the guard cannot swallow a real run', async () => {
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ request_id: 'r-1' }), { status: 200, headers: { 'content-type': 'application/json' } })
+		);
+		try {
+			await expect(deps({ FAL_KEY: 'a-real-key' }).submit('a prompt', 'key-1')).resolves.toEqual({ requestId: 'r-1' });
+		} finally {
+			fetchSpy.mockRestore();
+		}
+	});
+
+	it('leaves the FAL_FAKE path alone — a rehearsal has no key and must still draw', async () => {
+		const proc = (globalThis as { process?: { env: Record<string, string | undefined> } }).process!;
+		proc.env.FAL_FAKE = '1';
+		try {
+			await expect(deps({}).submit('a prompt', 'key-1')).resolves.toHaveProperty('requestId');
+		} finally {
+			delete proc.env.FAL_FAKE;
+		}
 	});
 });

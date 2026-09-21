@@ -14,7 +14,6 @@
  */
 import * as v from 'valibot';
 import { command, query } from '$app/server';
-import { dev } from '$app/environment';
 import { requestEnv, eventId, requestOrigin, requestWaitUntil } from '$lib/server/env';
 import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gate';
 import {
@@ -75,20 +74,21 @@ const TOTAL_STEPS = QUESTIONS.length;
 // One per isolate, separate from the phone's own throttle instance in
 // answers.remote.ts — regenerate applies the same per-table rule
 // (game-flow.md §8), keyed here rather than shared across modules.
-import { secretEquals } from '$lib/server/secret';
+import { adminTokenOk } from '$lib/server/admin-gate';
 
 const throttle = createThrottle();
 
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
+/**
+ * `devOpen` is the desk's own choice, stated here rather than inherited:
+ * an unset `ADMIN_TOKEN` opens the desk on a laptop and closes it in
+ * production. The rule itself lives in `admin-gate.ts` — it used to live
+ * in a private copy here and a second private copy in the readout, which
+ * is how `/health` and `/simulate` ended up with a different one.
+ */
 function checkToken(env: Env, token: string): boolean {
-	const expected = env.ADMIN_TOKEN;
-	if (!expected) return dev; // unset: open in dev, closed in production
-	// `secretEquals`, not `===`. Every other token check in this codebase
-	// already used it and this one did not, which made the desk the single
-	// place the repo broke its own rule. The timing channel is thin over a
-	// network; the inconsistency is the actual defect.
-	return secretEquals(token, expected);
+	return adminTokenOk(env.ADMIN_TOKEN, token, { devOpen: true });
 }
 
 function emptyRoom(): AdminRoom {
@@ -126,7 +126,31 @@ function emptyRoom(): AdminRoom {
  * the compare-and-swap makes that safe, but a lost race is still a wasted
  * fal round trip.
  */
+/**
+ * NOTHING IN HERE MAY REJECT.
+ *
+ * This runs inside `waitUntil`, after the response has gone out, and the
+ * caller has no way to catch it. `tickRowSafely` already guards the per-row
+ * tick — "one row's throw must not end the slice" — but the five D1 reads
+ * that FEED it were outside that guard: `getPendingImagesForEvent`,
+ * `getTableFutures`, `getResetAt`, `getCurrentAnswersSince` and
+ * `getPromptRowById`. A D1 wobble in any of them became an unhandled
+ * rejection. Seen locally as `D1_ERROR: Failed to parse body as JSON` out of
+ * `getResetAt`, which killed the dev server outright; on Workers it loses
+ * that poll's whole slice instead.
+ *
+ * Swallowing is the right answer rather than retrying here: the desk polls
+ * every 3 s and the next slice picks the same rows up, oldest first.
+ */
 async function tickSlice(env: Env, event: string): Promise<void> {
+	try {
+		await tickSliceOrThrow(env, event);
+	} catch {
+		// The next poll retries. See the note above.
+	}
+}
+
+async function tickSliceOrThrow(env: Env, event: string): Promise<void> {
 	const now = Date.now();
 	const pending = (await getPendingImagesForEvent(env.DB, event))
 		.filter((r) => now - r.createdAt > ADMIN_TICK_COOLDOWN_MS)

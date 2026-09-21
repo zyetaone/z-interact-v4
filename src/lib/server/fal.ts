@@ -29,7 +29,7 @@ const FAKE_IMAGE =
 
 const FAKE_PREFIX = 'fake-';
 
-function falFake(): boolean {
+export function falFake(): boolean {
 	return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.FAL_FAKE === '1';
 }
 

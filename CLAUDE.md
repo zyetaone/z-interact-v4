@@ -130,7 +130,7 @@ leaves the key unset in production, which then looks exactly like a dead key.
 | `ADMIN_TICK_BUDGET` | rows the admin read advances in `waitUntil`, default 8 |
 | `SIMULATE_ENABLED` | `/simulate` rejects unless `'true'` |
 | `PUBLIC_EVENT_TITLE` | overrides BOTH titles. Unset, the wall says **"The Cognitive City Vision"** and the front page/tab says **"Your cognitive workspace"** — two deliberately different strings, one per surface, both in `src/lib/event-title.ts`. They used to be a literal in each route file and only one got updated. A real event's own name goes in this var, never in the repo |
-| `BRAND_LINE` | the line under the waiting screen and the front page. **Unset renders nothing** — this repo carries no company name, so the brand is a deploy value like `EVENT_ID` |
+| `BRAND_LINE` | **the loader itself**: shown inside the waiting frame on both the drawing and gallery screens, with its LAST GLYPH animated (`BrandMark.svelte`, positional — the markup cannot know which letter it is, only that it is the final one). Also the line on the front page. **Unset renders nothing**, and the frame falls back to `generationLine(state)` rather than going blank — this repo carries no company name, so the brand is a deploy value like `EVENT_ID` |
 | `FAL_FAKE=1` / `AI_FAKE=1` | the two dev fakes — no image call, no Workers AI call. `FAL_FAKE` must be set in the SHELL, not `.dev.vars`: it is read from `process.env` and `.dev.vars` lands in `platform.env` (see NEW-EVENT.md) |
 
 **`platformProxy` proxies the `AI` binding to the REAL remote one under

@@ -348,7 +348,10 @@ export const tableStatus = query(
     // their own suffix, so the shared base is still the honest summary and
     // the panel falls back to it rather than picking one zone to speak for
     // the other three.
-    const stored = await getLatestPrompt(env.DB, event, table);
+    // SINCE THE WATERMARK, like every other read on this poll. Without it a
+    // reset table showed the PREVIOUS run's prompt in its review panel, and
+    // carried that run's `editedByTable` flag with it.
+    const stored = await getLatestPrompt(env.DB, event, table, since);
     const layers = buildLayerInputs({
       futureKey: futureOf(answers),
       era: eraOf(answers),
@@ -626,7 +629,10 @@ async function queueGeneration(
   const composed = sanitizeComposed(
     edited ? opts.composedOverride! : composeBase(layers),
   );
-  const previous = await getLatestPrompt(env.DB, event, table);
+  // Scoped, so a fresh run's first prompt does not claim to supersede the
+  // prompt of the room that was reset away. The append-only chain is the
+  // record of one run's edits, not a bridge across the reset.
+  const previous = await getLatestPrompt(env.DB, event, table, opts.since);
 
   const promptId = await insertPrompt(env.DB, {
     eventId: event,
@@ -1019,7 +1025,7 @@ export const retryZone = command(
       let zonePrompt = detail?.prompt ?? "";
       const promptRow = existing
         ? await getPromptById(env.DB, existing.promptId)
-        : await getLatestPrompt(env.DB, event, table);
+        : await getLatestPrompt(env.DB, event, table, since);
       if (!zonePrompt) {
         if (!promptRow) {
           return { ok: false as const, reason: "Nothing to try again yet." };

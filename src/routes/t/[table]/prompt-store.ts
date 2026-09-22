@@ -59,15 +59,23 @@ export async function getLatestPrompt(
   d: D1Database,
   eventId: string,
   table: number,
+  /**
+   * The table's reset watermark. Every other read in this app applies one;
+   * this did not, so a reset table's poll showed the PREVIOUS run's prompt,
+   * a fresh run's first prompt claimed to supersede the room that was reset
+   * away, and `retryZone` with no sidecar could compose the OLD prompt into
+   * a NEW render — real money spent drawing the previous room's answers.
+   */
+  sinceTs = 0,
 ): Promise<StoredPrompt | null> {
   const db = await dbWith(d, "prompt", PROMPT_SCHEMA);
   if (!db) return null;
   const row = await db
     .prepare(
       `SELECT id, mood, material, programme, feel, wildcard, composed, negative, edited_by_table, created_at
-             FROM prompt WHERE event_id = ? AND table_no = ? ORDER BY created_at DESC LIMIT 1`,
+             FROM prompt WHERE event_id = ? AND table_no = ? AND created_at > ? ORDER BY created_at DESC LIMIT 1`,
     )
-    .bind(eventId, table)
+    .bind(eventId, table, sinceTs)
     .first<PromptRawRow>();
   return row ? toStored(row) : null;
 }

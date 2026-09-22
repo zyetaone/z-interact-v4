@@ -174,6 +174,11 @@ src/lib/
   poll.svelte.ts       # ported from z-presence: 3-missed-reads staleness rule
   state/table.svelte.ts
 scripts/        # gen-visuals.mjs / gen-contact-sheet.mjs — the lens+option pictures, run by hand
+                # gen-event-pack.mjs — docs/event-pack.pdf: the 20 QR codes + the whole
+                #   question set. REQUESTS every table URL against the live host first and
+                #   outlines in red any that does not answer 200 (a QR code is the one
+                #   artefact nobody checks until twenty people point phones at it):
+                #   npx tsx scripts/gen-event-pack.mjs --host https://<domain>
 migrations/     # 0001_narrative.sql, OPTIONAL — ensureTable() still creates it; the code is the source of truth
 src/routes/
   t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts (the phone's RPC

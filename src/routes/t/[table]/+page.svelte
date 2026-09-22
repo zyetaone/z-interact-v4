@@ -241,7 +241,7 @@
 			narrative={flow.status.narrative}
 			{failed}
 			{refresh}
-			onregenerate={() => run(() => regenerate({ table }), false)}
+			onregenerate={(steer) => run(() => regenerate({ table, steer }), false)}
 			onretry={(zone) => run(() => retryZone({ table, zone }), false)}
 			ondone={() => flow.go('done')}
 		/>

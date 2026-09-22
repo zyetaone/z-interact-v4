@@ -46,6 +46,7 @@ import {
 	HOUSE_REGISTER,
 	ROOM_PARTICIPATES,
 	wildcardFragment,
+	steerFragment,
 	FREE_TEXT_MAX,
 	type AnswerLike,
 	type LayerBuildInput
@@ -260,6 +261,9 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// is the position `composeBase` gives it too: the table's own words are
 	// the final thing the model reads about what to draw.
 	const wildcard = wildcardFragment(by);
+	// ...and the steer after it: "change one thing", typed while looking at
+	// the render the rest of this prompt produced. Most recent last.
+	const steer = steerFragment(by);
 
 	// One negative list, built by `layers.ts` — house terms, the 2026 tells,
 	// the lens's own, and the anti-board terms, deduped in that order. Not
@@ -274,7 +278,7 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 
 	// SINGLE_FRAME sits immediately after the acts, which are what invite a
 	// split frame in the first place, and before the dressing.
-	return sentences([frame, world, programme, SINGLE_FRAME, dressing, wildcard, avoid, NO_TEXT]);
+	return sentences([frame, world, programme, SINGLE_FRAME, dressing, wildcard, steer, avoid, NO_TEXT]);
 }
 
 /* -------------------------------------------------------------------------- */

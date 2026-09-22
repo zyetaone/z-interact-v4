@@ -32,6 +32,17 @@ export interface TableView {
 	/** The future this table chose, or null before the future card is answered. */
 	futureKey: string | null;
 	images: ZoneImageView[];
+	/**
+	 * This table's vision of the future, in its own render's words — the
+	 * Workers AI paragraph the phone's last screen shows. Null until it has
+	 * been written, and on any fixture that omits it.
+	 *
+	 * On the PUBLIC read deliberately: the front page's enlarged tile shows
+	 * it under the picture, so a person standing in the room can read what a
+	 * table chose without being at that table. It names no lens — the lens
+	 * stays hidden analysis (see `grouping.ts`).
+	 */
+	narrative?: string | null;
 }
 
 /** Mirrors `room.ts`'s `Beat`. The wall follows this, not the URL. */

@@ -154,9 +154,16 @@
 		onkeydown={(e) => e.key === 'Escape' && (zoomed = null)}
 	>
 		<div class="zoom" class:wide={!!shot}>
-			<p class="eyebrow">TABLE {zoomed}</p>
+			<p class="eyebrow">TABLE {zoomed}{shot ? "'S VISION OF THE FUTURE" : ''}</p>
 			{#if shot}
 				<img class="big-shot" src={shot} alt={`Table ${zoomed}'s workspace`} />
+				<!-- The table's own paragraph, under its own picture. A person
+				     standing in the room can read what a table chose without
+				     being at that table — and it names no lens, because the
+				     lens is hidden analysis everywhere else on the wall. -->
+				{#if byTable.get(zoomed)?.narrative}
+					<p class="vision">{byTable.get(zoomed)?.narrative}</p>
+				{/if}
 			{:else if codes[zoomed]}
 				<img class="big-qr" src={codes[zoomed]} alt={`QR code for table ${zoomed}`} />
 				<p class="url">{urlFor(zoomed).replace(/^https?:\/\//, '')}</p>
@@ -167,6 +174,15 @@
 {/if}
 
 <style>
+	.vision {
+		margin: 14px auto 0;
+		max-width: 62ch;
+		font-size: 17px;
+		line-height: 1.5;
+		text-align: left;
+		color: var(--ink-soft, inherit);
+	}
+
 	main {
 		min-height: 100svh;
 		display: flex;

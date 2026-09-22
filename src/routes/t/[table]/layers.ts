@@ -69,7 +69,7 @@
  * the edited and the unedited case: an edit replaces the base, and the
  * guards and suffix are re-applied identically either way.
  */
-import { ACTIVE_QUESTIONS, andId, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
+import { ACTIVE_QUESTIONS, andId, WILDCARD, STEER, type Question, type QuestionOption } from '$lib/game/questions';
 import { ALL_FUTURES, FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
@@ -284,6 +284,20 @@ const NO_2026_KEEP_PAPER = NO_2026.replace('paper notebooks, ', '');
  * control characters and collapses whitespace so the same text cannot
  * arrive differently by composer.
  */
+/**
+ * The table's steer — "change one thing", typed while looking at the render.
+ *
+ * Lands AFTER the wildcard and immediately before the Avoid list, which is
+ * the last content position in both composers. Last is deliberate: it is
+ * the most recent thing the table said, and it is said about the picture
+ * the other clauses already produced.
+ */
+export function steerFragment(by: ReadonlyMap<string, AnswerLike>): string | undefined {
+	const raw = by.get(STEER.id)?.text?.[STEER.options[0].key] ?? '';
+	const text = sanitizeComposed(raw, FREE_TEXT_MAX);
+	return text ? fragmentOf(STEER.options[0], text) : undefined;
+}
+
 export function wildcardFragment(by: ReadonlyMap<string, AnswerLike>): string | undefined {
 	const raw = by.get(WILDCARD.id)?.text?.[WILDCARD.options[0].key] ?? '';
 	const text = sanitizeComposed(raw, FREE_TEXT_MAX);
@@ -385,8 +399,10 @@ export function buildLayerInputs(input: LayerBuildInput): BuiltLayers {
 	// "hardest" And is `WALL_ONLY_IDS`, so `fragmentsFor`, not `fragmentsWithAnd`.
 	const feel = future?.lightLine ?? '';
 
-	// --- wildcard: verbatim, through its own `{text}` slot.
-	const wildcard = wildcardFragment(by);
+	// --- wildcard, then the steer: both verbatim, through their own `{text}`
+	// slots. Joined so the four-zone path places them exactly as the hero
+	// does rather than growing a second layer nobody else knows about.
+	const wildcard = [wildcardFragment(by), steerFragment(by)].filter(Boolean).join(' ') || undefined;
 
 	const paperChosen = !!by.get('q7')?.keys.includes('paper-and-pens');
 	return { mood, materialsAndLight, programme, feel, wildcard, negative: composeNegative(future?.negativeFragment, paperChosen, bright) };

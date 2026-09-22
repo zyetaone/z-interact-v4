@@ -33,7 +33,12 @@
 		/** Why the last *Draw again* was refused — the throttle's own words, not a generic line. */
 		failed: string;
 		refresh: () => Promise<unknown>;
-		onregenerate: () => void;
+		/**
+		 * *Draw again*, optionally with the table's steer — "change one thing",
+		 * typed while looking at this render. Empty string means no steer, and
+		 * clears any previous one rather than quietly re-applying it.
+		 */
+		onregenerate: (steer: string) => void;
 		/** One zone, one render — the failed tile's own control, not *Draw again*. */
 		onretry: (zone: string) => void;
 		ondone: () => void;
@@ -46,9 +51,23 @@
 	const failureReason = $derived(failedZones.find((i) => i.error)?.error?.slice(0, 160) ?? '');
 	/** Nothing landed AND nothing is still coming — the one case where *Draw again* is the only way forward. */
 	const allFailed = $derived(arrived.length === 0 && failedZones.length > 0);
+
+	/**
+	 * v1 had an edit-and-regenerate modal with add / remove / change boxes.
+	 * This is one box, because in v4 the prompt is COMPOSED from the answers
+	 * — the review screen's prompt is read-only for exactly this reason, and
+	 * a free edit of it is accepted and discarded on the default zone set.
+	 * A steer composes like the wildcard instead, so it reaches the picture
+	 * through the same path as everything else.
+	 *
+	 * ponytail: not round-tripped through the server. It is a sentence about
+	 * the picture on screen; a reload means a new look at it. Persist it if
+	 * tables start losing work to accidental refreshes.
+	 */
+	let steer = $state('');
 </script>
 
-<h1 class="stem">Your workspace.</h1>
+<h1 class="stem">Your workspace of the future.</h1>
 
 {#if failed}
 	<p class="banner">{failed}</p>
@@ -101,14 +120,49 @@
 
 <div class="grow"></div>
 
+{#if arrived.length}
+	<section class="steer-field">
+		<label class="field-label" for="steer">
+			Change one thing<span class="optional">optional</span>
+		</label>
+		<textarea
+			id="steer"
+			class="field"
+			rows="2"
+			maxlength="140"
+			placeholder="More light. Fewer people. Make the stair the centre."
+			bind:value={steer}
+		></textarea>
+	</section>
+{/if}
+
+<div class="grow"></div>
+
 <div class="actions">
-	<button class="btn ghost" disabled={regenerating} onclick={onregenerate}>
-		{regenerating ? 'Redrawing…' : 'Draw again'}
+	<button class="btn ghost" disabled={regenerating} onclick={() => onregenerate(steer)}>
+		{regenerating ? 'Redrawing…' : steer.trim() ? 'Draw again with this' : 'Draw again'}
 	</button>
 	<button class="btn" onclick={ondone}>We're done</button>
 </div>
 
 <style>
+	.steer-field {
+		margin-bottom: 18px;
+	}
+
+	/* Same token as the questions' optional field, so "you do not have to
+	   fill this in" looks identical everywhere it is true. */
+	.optional {
+		margin-left: 8px;
+		padding: 1px 6px;
+		border: 1px solid var(--line, currentColor);
+		border-radius: 999px;
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		opacity: 0.75;
+		white-space: nowrap;
+	}
+
 	.gallery {
 		list-style: none;
 		margin: 0 0 22px;

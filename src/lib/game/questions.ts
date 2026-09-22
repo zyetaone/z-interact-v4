@@ -424,7 +424,7 @@ export const ACTIVE_QUESTIONS: Question[] = ENABLE_PROPOSED_QUESTIONS
 	: QUESTIONS;
 
 export interface WildcardQuestion {
-	id: 'wildcard';
+	id: string;
 	prompt: string;
 	options: QuestionOption[];
 }
@@ -441,6 +441,37 @@ export const WILDCARD: WildcardQuestion = {
 		}
 	]
 };
+
+/**
+ * THE STEER — what a table types when it looks at its picture and wants one
+ * thing different. v1 had an edit-and-regenerate modal; this is its job in
+ * one field.
+ *
+ * It is NOT a prompt edit. The review screen's prompt is read-only for a
+ * reason: under the default zone set `composePromptFor` builds the hero
+ * prompt from the answers and ignores a hand-written string entirely, so an
+ * edited prompt was accepted and silently discarded. A steer composes like
+ * the wildcard — an extra clause the composer places — so it reaches the
+ * picture through the same path everything else does, and stays true if the
+ * answers behind it change.
+ *
+ * Stored as an append-only answer row under its own id, so it is in the
+ * export, it survives a reload, and a second steer supersedes the first
+ * rather than stacking: a table that asks for three different changes over
+ * three redraws is asking about the picture in front of it each time.
+ */
+export const STEER: WildcardQuestion & { id: 'steer' } = {
+	id: 'steer',
+	prompt: 'Change one thing',
+	options: [
+		{
+			key: 'steer-open',
+			label: 'Steer',
+			open: true,
+			promptFragment: '{text}'
+		}
+	]
+} as WildcardQuestion & { id: 'steer' };
 
 export interface TableAnswers {
 	table: number;

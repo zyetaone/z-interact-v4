@@ -24,6 +24,7 @@
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
 import { getAdminRoomRows, getBeat, getTableFutures, type AdminImageState } from '$lib/server/room';
+import { getNarratives } from '../t/[table]/narrative';
 import { TABLE_COUNT, STEP_IDS } from '$lib/game/questions';
 import { activeZones } from '$lib/game/zones';
 import type { ProjectorRoom, TableBeatState, TableView, ZoneImageState } from '$lib/ui/projector/types';
@@ -69,12 +70,14 @@ export const getProjectorRoom = query(async (): Promise<ProjectorRoom> => {
 	if (!env) return { beat: 'lobby', focusTable: null, tables: [] };
 	const event = eventId(env);
 
-	const [beatState, rows, futures] = await Promise.all([
+	const [beatState, rows, futures, narratives] = await Promise.all([
 		getBeat(env.DB, event),
 		// Already filtered to what is current SINCE each table's reset
 		// watermark — the same rule the phone's own read applies.
 		getAdminRoomRows(env.DB, event, TABLE_COUNT),
-		getTableFutures(env.DB, event)
+		getTableFutures(env.DB, event),
+		// One query for the room, not one per table — see `getNarratives`.
+		getNarratives(env.DB, event)
 	]);
 
 	const zones = activeZones(env.ZONE_SET);
@@ -97,7 +100,8 @@ export const getProjectorRoom = query(async (): Promise<ProjectorRoom> => {
 			step: Math.min(r.submittedAt ? TOTAL_STEPS : r.answeredCount, TOTAL_STEPS),
 			totalSteps: TOTAL_STEPS,
 			futureKey: futures.get(r.table) ?? null,
-			images
+			images,
+			narrative: narratives.get(r.table) ?? null
 		};
 	});
 

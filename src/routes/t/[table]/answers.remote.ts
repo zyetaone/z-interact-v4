@@ -38,7 +38,7 @@ import {
   requestWaitUntil,
   requestOrigin,
 } from "$lib/server/env";
-import { TABLE_COUNT, WILDCARD } from "$lib/game/questions";
+import { TABLE_COUNT, WILDCARD, STEER } from "$lib/game/questions";
 import { activeZones, zoneByKey } from "$lib/game/zones";
 import { ERA_SCALE, eraVerdict, type Era } from "$lib/game/era";
 import { ALL_FUTURES, FUTURES } from "$lib/game/futures";
@@ -757,8 +757,21 @@ export const finishTable = command(
  * per-table throttle are the two limits that do apply.
  */
 export const regenerate = command(
-  v.object({ table: tableNo, composed: v.optional(v.string()) }),
-  async ({ table, composed }) =>
+  v.object({
+    table: tableNo,
+    composed: v.optional(v.string()),
+    /**
+     * "Change one thing" — the table's own words about the picture it is
+     * looking at. Saved as an answer row BEFORE the redraw is queued, so the
+     * composer picks it up through the normal path and the export has it.
+     *
+     * Same 140-character cap as the wildcard, applied here as well as in
+     * `sanitizeComposed`, because a cap that only exists at composition time
+     * lets an unbounded string into D1 first.
+     */
+    steer: v.optional(v.pipe(v.string(), v.maxLength(140)))
+  }),
+  async ({ table, composed, steer }) =>
     withTableLock(table, async () => {
       const env = requestEnv();
       if (!env) return { ok: false as const, reason: "no environment" };
@@ -808,6 +821,28 @@ export const regenerate = command(
         max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
+
+      // The steer is written BEFORE the queue, never after: `queueGeneration`
+      // composes from the answers as they stand when it runs, so a steer
+      // saved afterwards would not reach the render it was typed for — it
+      // would silently apply to the NEXT one.
+      //
+      // An empty steer clears the previous one rather than leaving it in
+      // place. A table that asked for a change, got it, and now just wants
+      // another roll of the dice should not keep re-applying last round's
+      // instruction without being told it is still there.
+      if (steer !== undefined) {
+        const trimmed = steer.trim();
+        await saveAnswerRow(env.DB, {
+          eventId: event,
+          table,
+          questionId: STEER.id,
+          keys: trimmed ? [STEER.options[0].key] : [],
+          text: trimmed ? { [STEER.options[0].key]: trimmed } : undefined,
+          actor: "table",
+          source: "tap",
+        });
+      }
 
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,

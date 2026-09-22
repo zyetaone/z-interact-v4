@@ -141,6 +141,32 @@ export async function getNarrative(d: D1Database, eventId: string, table: number
 	return row?.text ?? null;
 }
 
+/**
+ * Every table's current narrative in ONE query, for the room reads.
+ *
+ * Not twenty `getNarrative` calls: the desk's readout already carries a
+ * comment about a per-table loop costing twenty sequential D1 round trips,
+ * and this one would sit inside a poll that runs every five seconds on the
+ * projector AND on the front page. `getAdminRoomRows` is the shape being
+ * followed — read the room once, index it in memory.
+ *
+ * Newest row per table wins, which is the same "latest supersedes" rule the
+ * append-only answer and prompt tables use.
+ */
+export async function getNarratives(d: D1Database, eventId: string): Promise<Map<number, string>> {
+	const db = await dbWith(d, 'narrative', NARRATIVE_SCHEMA);
+	if (!db) return new Map();
+	const res = await db
+		.prepare(`SELECT table_no, text, created_at FROM narrative WHERE event_id = ? ORDER BY created_at ASC`)
+		.bind(eventId)
+		.all<{ table_no: number; text: string; created_at: number }>();
+	const out = new Map<number, string>();
+	// Ascending, so a later row simply overwrites an earlier one and the last
+	// write per table is the current one.
+	for (const r of res.results ?? []) out.set(r.table_no, r.text);
+	return out;
+}
+
 export async function insertNarrative(
 	d: D1Database,
 	input: { eventId: string; table: number; text: string; model: string; actor?: string; supersedesId?: string | null }

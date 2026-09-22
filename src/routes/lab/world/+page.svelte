@@ -78,22 +78,42 @@
 		chosen = world;
 		status = `loading ${world.mb} MB…`;
 		fps = 0;
+		loadMs = 0;
 		const started = performance.now();
 
 		try {
 			const THREE = await import('three');
-			const { SplatMesh } = await import('@sparkjsdev/spark');
+			const { SparkRenderer, SplatMesh, SparkControls } = await import('@sparkjsdev/spark');
 			if (!canvas) return;
 
 			const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
 			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
 			const scene = new THREE.Scene();
-			const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 1000);
-			camera.position.set(0, 0, 2);
+			const camera = new THREE.PerspectiveCamera(66, 1, 0.1, 1000);
+
+			/*
+			 * `SparkRenderer` IS the thing that draws splats, and it has to be
+			 * in the scene. Without it three renders the scene happily and the
+			 * canvas is black — which is exactly what happened first time:
+			 * status went to "inside", time-to-first-frame read 16.4s (the
+			 * 6.4 MB really had downloaded), and there was nothing to see. A
+			 * SplatMesh on its own is data with no renderer behind it.
+			 */
+			const spark = new SparkRenderer({ renderer });
+			scene.add(spark);
 
 			const splat = new SplatMesh({ url: world.url });
+			// Spark's worlds are authored Y-down relative to three's convention.
 			splat.quaternion.set(1, 0, 0, 0);
 			scene.add(splat);
+
+			// Spark's own controls rather than a hand-rolled orbit: drag to
+			// look, WASD / arrows to walk, touch drag on a phone. Walking is
+			// the whole question this page exists to answer, and an orbit
+			// camera cannot answer it — you would be looking AT the world
+			// rather than standing in it.
+			const controls = new SparkControls({ canvas });
 
 			const resize = () => {
 				const w = canvas!.clientWidth;
@@ -105,36 +125,6 @@
 			resize();
 			window.addEventListener('resize', resize);
 
-			// Drag to look, wheel/pinch to move through it. Deliberately the
-			// smallest control scheme that answers "can you be inside this".
-			let yaw = 0;
-			let pitch = 0;
-			let dist = 2;
-			let dragging = false;
-			let lx = 0;
-			let ly = 0;
-			const down = (e: PointerEvent) => {
-				dragging = true;
-				lx = e.clientX;
-				ly = e.clientY;
-			};
-			const move = (e: PointerEvent) => {
-				if (!dragging) return;
-				yaw -= (e.clientX - lx) * 0.005;
-				pitch = Math.max(-1.4, Math.min(1.4, pitch - (e.clientY - ly) * 0.005));
-				lx = e.clientX;
-				ly = e.clientY;
-			};
-			const up = () => (dragging = false);
-			const wheel = (e: WheelEvent) => {
-				e.preventDefault();
-				dist = Math.max(0.2, Math.min(20, dist + e.deltaY * 0.002));
-			};
-			canvas.addEventListener('pointerdown', down);
-			window.addEventListener('pointermove', move);
-			window.addEventListener('pointerup', up);
-			canvas.addEventListener('wheel', wheel, { passive: false });
-
 			let raf = 0;
 			let frames = 0;
 			let since = performance.now();
@@ -142,17 +132,12 @@
 
 			const loop = () => {
 				raf = requestAnimationFrame(loop);
-				camera.position.set(
-					dist * Math.cos(pitch) * Math.sin(yaw),
-					dist * Math.sin(pitch),
-					dist * Math.cos(pitch) * Math.cos(yaw)
-				);
-				camera.lookAt(0, 0, 0);
+				controls.update(camera);
 				renderer.render(scene, camera);
 
 				frames++;
 				const now = performance.now();
-				if (now - since >= 1000) {
+				if (now - since >= 500) {
 					fps = Math.round((frames * 1000) / (now - since));
 					frames = 0;
 					since = now;
@@ -168,10 +153,6 @@
 			teardown = () => {
 				cancelAnimationFrame(raf);
 				window.removeEventListener('resize', resize);
-				window.removeEventListener('pointermove', move);
-				window.removeEventListener('pointerup', up);
-				canvas?.removeEventListener('pointerdown', down);
-				canvas?.removeEventListener('wheel', wheel);
 				splat.dispose?.();
 				renderer.dispose();
 			};

@@ -12,18 +12,8 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeD1 } from './fake-d1';
-import {
-	claimQueued,
-	findRestorable,
-	getCurrentImage,
-	getRenderBudget,
-	insertPrompt,
-	insertQueuedImage,
-	markRequested,
-	markStored,
-	restoreImages,
-	seedTables
-} from './room';
+import { claimQueued, getCurrentImage, getRenderBudget, insertPrompt, insertQueuedImage, markRequested, markStored, seedTables } from './room';
+import { findRestorable, restoreImages } from './archive';
 
 const EVENT = 'undo-test';
 const ZONES = ['workspace'];

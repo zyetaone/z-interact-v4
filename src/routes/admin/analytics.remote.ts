@@ -13,7 +13,8 @@
 import * as v from 'valibot';
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
-import { exportRoomRows, getRenderStamps } from '$lib/server/room';
+import { getRenderStamps } from '$lib/server/room';
+import { exportRoomRows } from '$lib/server/archive';
 import { summarise, type Analytics } from '$lib/server/analytics';
 import { adminTokenOk } from '$lib/server/admin-gate';
 import { maxRendersPerTable } from '$lib/server/limits';

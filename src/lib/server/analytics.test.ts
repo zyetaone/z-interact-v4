@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { summarise, reasonOf } from './analytics';
-import type { ExportTableRow } from './room';
+import type { ExportTableRow } from './archive';
 import type { Question, WildcardQuestion } from '$lib/game/questions';
 import type { Future } from '$lib/game/futures';
 

@@ -64,20 +64,35 @@ import {
   getRenderBudget,
   getImageDetail,
   getTableFutures,
-  findRestorable,
-  restoreImages,
 } from "$lib/server/room";
+import { findRestorable, restoreImages } from "$lib/server/archive";
 import {
   checkCooldown,
   checkRenderCap,
   maxRendersPerTable,
 } from "$lib/server/limits";
-import { createThrottle } from "$lib/server/throttle";
 import { tickImageRow, tickRowSafely, type TickContext } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
 import { composePromptFor } from "./hero";
 import { ensureNarrative, getNarrative } from "./narrative";
 import { sanitizeComposed } from "$lib/server/prompt";
+import {
+  FREE_TEXT_MAX,
+  FUTURE_ID,
+  MODEL,
+  SKIPPED,
+  answersOf,
+  assertCanSave,
+  eraSchema,
+  futureOf,
+  refreshQuietly,
+  tableNo,
+  tickContext,
+  withTableLock,
+  type Env,
+  type Fail,
+} from "./guards";
+import { queueGeneration } from "./queue";
 import {
   buildLayerInputs,
   composeBase,
@@ -87,153 +102,6 @@ import {
   eraOf,
 } from "./layers";
 
-const tableNo = v.pipe(
-  v.number(),
-  v.integer(),
-  v.minValue(1),
-  v.maxValue(TABLE_COUNT),
-);
-/**
- * The ceiling on every free-text field a phone can send.
- *
- * The wildcard already had 140 and the screen-15 rewrite has 1200. These
- * two did not have one at all: `pushReply` on saveEra/saveAnswer, and the
- * `text` map behind an open option. Both reach the image prompt verbatim
- * through `layers.ts`, so an unbounded string was an unbounded prompt on a
- * wall in front of the room. 140 matches the wildcard, which is the same
- * kind of field and the length a table actually types.
- */
-const FREE_TEXT_MAX = 140;
-
-const eraSchema = v.picklist(ERA_SCALE);
-
-/** The pseudo-question id the future pick is stored under. `q1` stores the era. */
-const FUTURE_ID = "future";
-
-/**
- * What a skipped future card stores (game-flow.md §1, screen 3's failure
- * state: "stored as `skipped`"). It has to be a real key rather than an
- * empty array, or the answer reads as unanswered for ever: the review
- * button stays on "still missing 1 answer" and resume sends the table
- * back to the future screen on every reload. `futureOf` returns null for
- * it, so the mood layer still falls back to the house register.
- */
-const SKIPPED = "skipped";
-
-/** fal model id — TODO(content): set once the model is chosen (also stubbed in ticker.ts). */
-const MODEL = FAL_MODEL;
-
-// One per isolate — best-effort, see throttle.ts's module note.
-const throttle = createThrottle();
-
-type Fail = { ok: false; reason: string };
-
-/**
- * `refresh()` pushes a fresh snapshot to the CLIENT that made the call. It
- * is a courtesy — the 2 s poll would pick the change up anyway — and it has
- * no meaning when the caller is not a browser (the simulator route drives
- * these same commands server-side). A failure there must never fail the
- * save that already landed.
- */
-function refreshQuietly(table: number): void {
-  try {
-    void Promise.resolve(tableStatus({ table }).refresh()).catch(() => {});
-  } catch {
-    /* not a client call — nothing to refresh */
-  }
-}
-
-type Env = NonNullable<ReturnType<typeof requestEnv>>;
-
-/** Every command runs inside this: one in-flight write per table, always released. */
-async function withTableLock<T>(
-  table: number,
-  fn: () => Promise<T | Fail>,
-): Promise<T | Fail> {
-  if (!throttle.acquire(table)) {
-    return {
-      ok: false,
-      reason: "This table is already sending something — hang tight.",
-    };
-  }
-  try {
-    return await fn();
-  } finally {
-    throttle.release(table);
-  }
-}
-
-/**
- * Everything `tickImageRow` needs that is the same for every row of one
- * table: the bindings, the origin (references must be absolute — fal
- * fetches them), the chosen future's lens picture, and the reset watermark
- * so a pre-reset render is never used as a style anchor.
- */
-function tickContext(
-  env: Env,
-  event: string,
-  futureKey: string | null,
-  since: number,
-): TickContext {
-  return { db: env.DB, env, event, origin: requestOrigin(), futureKey, since };
-}
-
-/**
- * The lock check every per-answer save now runs. Only `finishTable` used to
- * check anything, so a table could keep editing its answers after it had
- * submitted, and after the desk had closed the room — and those edits feed
- * `resolveZone` on the next poll or regenerate, silently changing what gets
- * sent to fal.
- *
- * Deliberately NOT `assertCanSubmit`: that function CONSUMES a one-shot
- * reopen grant on success, so calling it from a per-tap save would burn the
- * desk's grant on the first question the table answered. This reads the
- * same state without consuming anything and applies the same pure rule —
- * the pattern `tableStatus`'s own gate read already uses.
- */
-async function assertCanSave(
-  env: Env,
-  event: string,
-  table: number,
-): Promise<{ ok: true } | Fail> {
-  const state = await getTableState(env.DB, event, table);
-  const alreadyAnswered = !!state.submittedAt;
-  const [locked, granted] = await Promise.all([
-    lockedAt(env.DB, event),
-    alreadyAnswered
-      ? mayReopen(env.DB, event, table)
-      : Promise.resolve(false),
-  ]);
-  const decision = decideSubmit({
-    reachable: true,
-    locked: !!locked,
-    alreadyAnswered,
-    granted,
-  });
-  return decision.ok
-    ? { ok: true as const }
-    : { ok: false as const, reason: decision.reason };
-}
-
-function answersOf(
-  rows: Awaited<ReturnType<typeof getCurrentAnswers>>,
-): AnswerLike[] {
-  return rows.map((r) => ({
-    questionId: r.questionId,
-    keys: r.keys,
-    text: r.text,
-    pushReply: r.pushReply,
-  }));
-}
-
-function futureOf(answers: readonly AnswerLike[]): string | null {
-  const key = answers.find((a) => a.questionId === FUTURE_ID)?.keys[0] ?? null;
-  return key && FUTURES.some((f) => f.key === key) ? key : null;
-}
-
-
-
-/* -------------------------------------------------------------------------- */
 /* Read — one call per poll, everything a screen needs                        */
 /* -------------------------------------------------------------------------- */
 
@@ -491,7 +359,7 @@ export const saveFuture = command(
           source: "tap",
         });
       }
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const };
     }),
 );
@@ -533,7 +401,7 @@ export const saveEra = command(
         actor: "table",
         source: "tap",
       });
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const };
     }),
 );
@@ -566,7 +434,7 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
       actor: "table",
       source: "tap",
     });
-    refreshQuietly(input.table);
+    refreshQuietly(tableStatus({ table: input.table }));
     return { ok: true as const };
   }),
 );
@@ -590,142 +458,11 @@ export const saveWildcard = command(
         actor: "table",
         source: "tap",
       });
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const };
     }),
 );
 
-/* -------------------------------------------------------------------------- */
-/* Generation — one prompt row, one image row per zone, then the first tick   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Inserts ONE prompt row for the table (append-only, actor 'table'), then
- * one `image` row per zone in `ZONES`, then kicks the first tick for each
- * through `waitUntil`.
- *
- * `supersedesId` is set on a regenerate so the previous attempt stays in
- * the table rather than being overwritten — `getCurrentImage` reads the
- * newest row, so the new attempt becomes current the moment it is inserted.
- */
-async function queueGeneration(
-  env: Env,
-  event: string,
-  table: number,
-  opts: { composedOverride?: string; regenerate: boolean; since: number },
-): Promise<{ promptId: string; composed: string; queued: number; inFlight: number }> {
-  const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
-  const layers = buildLayerInputs({
-    futureKey: futureOf(answers),
-    era: eraOf(answers),
-    answers,
-    table,
-  });
-  // A table-edited prompt is free text that becomes the ENTIRE prompt sent
-  // to fal and then shown on a public screen. It is capped and stripped
-  // here as well as in `composeZonePrompt`, so the `prompt` row stores what
-  // was actually submitted rather than the raw paste.
-  const edited = !!opts.composedOverride?.trim();
-  const composed = sanitizeComposed(
-    edited ? opts.composedOverride! : composeBase(layers),
-  );
-  // Scoped, so a fresh run's first prompt does not claim to supersede the
-  // prompt of the room that was reset away. The append-only chain is the
-  // record of one run's edits, not a bridge across the reset.
-  const previous = await getLatestPrompt(env.DB, event, table, opts.since);
-
-  const promptId = await insertPrompt(env.DB, {
-    eventId: event,
-    table,
-    mood: layers.mood,
-    material: layers.materialsAndLight,
-    programme: layers.programme,
-    feel: layers.feel,
-    wildcard: layers.wildcard,
-    composed,
-    negative: layers.negative,
-    editedByTable: edited,
-    actor: "table",
-    supersedesId: previous?.id ?? null,
-  });
-
-  let queued = 0;
-  let inFlight = 0;
-  for (const zone of activeZones(env.ZONE_SET)) {
-    // SINCE THE RESET, not ever. `getCurrentImage` ignores the reset
-    // watermark, and image rows are append-only, so after a desk Reset a
-    // zone's pre-reset `stored` row still read as current and this skipped
-    // it. Live, table 20 was reset, walked again, and submitted: only
-    // `garden` — the one zone whose prior row had FAILED, and so passed the
-    // test below — got a new row. The other three were silently never sent
-    // and the phone showed them drawing for ever. The insert underneath
-    // already applies the watermark; this read did not.
-    const existing = await getCurrentImageSince(
-      env.DB,
-      event,
-      table,
-      zone.key,
-      opts.since,
-    );
-    // "A generation already in flight is returned, not duplicated"
-    // (game-flow §8) — but a regenerate deliberately supersedes a FINISHED
-    // attempt. Neither case may start a second attempt while one is live.
-    if (!opts.regenerate && existing && existing.state !== "failed") continue;
-
-    // The hero gets its own composer (`hero.ts`); a functional zone gets the
-    // base plus its moment. One chooser, so every submit path agrees.
-    const zonePrompt = composePromptFor(zone, {
-      composed,
-      negative: layers.negative,
-      answers,
-      futureKey: futureOf(answers),
-      era: eraOf(answers),
-      table,
-    });
-    // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
-    // The read-then-write above is per-isolate and two isolates can both
-    // pass it — that is the double-tap that queued two full sets per table.
-    // A null return means another isolate got there first; its attempt is
-    // the one this call returns, rather than a second one being started.
-    const image = await insertQueuedImageIfIdle(
-      env.DB,
-      {
-        eventId: event,
-        table,
-        zoneKey: zone.key,
-        promptId,
-        prompt: zonePrompt,
-        model: MODEL,
-        actor: "table",
-        supersedesId: existing?.id ?? null,
-      },
-      opts.since,
-    );
-    if (!image) {
-      inFlight += 1;
-      continue;
-    }
-    queued += 1;
-
-    // waitUntil kicks the first tick; the phone/admin polls and the
-    // webhook are the safety net if it is cut short (game-flow §6).
-    requestWaitUntil(
-      tickImageRow(
-        tickContext(env, event, futureOf(answers), opts.since),
-        {
-          id: image.id,
-          state: image.state,
-          falRequestId: image.falRequestId,
-          createdAt: image.createdAt,
-          table,
-          zoneKey: zone.key,
-        },
-        zonePrompt,
-      ),
-    );
-  }
-  return { promptId, composed, queued, inFlight };
-}
 
 /** Screen 15's *Draw our workspace*. `composed` is the edited textarea, when the table changed it. */
 export const finishTable = command(
@@ -774,7 +511,7 @@ export const finishTable = command(
         regenerate: false,
         since,
       });
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const, queued: result.queued };
     }),
 );
@@ -885,7 +622,7 @@ export const regenerate = command(
           reason: "Still drawing — wait for this one before asking for another.",
         };
       }
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const, queued: result.queued };
     }),
 );
@@ -960,7 +697,7 @@ export const undoRender = command(
         return { ok: false as const, reason: "This is the only one you have drawn." };
       }
       const restored = await restoreImages(env.DB, event, table, items);
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const, restored };
     }),
 );
@@ -1091,7 +828,7 @@ export const retryZone = command(
           zonePrompt,
         ),
       );
-      refreshQuietly(table);
+      refreshQuietly(tableStatus({ table }));
       return { ok: true as const, queued: 1 };
     }),
 );

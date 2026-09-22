@@ -16,28 +16,8 @@ import * as v from 'valibot';
 import { command, query } from '$app/server';
 import { requestEnv, eventId, requestOrigin, requestWaitUntil } from '$lib/server/env';
 import { lockedAt, setLocked, grantReopen, grantedTables } from '$lib/server/gate';
-import {
-	getPendingImagesForEvent,
-	getCurrentAnswersSince,
-	getCurrentImage,
-	getCurrentImageSince,
-	insertQueuedImageIfIdle,
-	getRenderBudget,
-	getResetAt,
-	insertPrompt,
-	getPromptRowById,
-	getAdminRoomRows,
-	getTableFutures,
-	countTables,
-	seedTables,
-	resetTable as resetTableRow,
-	setBeat as setBeatRow,
-	getBeat,
-	exportRoomRows,
-	resetRoom as resetRoomRows,
-	clearRoom as clearRoomRows,
-	type Beat
-} from '$lib/server/room';
+import { getPendingImagesForEvent, getCurrentAnswersSince, getCurrentImage, getCurrentImageSince, insertQueuedImageIfIdle, getRenderBudget, getResetAt, insertPrompt, getPromptRowById, getAdminRoomRows, getTableFutures, countTables, seedTables, resetTable as resetTableRow, setBeat as setBeatRow, getBeat, type Beat } from '$lib/server/room';
+import { exportRoomRows, resetRoom as resetRoomRows, clearRoom as clearRoomRows } from '$lib/server/archive';
 import { tickImageRow, tickRowSafely } from '$lib/server/ticker';
 import { createThrottle } from '$lib/server/throttle';
 import { checkRenderCap, maxRendersPerTable } from '$lib/server/limits';

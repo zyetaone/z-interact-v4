@@ -14,7 +14,7 @@ import * as v from 'valibot';
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
 import { adminTokenOk } from '$lib/server/admin-gate';
-import { listStoredImages } from '$lib/server/room';
+import { listStoredImages } from '$lib/server/archive';
 
 export type Photo = { id: string; table: number; zoneKey: string; url: string; filename: string; createdAt: number };
 

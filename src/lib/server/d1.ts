@@ -91,3 +91,8 @@ export function monotonicNow(): number {
 	lastMonotonic = Math.max(Date.now(), lastMonotonic + 1);
 	return lastMonotonic;
 }
+
+/** A row id. Lives here rather than in `room.ts` because `room.ts`, `image.ts` and `archive.ts` all insert rows and all used to keep a private copy of this one line. */
+export function newId(): string {
+	return crypto.randomUUID();
+}

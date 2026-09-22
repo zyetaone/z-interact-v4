@@ -25,7 +25,7 @@
  * for a poll. If this ever needs to refresh on a timer, give it two flat
  * queries (all answers, all images) and apply the watermark in memory.
  */
-import type { ExportTableRow } from './room';
+import type { ExportTableRow } from './archive';
 import type { Question, WildcardQuestion } from '$lib/game/questions';
 import type { Future } from '$lib/game/futures';
 

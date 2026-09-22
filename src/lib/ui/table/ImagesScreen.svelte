@@ -155,7 +155,7 @@
 	{#if canUndo}
 		<!-- Costs nothing: the picture it goes back to is already drawn and
 		     already paid for, so this skips the cooldown and the cap. -->
-		<button class="btn ghost" disabled={regenerating} onclick={onundo}>Back to the last one</button>
+		<button class="btn ghost" disabled={regenerating} onclick={onundo}>Undo</button>
 	{/if}
 	<button class="btn ghost" disabled={regenerating} onclick={() => onregenerate(steer)}>
 		{regenerating ? 'Redrawing…' : steer.trim() ? 'Draw again with this' : 'Draw again'}

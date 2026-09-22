@@ -88,12 +88,39 @@ export interface Spend {
 	reasons: { reason: string; count: number }[];
 }
 
+/**
+ * WHERE THE ROOM AGREED AND WHERE IT SPLIT — carried over from v3, which
+ * computed "most divisive" and "strongest consensus" for its presenter.
+ *
+ * It is the one thing on this page a facilitator can say out loud. Every
+ * other number here answers "is the event working"; these two answer "what
+ * did the room decide", which is what the room came to find out.
+ *
+ * Both are null until at least two tables have answered something: one
+ * table is unanimous with itself and divided by nothing, and reporting
+ * either would be a sentence about a sample of one.
+ */
+export interface RoomVerdict {
+	questionId: string;
+	prompt: string;
+	/** The option this line is about — the leader for consensus, the runner-up's rival for a split. */
+	label: string;
+	share: number;
+	/** The other side of a split. Null on a consensus line. */
+	againstLabel?: string;
+	againstShare?: number;
+	answered: number;
+}
+
 export interface Analytics {
 	generatedAt: number;
 	totals: Totals;
 	questions: QuestionBreakdown[];
 	lenses: LensCount[];
 	wildcards: { table: number; text: string }[];
+	/** The question the room agreed on most, and the one it split on most. Null before two tables have answered. */
+	consensus: RoomVerdict | null;
+	divisive: RoomVerdict | null;
 	tables: TableLine[];
 	spend: Spend;
 }
@@ -173,7 +200,57 @@ export function reasonOf(error: string | null): string {
 	return first.length === 0 ? 'unknown' : first.length > 120 ? `${first.slice(0, 117)}...` : first;
 }
 
+/**
+ * The most-agreed and most-split questions, from the breakdowns already
+ * computed. Pure arithmetic over `share`, no extra pass over the rows.
+ *
+ * "Divisive" is measured as the gap between the top two options, not as the
+ * top option's share. A question where 51% chose A and 49% chose B is the
+ * interesting one; a question with five options where the leader took 30%
+ * is scattered, not divided, and calling that a split would put the wrong
+ * sentence in a facilitator's mouth. Only questions with at least two
+ * answered options qualify for it.
+ */
+function verdicts(questions: readonly QuestionBreakdown[]): { consensus: RoomVerdict | null; divisive: RoomVerdict | null } {
+	const eligible = questions.filter((q) => q.answered >= 2 && q.options.some((o) => o.count > 0));
+	if (eligible.length === 0) return { consensus: null, divisive: null };
+
+	let consensus: RoomVerdict | null = null;
+	let divisive: RoomVerdict | null = null;
+
+	for (const q of eligible) {
+		const ranked = [...q.options].filter((o) => o.count > 0).sort((a, b) => b.share - a.share);
+		const top = ranked[0];
+		if (!top) continue;
+
+		if (!consensus || top.share > consensus.share) {
+			consensus = { questionId: q.questionId, prompt: q.prompt, label: top.label, share: top.share, answered: q.answered };
+		}
+
+		const second = ranked[1];
+		if (!second) continue; // unanimous — a consensus line, never a split
+		const gap = top.share - second.share;
+		const currentGap = divisive ? divisive.share - (divisive.againstShare ?? 0) : Infinity;
+		if (gap < currentGap) {
+			divisive = {
+				questionId: q.questionId,
+				prompt: q.prompt,
+				label: top.label,
+				share: top.share,
+				againstLabel: second.label,
+				againstShare: second.share,
+				answered: q.answered
+			};
+		}
+	}
+	return { consensus, divisive };
+}
+
 export function summarise({ rows, questions, wildcard, futures, maxRenders, rendersByTable, now }: SummariseInput): Analytics {
+	// Computed once: `verdicts` reads the same breakdowns the page renders,
+	// rather than a second pass over the rows.
+	const questionBreakdowns = questions.map((q) => breakdown(rows, q));
+
 	const tables: TableLine[] = rows.map((row) => {
 		// Only the CURRENT image per zone counts as stored/pending/failed;
 		// spend is a different question and comes from `rendersByTable`.
@@ -228,9 +305,10 @@ export function summarise({ rows, questions, wildcard, futures, maxRenders, rend
 			pending: tables.reduce((n, t) => n + t.pending, 0),
 			failed: tables.reduce((n, t) => n + t.failed, 0)
 		},
-		questions: questions.map((q) => breakdown(rows, q)),
+		questions: questionBreakdowns,
 		lenses,
 		wildcards: repliesFor(rows, wildcard.id),
+		...verdicts(questionBreakdowns),
 		tables,
 		spend: {
 			renders: tables.reduce((n, t) => n + t.renders, 0),

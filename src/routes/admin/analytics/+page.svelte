@@ -78,6 +78,33 @@
 			</section>
 		{/if}
 
+		<!-- CARRIED FROM v3, whose presenter computed these and put them on the
+		     wall. Everything else on this page answers "is the event working";
+		     these two answer "what did the room decide", which is what the
+		     room came to find out — and they are the only lines here a
+		     facilitator can read out as they are. Absent until two tables have
+		     answered, because one table is unanimous with itself. -->
+		{#if a.consensus || a.divisive}
+			<section class="panel verdict">
+				<h2>What the room decided</h2>
+				{#if a.consensus}
+					<p class="verdict-line">
+						<span class="verdict-label">Most agreed</span>
+						<b>{pct(a.consensus.share)}</b> chose <b>{a.consensus.label}</b>
+						<span class="verdict-q">{a.consensus.prompt}</span>
+					</p>
+				{/if}
+				{#if a.divisive}
+					<p class="verdict-line">
+						<span class="verdict-label">Most split</span>
+						<b>{pct(a.divisive.share)}</b> {a.divisive.label}
+						against <b>{pct(a.divisive.againstShare ?? 0)}</b> {a.divisive.againstLabel}
+						<span class="verdict-q">{a.divisive.prompt}</span>
+					</p>
+				{/if}
+			</section>
+		{/if}
+
 		<section class="panel">
 			<h2>The lens the room chose</h2>
 			{#each a.lenses as lens (lens.key)}
@@ -149,6 +176,29 @@
 </div>
 
 <style>
+	.verdict-line {
+		margin: 0 0 12px;
+		font-size: 17px;
+		line-height: 1.5;
+	}
+	.verdict-line:last-child {
+		margin-bottom: 0;
+	}
+	.verdict-label {
+		display: block;
+		font-size: 12px;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+		margin-bottom: 2px;
+	}
+	.verdict-q {
+		display: block;
+		font-size: 14px;
+		color: var(--ink-faint);
+		margin-top: 2px;
+	}
+
 	/* The desk's tokens (app.css): navy ground, gold accent, no white. */
 	.root {
 		min-height: 100dvh;

@@ -128,8 +128,10 @@ src/lib/server/
   reference.ts # REFERENCE_MODE — how much the chosen lens picture decides the render
   fake-d1.ts   # an in-memory D1Database for the tests; no test talks to a real binding
 src/lib/game/
-  questions.ts # the FOUR surviving questions (q8, q5c, q6r, q2) + wildcard; `slider` on q8
-  futures.ts   # the six named futures (V4's Q1, the lens screen) + era + lightLine
+  questions.ts # the FOUR surviving questions (q2, q8, q5c, q6r) + wildcard + STEER.
+               #   No slider on q8 any more (None/20%/40%). Every push field is OPTIONAL.
+  futures.ts   # FOUR offered futures + RETIRED_FUTURES (the two withdrawn, still resolvable
+               #   via ALL_FUTURES) + era + lightLine
   zones.ts     # the zone sets behind ZONE_SETS (+ RETIRED_ZONES for historical rows)
   era.ts       # the era scale + allowedEras/nudge rules
   config.ts    # content-side flags (ENABLE_PROPOSED_QUESTIONS), not env knobs
@@ -340,9 +342,6 @@ What is actually still open:
   a shared-secret query token, now fail-closed and constant-time compared,
   with the callback's `request_id` matched against the row. Verifying fal's
   own signature is the upgrade.
-- **Admin's destructive verbs.** game-flow.md §5 lists "delete one table /
-  clear the room"; `resetTable` (a watermark, never a delete) and `exportRoom`
-  exist, the hard-reset paths do not.
 - **Listen mode and the vote phase** — neither is started (schema.draft.ts's
   `clip`/`transcript`/`extraction`/`vote` tables are not created).
 - **The zone set.** `ZONE_SET` defaults to **`hero`** — ONE main workspace
@@ -356,6 +355,53 @@ What is actually still open:
   so this only matters for resume semantics with skipped questions.
 
 ### Recently closed, with the defaults they set
+
+- **The admin's room-wide verbs, and the photographs (22 Sep).** game-flow.md
+  §5's "delete one table / clear the room" is done, as two verbs that are
+  deliberately not alike. `resetRoom` is twenty watermarks — nothing deleted,
+  every row still in D1 and in the Export — and is what a dry run wants.
+  `clearRoom` is the **only DELETE in this codebase** and takes the event id
+  typed back, not just the token: a shared secret in a URL has been in a
+  browser history and possibly on a projector, so naming the event is what
+  proves the facilitator knows which room they are erasing. `wrangler d1
+  export` is the whole safety net. R2 objects are left orphaned rather than
+  swept (keyed by image row id, so nothing can name them once the rows go).
+  Both arm in place — the desk's own pattern, never a browser dialog.
+  `/admin/photos` lists every stored render with a download link and a
+  *Save all*; it ignores the reset watermark on purpose, because a watermark
+  means "stop showing this", not "this never happened". No zip (ponytail).
+
+- **"Change one thing" reaches the picture; a prompt edit never did.** The
+  review screen's textarea is read-only because `composePromptFor` builds the
+  hero prompt from the ANSWERS and ignores `ctx.composed` — an edit was
+  accepted, stored and discarded (`prompt-edit.test.ts`). v1's
+  edit-and-regenerate is therefore a **steer**, not a prompt edit: a 140-char
+  clause composed exactly like the wildcard, last of the content and before
+  the Avoid list, stored as an append-only answer row under `STEER.id`. An
+  empty steer CLEARS the previous one. It is written BEFORE the redraw is
+  queued, because `queueGeneration` composes from the answers as they stand.
+  `steer.test.ts` asserts it is in the submitted string on both composers —
+  reaching D1 alone would be the same bug renamed.
+
+- **Four cities, not six; four recharge options, not six.** Both cuts were
+  about NAMES colliding, not counts. `RETIRED_FUTURES` keeps the two
+  withdrawn lenses whole because a lens carries `styleDna`/`worldOutside`/
+  `lightLine`/`negativeFragment` — a row under a deleted key would compose
+  with no world layer and nothing would say so; `futureByKey` and every name
+  lookup read `ALL_FUTURES`, the phone and the validator read `FUTURES`.
+  "The abundant city" became "The self-sufficient city" because its blurb had
+  a disclaimer in it ("a city of plenty, NOT OF WILDERNESS") against being
+  read as the garden city. A dropped OPTION, unlike a dropped lens, simply
+  composes nothing — the same trade q8 took when the slider went.
+
+- **A skipped lens no longer argues with itself.** "No future fits us — skip"
+  is a button on screen one. `HOUSE_REGISTER` still said "moody rather than
+  stark, pooled light, shadow held deliberately" — true before the light
+  moved to the lens, and afterwards contradicted by the house exposure two
+  sentences later and by the Avoid list's "gloom". It is plain bright
+  daylight now, and `HOUSE_LIGHT` supplies the light clause that path had
+  been composing without entirely.
+
 
 - **The wildcard now reaches the picture (21 Sep end-to-end review).** It
   did not. `composeBase` — the FOUR-ZONE path — had carried it since the

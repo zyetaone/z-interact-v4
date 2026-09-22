@@ -326,7 +326,16 @@ unchanged", which is what the original scaffold already did.
   `*.fal.ai` API), an 8 MB cap enforced by the read loop, and `image/*`
   required as both declared type and sniffed bytes. The composed prompt is
   capped at 1,500 characters and stripped of control characters, and the
-  house negative is always appended. The cap was 1,200 and its comment
+  house negative is always appended. **That cap is on the FOUR-ZONE path
+  and on a table-edited override, not on the hero prompt** — `queue.ts`
+  runs `composeBase`/an override through `sanitizeComposed`, while
+  `composePromptFor` returns `composeHeroPrompt` untouched, so the default
+  room submits ~1,900-2,200 characters uncapped. Free text is still capped
+  per field at 140 (`FREE_TEXT_MAX`, both the wildcard and q2's reply), so
+  nothing a table types is unbounded; what is unbounded is the house
+  template plus the fragments, which is ours. The guard that matters on
+  that path is the WORD ceiling (340), and since 22 Sep it is measured
+  against the longest answer to every question rather than one fixture. The cap was 1,200 and its comment
   assumed a composed base of "a few hundred characters"; a fully answered
   table measured 1,116-1,153, fifty characters from being silently cut —
   and what `sanitizeComposed` drops off the end is the Avoid list and the

@@ -308,6 +308,44 @@ describe('the word ceiling', () => {
 			expect(n).toBeLessThanOrEqual(HERO_WORD_TARGET.max);
 		}
 	});
+
+	/**
+	 * THE WORST CASE, NOT A TYPICAL ONE.
+	 *
+	 * The three tests above all measure T10, which answers q6r with `igloo`
+	 * — one of the SHORTEST fragments in the set. So the measured margin
+	 * belonged to one particular set of taps, and lengthening any fragment a
+	 * table might pick instead went unmeasured: on 22 Sep `water-room` grew
+	 * by four words and nothing here would have noticed if it had grown by
+	 * forty.
+	 *
+	 * This builds the longest room the questions can express — the longest
+	 * fragment of every question, both free-text fields filled to their
+	 * 140-character cap, under whichever lens composes longest — and holds
+	 * it under the same ceiling. A fragment rewrite that eats the margin
+	 * fails HERE, before a render does it silently by truncation.
+	 */
+	it('stays under the ceiling on the LONGEST answer to every question, every lens', () => {
+		const full = 'x'.repeat(140);
+		const longest: AnswerLike[] = QUESTIONS.map((q) => {
+			const option = [...q.options].sort((a, b) => b.promptFragment.length - a.promptFragment.length)[0];
+			return {
+				questionId: q.id,
+				keys: [option.key],
+				text: option.open ? { [option.key]: full } : undefined,
+				pushReply: q.pushCapturesReply ? full : undefined
+			};
+		});
+		longest.push({
+			questionId: WILDCARD.id,
+			keys: [WILDCARD.options[0].key],
+			text: { [WILDCARD.options[0].key]: full }
+		});
+		for (const future of FUTURES) {
+			const prompt = composeHeroPrompt({ futureKey: future.key, answers: longest, table: 10 });
+			expect(wordCount(prompt), future.key).toBeLessThanOrEqual(HERO_WORD_TARGET.max);
+		}
+	});
 });
 
 describe('what the lens may and may not contribute', () => {

@@ -347,9 +347,9 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'water-room',
-				label: 'The water room',
+				label: 'The hydro sensory room',
 				promptFragment:
-					'a warm enclosed bathing room, steam drifting under a high skylight, two people floating in water up to the chest, no devices anywhere'
+					'a warm enclosed bathing room, steam drifting under a high skylight, two people floating in water up to the chest, shifting coloured light across the water, no devices anywhere'
 			},
 			{
 				key: 'tea-room',

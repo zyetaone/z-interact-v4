@@ -18,8 +18,15 @@
 /** The wall's Lobby headline — the question the room is being asked. */
 export const PROJECTOR_TITLE = 'The Cognitive City Vision';
 
-/** The front page and the browser tab — the room, addressed to the people in it. */
-export const SITE_TITLE = 'Your cognitive workspace';
+/**
+ * The front page and the browser tab — the room, addressed to the people in
+ * it. The year is deliberately IN the headline: the questions ask what a
+ * workplace is like once the present has moved on, and a date says that
+ * faster than a sentence can. It is a fallback like every string here, so a
+ * differently-dated event replaces it with `PUBLIC_EVENT_TITLE` rather than
+ * editing source.
+ */
+export const SITE_TITLE = 'Your cognitive city 2040';
 
 /** `PUBLIC_EVENT_TITLE` wins on both surfaces when it is set. */
 export function titleFrom(override: string | undefined, fallback: string): string {

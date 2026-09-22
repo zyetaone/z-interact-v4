@@ -162,9 +162,9 @@ export const FUTURES: Future[] = [
 		moodLine:
 			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
 		styleDna:
-			'photovoltaic glass roof, hanging planters and vines, exposed copper pipe and water tanks, teal and terracotta',
+			'copper pipework, water tanks and filtration banks on show, dials and valves, hanging vines, teal and terracotta',
 		worldOutside: 'through the glass, photovoltaic canopies, edible facades, trams; reclaimed timber, copper',
-		insideCue: 'inside, a living wall as a working surface',
+		insideCue: 'inside, a filtration bank and gauges beside the desks',
 		negativeFragment: 'neon signage, dead plants',
 		lightLine: 'sunlight through the photovoltaic canopy, warm patches on timber, green reflected light',
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
@@ -179,11 +179,12 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
-		styleDna: 'fluted walnut panelling, brass balustrades, inlaid terrazzo, milk-glass lamps, deco cornices, arched windows',
-		worldOutside: 'through the glass, a streamlined 1930s city, arched stone facades; fluted walnut, brass',
-		insideCue: 'inside, brass-and-bakelite machine-age instruments that are clearly computers',
-		negativeFragment: 'neon, skyscrapers',
-		lightLine: 'bright daylight through the tall arched windows, walnut and brass lit warm and clear',
+		styleDna:
+			'streamlined moderne curves, fluted walnut, brass banding, inlaid terrazzo, milk-glass globes, rounded corner windows',
+		worldOutside: 'through the glass, a streamlined city of setbacks and spires, an airship; walnut, brass',
+		insideCue: 'inside, brass and enamel machines that are obviously advanced computers',
+		negativeFragment: 'neon, skyscrapers, museum, antiques, period drama, Victorian',
+		lightLine: 'bright daylight through tall windows, walnut and brass lit warm and clear',
 		shadowFace: 'Ornament as a screen over the same machine'
 	})
 ];

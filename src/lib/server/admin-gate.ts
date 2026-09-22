@@ -88,11 +88,35 @@ export function adminTokenOk(
  */
 export type AdminDenial = 'no token on this URL' | 'that token was rejected';
 
+/**
+ * THE ADMIN SCREENS ARE OPEN. Owner decision, 22 Sep, taken with the
+ * exposure stated: anyone who reaches `/admin` can Clear all (deletes every
+ * row), Reset room, drive the beat mid-session, and press Regenerate, which
+ * spends real money at fal per render. `/admin` is a guessable path.
+ *
+ * Flip this one constant back to `false` to restore the shared-secret gate.
+ * Nothing else was removed: every command still takes its `token`, the
+ * screens still pass it, `adminTokenOk` is untouched and still strict, and
+ * `admin-gate.test.ts` still pins its behaviour. This is a switch, not a
+ * demolition, because the reason to reach for it again is an event where
+ * the desk is not in the hands of the person running the room.
+ *
+ * WHAT IS DELIBERATELY NOT OPENED, because neither is an admin screen and
+ * neither was part of the ask:
+ *   - `/simulate` — drives the REAL commands with a live fal key. It calls
+ *     `adminTokenOk` directly and stays closed. Opening it would put a
+ *     twenty-table render run behind a public URL.
+ *   - the fal webhook — a shared secret is what stops anyone forging a
+ *     render completion against a row.
+ */
+export const ADMIN_SCREENS_OPEN = true;
+
 export function adminDenial(
 	expected: string | undefined,
 	token: string | null | undefined,
 	options: AdminGateOptions = {}
 ): AdminDenial | null {
+	if (ADMIN_SCREENS_OPEN) return null;
 	if (adminTokenOk(expected, token, options)) return null;
 	return token && token.trim() ? 'that token was rejected' : 'no token on this URL';
 }

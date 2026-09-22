@@ -17,7 +17,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$app/environment', () => ({ dev: false, building: false, browser: false }));
 
-const { adminTokenOk } = await import('./admin-gate');
+const { adminTokenOk, adminDenial } = await import('./admin-gate');
 
 describe('the admin gate, in production', () => {
 	it('opens for the right token', () => {
@@ -85,5 +85,41 @@ describe('a base64 token that travelled through a query string', () => {
 		expect(adminTokenOk(SECRET, 'aB3 xY7/zQ1 kL9X')).toBe(false);
 		expect(adminTokenOk(SECRET, '   ')).toBe(false);
 		expect(adminTokenOk(SECRET, ' ')).toBe(false);
+	});
+});
+
+/*
+ * WHAT OPENING THE DESK DID NOT OPEN.
+ *
+ * `ADMIN_SCREENS_OPEN` (22 Sep) removes the token from the three admin
+ * screens and `/health`. It must not reach anything that SPENDS. The two
+ * gates below are the ones that matter and they are enforced by a different
+ * function on purpose — `adminTokenOk`, which this switch does not touch:
+ *
+ *   /simulate     drives the real commands with a live fal key. Opening it
+ *                 puts a twenty-table render run behind a public URL.
+ *   fal webhook   a shared secret is what stops anyone forging a render
+ *                 completion against a row (it uses `secretEquals` directly).
+ *
+ * If someone later "simplifies" `adminTokenOk` into `adminDenial` because
+ * they look identical now, this is the test that stops it.
+ */
+describe('the open desk did not open the endpoints that spend', () => {
+	it('adminTokenOk is still strict, and is what /simulate calls', () => {
+		expect(adminTokenOk('the-real-secret', 'wrong')).toBe(false);
+		expect(adminTokenOk('the-real-secret', null)).toBe(false);
+		expect(adminTokenOk('the-real-secret', '')).toBe(false);
+		expect(adminTokenOk('the-real-secret', 'the-real-secret')).toBe(true);
+	});
+
+	it('still fails CLOSED when ADMIN_TOKEN is unset in production', () => {
+		expect(adminTokenOk(undefined, 'anything')).toBe(false);
+		expect(adminTokenOk(undefined, '')).toBe(false);
+	});
+
+	it('and adminDenial — the screens — lets everyone through', () => {
+		expect(adminDenial('the-real-secret', 'wrong')).toBeNull();
+		expect(adminDenial('the-real-secret', null)).toBeNull();
+		expect(adminDenial(undefined, undefined)).toBeNull();
 	});
 });

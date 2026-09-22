@@ -93,10 +93,17 @@ describe('the room-wide verbs', () => {
 		expect(await count('image')).toBe(3);
 	});
 
-	it('clearRoom with a bad token deletes nothing either', async () => {
+	/*
+	 * The token no longer guards this (`ADMIN_SCREENS_OPEN`, 22 Sep). The
+	 * TYPED EVENT ID still does, and it is now the only thing that does —
+	 * which is exactly why it was built as a separate confirmation rather
+	 * than a second click, and why it is worth a test of its own now that
+	 * it stands alone.
+	 */
+	it('clearRoom deletes nothing without the event id typed back, token or no token', async () => {
 		const { clearRoom } = await import('./admin.remote');
-		const res = await clearRoom({ token: 'wrong', confirm: EVENT });
-		expect(res.ok).toBe(false);
+		expect((await clearRoom({ token: 'wrong', confirm: 'not-the-event' })).ok).toBe(false);
+		expect((await clearRoom({ token: TOKEN, confirm: '' })).ok).toBe(false);
 		expect(await count('answer')).toBe(3);
 	});
 

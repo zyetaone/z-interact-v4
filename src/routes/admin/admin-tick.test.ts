@@ -172,16 +172,24 @@ describe('adminRoom with a room full of pending rows', () => {
 		expect(row.imageErrors.slice(1)).toEqual([null]);
 	});
 
-	it('makes no provider call at all for a bad token', async () => {
+	/*
+	 * THE DESK IS OPEN (owner decision, 22 Sep — `ADMIN_SCREENS_OPEN`).
+	 *
+	 * This test used to assert the opposite: a bad token got an empty room
+	 * and no provider call. It is kept, inverted, rather than deleted,
+	 * because the fact worth pinning did not go away — it changed. Anyone
+	 * reaching this URL now gets the whole room AND the tick that comes with
+	 * it, and the tick is what spends. That is the cost of the decision,
+	 * stated where someone re-reading the gate will find it.
+	 */
+	it('serves the whole room to any token at all, because the gate is open', async () => {
 		await seedPending(4);
 		stubFal();
 		const { adminRoom } = await import('./admin.remote');
 
 		const room = await adminRoom({ token: 'wrong' });
 
-		expect(room.tables).toHaveLength(0);
-		expect(waited).toHaveLength(0);
-		expect(falCalls).toBe(0);
+		expect(room.tables.length).toBeGreaterThan(0);
 	});
 
 	it('reports ONE zone column under the hero default, and the tick still carries the row', async () => {

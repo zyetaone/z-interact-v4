@@ -22,18 +22,24 @@ function call(db: D1Database, token: string | null, env: Record<string, unknown>
 }
 
 describe('/health gate', () => {
-	it('401s on a wrong token, a missing token, and an unset ADMIN_TOKEN', async () => {
+	/*
+	 * `/health` answers anyone (owner decision 22 Sep, `ADMIN_SCREENS_OPEN`).
+	 * It is a read-only ops check that ticks NOTHING and spends nothing — it
+	 * reports counts — so it moved onto the same switch as the screens
+	 * rather than keeping a token somebody has to find before they can curl
+	 * it. This test is inverted rather than deleted so the change is visible
+	 * to whoever flips the switch back.
+	 */
+	it('answers any caller, with or without a token, because the gate is open', async () => {
 		const db = fakeD1();
 
-		expect((await call(db, 'wrong')).status).toBe(401);
-		expect((await call(db, null)).status).toBe(401);
-		// Fails CLOSED: no configured secret rejects even the empty token that
-		// would otherwise "match" it.
-		expect((await call(db, '', { ADMIN_TOKEN: undefined })).status).toBe(401);
-		expect((await call(db, TOKEN, { ADMIN_TOKEN: undefined })).status).toBe(401);
+		expect((await call(db, 'wrong')).status).toBe(200);
+		expect((await call(db, null)).status).toBe(200);
+		expect((await call(db, '', { ADMIN_TOKEN: undefined })).status).toBe(200);
+		expect((await call(db, TOKEN, { ADMIN_TOKEN: undefined })).status).toBe(200);
 
-		const body = (await (await call(db, 'wrong')).json()) as { ok: boolean };
-		expect(body.ok).toBe(false);
+		const body = (await (await call(db, null)).json()) as { ok: boolean };
+		expect(body.ok).toBe(true);
 	});
 });
 

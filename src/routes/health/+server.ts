@@ -15,7 +15,7 @@
  */
 import { json } from '@sveltejs/kit';
 import { envOf, eventId } from '$lib/server/env';
-import { adminTokenOk } from '$lib/server/admin-gate';
+import { adminDenial } from '$lib/server/admin-gate';
 import { getBeat, getHealthCounts } from '$lib/server/room';
 import { TABLE_COUNT } from '$lib/game/questions';
 import type { RequestHandler } from './$types';
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 	const env = envOf(platform);
 	// No `devOpen`: an ops endpoint with an unset token stays shut on a
 	// laptop too. Same rule as `/simulate`, now said in one file.
-	if (!env || !adminTokenOk(env.ADMIN_TOKEN, url.searchParams.get('token'))) {
+	if (!env || adminDenial(env.ADMIN_TOKEN, url.searchParams.get('token'))) {
 		return json({ ok: false, reason: 'unauthorized' }, { status: 401 });
 	}
 

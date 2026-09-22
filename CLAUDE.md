@@ -122,7 +122,8 @@ leaves the key unset in production, which then looks exactly like a dead key.
 
 | Variable | Absent means |
 |---|---|
-| `FAL_KEY` / `FAL_WEBHOOK_SECRET` / `ADMIN_TOKEN` | fail closed in production |
+| `FAL_KEY` / `FAL_WEBHOOK_SECRET` | fail closed in production |
+| `ADMIN_TOKEN` | **no longer gates the admin screens** (`ADMIN_SCREENS_OPEN`). Still required by `/simulate` |
 | `EVENT_ID` | the `event_id` stamped on every row |
 | `MAX_RENDERS_PER_TABLE` | falls back to 12, never to "no cap" |
 | `REFERENCE_MODE` | `none` \| `lens` \| `chain`; unrecognised falls back to `none` |
@@ -330,8 +331,27 @@ unchanged", which is what the original scaffold already did.
   table measured 1,116-1,153, fifty characters from being silently cut —
   and what `sanitizeComposed` drops off the end is the Avoid list and the
   closing no-text guard.
-- **Secrets fail closed.** `ADMIN_TOKEN`, `FAL_WEBHOOK_SECRET` and
-  `SIMULATE_ENABLED` all reject when unset in production; `secretEquals`
+- **The admin screens are OPEN — owner decision, 22 Sep.**
+  `admin-gate.ts`'s `ADMIN_SCREENS_OPEN` is `true`, so `/admin`,
+  `/admin/analytics`, `/admin/photos`, `/admin/cards` and `/health` take no
+  token. Anyone who reaches `/admin` — a guessable path — can Clear all
+  (deletes every row), Reset room, drive the beat mid-session, and press
+  Regenerate, **which spends real money at fal per render**. The decision
+  was taken with that exposure stated.
+  It is ONE constant, not a demolition: every command still takes its
+  `token`, the screens still pass it, and flipping the constant to `false`
+  restores the gate with nothing else to put back. The typed event id is now
+  the ONLY thing standing between a stray visitor and `clearRoom`, which is
+  why it was built as a typed confirmation rather than a second click.
+  **`adminTokenOk` is untouched and still strict**, and the two things that
+  spend still call it: `/simulate` (a live fal key) and the fal webhook (a
+  forged completion). `admin-gate.test.ts` asserts that separation
+  explicitly, so a later "these two functions look the same, let's merge
+  them" cannot quietly open them. `static/robots.txt` disallows `/admin`,
+  `/t/` and `/health` — housekeeping to stay out of search results, not a
+  security control, and it does not pretend to be one.
+- **The remaining secrets fail closed.** `FAL_WEBHOOK_SECRET` and
+  `SIMULATE_ENABLED` reject when unset in production; `secretEquals`
   treats a missing expected value as "not equal" so a forgotten variable
   shuts a gate rather than opening it.
 - **The projector follows the desk.** `room_beat` drives `/projector`;

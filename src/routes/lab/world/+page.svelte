@@ -23,9 +23,18 @@
 	 * pipeline is `render -> worlds:generate -> poll -> .spz`, and the only
 	 * missing piece is the key.
 	 *
-	 * three.js and spark are loaded from CDN inside `onMount` rather than
-	 * imported, on purpose: nothing about this prototype reaches the app
-	 * bundle, and deleting this folder removes it completely.
+	 * three and spark are real dependencies, dynamically imported inside the
+	 * click handler so Vite code-splits them onto THIS route: the phone
+	 * flow, the desk and the projector never download them.
+	 *
+	 * They are not loaded from CDN, which was the first attempt. Spark's ESM
+	 * build imports `three` as a BARE specifier, so a browser needs an
+	 * import map to resolve it — and an import map has to be parsed before
+	 * the first module script on the page, which in SvelteKit is its own
+	 * hydration bundle. The page loaded, the click failed with "Failed to
+	 * resolve module specifier \"three\"", and no amount of ordering inside
+	 * the component could fix it. The bundler resolving the specifier is the
+	 * supported answer.
 	 */
 	import '../../../app.css';
 	import { onMount } from 'svelte';
@@ -43,16 +52,6 @@
 	let loadMs = $state(0);
 	let chosen = $state(WORLDS[0]);
 	let teardown: (() => void) | null = null;
-
-	/*
-	 * A non-literal specifier on purpose. With the URL inline, TypeScript
-	 * tries to resolve it as a module path and fails ("Cannot find module
-	 * 'https://…'"), because there are no types behind a CDN. Through a
-	 * variable it cannot, so the import stays untyped and `npm run check`
-	 * has nothing to object to. This is a prototype boundary, not a pattern
-	 * to copy into the app.
-	 */
-	const cdn = (url: string): Promise<any> => import(/* @vite-ignore */ url);
 
 	/** Everything the room needs to judge this, measured rather than claimed. */
 	const device = $derived.by(() => {
@@ -82,8 +81,8 @@
 		const started = performance.now();
 
 		try {
-			const THREE = await cdn('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
-			const { SplatMesh } = await cdn('https://sparkjs.dev/releases/spark/2.2.0/spark.module.js');
+			const THREE = await import('three');
+			const { SplatMesh } = await import('@sparkjsdev/spark');
 			if (!canvas) return;
 
 			const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });

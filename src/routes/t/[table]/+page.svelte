@@ -14,7 +14,8 @@
 	 * `poll.svelte.ts`, mounted by the two screens that poll.
 	 */
 	import '../../../app.css';
-	import { tableStatus, saveAnswer, saveFuture, saveWildcard, finishTable, regenerate, retryZone } from './answers.remote';
+	import { tableStatus, saveAnswer, saveFuture, saveWildcard, finishTable, regenerate,
+		undoRender, retryZone } from './answers.remote';
 	import { allRendersSettled, createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
 	import { andId } from '$lib/game/questions';
 	import Topbar from '$lib/ui/table/Topbar.svelte';
@@ -27,7 +28,9 @@
 	import ImagesScreen from '$lib/ui/table/ImagesScreen.svelte';
 	import DoneScreen from '$lib/ui/table/DoneScreen.svelte';
 
-	let { data }: { data: { table: number } } = $props();
+	// `brand` comes from the ROOT layout load, not this route's — see
+	// `+layout.server.ts`. A page's own data includes its layout's.
+	let { data }: { data: { table: number; brand?: string } } = $props();
 
 	// svelte-ignore state_referenced_locally -- intentional: `table` seeds the
 	// first read once; SvelteKit remounts this component on a table-param
@@ -222,6 +225,7 @@
 		/>
 	{:else if current.kind === 'drawing'}
 		<DrawingScreen
+			brand={data.brand}
 			prompt={flow.status.prompt}
 			images={flow.status.images}
 			refresh={async () => {
@@ -242,6 +246,8 @@
 			{failed}
 			{refresh}
 			onregenerate={(steer) => run(() => regenerate({ table, steer }), false)}
+			canUndo={flow.status.canUndo}
+			onundo={() => run(() => undoRender({ table }), false)}
 			onretry={(zone) => run(() => retryZone({ table, zone }), false)}
 			ondone={() => flow.go('done')}
 		/>

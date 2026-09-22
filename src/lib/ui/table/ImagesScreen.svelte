@@ -19,6 +19,8 @@
 		images,
 		narrative = null,
 		regenerating,
+		canUndo = false,
+		onundo,
 		failed,
 		refresh,
 		onregenerate,
@@ -39,6 +41,10 @@
 		 * clears any previous one rather than quietly re-applying it.
 		 */
 		onregenerate: (steer: string) => void;
+		/** True when an earlier render exists to go back to. */
+		canUndo?: boolean;
+		/** Restores the previous picture. Spends nothing — it is already drawn and already paid for. */
+		onundo: () => void;
 		/** One zone, one render — the failed tile's own control, not *Draw again*. */
 		onretry: (zone: string) => void;
 		ondone: () => void;
@@ -146,6 +152,11 @@
 <div class="grow"></div>
 
 <div class="actions">
+	{#if canUndo}
+		<!-- Costs nothing: the picture it goes back to is already drawn and
+		     already paid for, so this skips the cooldown and the cap. -->
+		<button class="btn ghost" disabled={regenerating} onclick={onundo}>Back to the last one</button>
+	{/if}
 	<button class="btn ghost" disabled={regenerating} onclick={() => onregenerate(steer)}>
 		{regenerating ? 'Redrawing…' : steer.trim() ? 'Draw again with this' : 'Draw again'}
 	</button>

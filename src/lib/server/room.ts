@@ -633,8 +633,18 @@ export async function getRenderBudget(
 	if (!db) return { used: 0, lastRenderAt: 0 };
 	const row = await db
 		.prepare(
+			// `actor <> 'restore'` is what keeps UNDO FREE. The budget counts
+			// image rows, and a restore inserts one — so without this, going
+			// back to a picture the table had already paid for consumed one of
+			// its twelve, and two undos plus a redraw could hit the cap with
+			// nothing new ever drawn. A restore makes no fal call and no new
+			// bytes; the cap is about money.
+			//
+			// It also keeps `lastRenderAt` honest, which drives the sixty-second
+			// cooldown: an undo must not start the clock on a redraw.
 			`SELECT COUNT(*) as n, COALESCE(MAX(created_at), 0) as last_at
-                 FROM image WHERE event_id = ? AND table_no = ? AND created_at > ?`
+                 FROM image WHERE event_id = ? AND table_no = ? AND created_at > ?
+                   AND (actor IS NULL OR actor <> 'restore')`
 		)
 		.bind(eventId, table, sinceTs)
 		.first<{ n: number; last_at: number }>();
@@ -1500,4 +1510,77 @@ export async function listStoredImages(d: D1Database, eventId: string): Promise<
 		r2Key: r.r2_key,
 		createdAt: r.created_at
 	}));
+}
+
+/**
+ * UNDO, on an append-only table.
+ *
+ * v1 had one and it was a client-side swap of two URLs in a store: real
+ * enough to a table, gone on a reload, and invisible to the wall. Here it
+ * does not have to be. `image` is append-only ACROSS regenerations, so
+ * every earlier render is still a row and its bytes are still in R2 — the
+ * only reason a table cannot see its previous picture is that "current"
+ * means "newest row for this zone".
+ *
+ * So restoring is an INSERT, not an update and certainly not a delete: a
+ * new `stored` row pointing at the earlier object, superseding the one on
+ * screen. Nothing is rewritten, the history keeps growing in one direction,
+ * and `/admin/photos` still lists every picture that ever existed.
+ *
+ * IT SPENDS NOTHING. No fal call, no new bytes in R2, and it does not count
+ * against `MAX_RENDERS_PER_TABLE` — the cap is about money, and going back
+ * to a picture you already paid for costs none.
+ *
+ * Pressing it twice returns you to where you were, which is exactly how
+ * v1's toggle behaved: the row you just left is now the newest DIFFERENT
+ * key, so it becomes the thing to go back to.
+ */
+export type RestorableImage = { zoneKey: string; currentId: string; r2Key: string; promptId: string; model: string };
+
+export async function findRestorable(
+	d: D1Database,
+	eventId: string,
+	table: number,
+	zoneKeys: readonly string[],
+	sinceTs = 0
+): Promise<RestorableImage[]> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return [];
+	const out: RestorableImage[] = [];
+	for (const zoneKey of zoneKeys) {
+		const res = await db
+			.prepare(
+				`SELECT id, r2_key, prompt_id, model FROM image
+				 WHERE event_id = ? AND table_no = ? AND zone_key = ? AND state = 'stored'
+				   AND r2_key IS NOT NULL AND r2_key != '' AND created_at > ?
+				 ORDER BY created_at DESC LIMIT 2`
+			)
+			.bind(eventId, table, zoneKey, sinceTs)
+			.all<{ id: string; r2_key: string; prompt_id: string; model: string }>();
+		const rows = res.results ?? [];
+		// Two rows with the SAME key is what a previous restore looks like —
+		// there is nothing to go back to that is not already on screen.
+		const prev = rows.find((r) => r.r2_key !== rows[0]?.r2_key);
+		if (rows[0] && prev) {
+			out.push({ zoneKey, currentId: rows[0].id, r2Key: prev.r2_key, promptId: prev.prompt_id, model: prev.model });
+		}
+	}
+	return out;
+}
+
+export async function restoreImages(d: D1Database, eventId: string, table: number, items: readonly RestorableImage[]): Promise<number> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return 0;
+	let n = 0;
+	for (const item of items) {
+		await db
+			.prepare(
+				`INSERT INTO image (id, event_id, table_no, zone_key, prompt_id, model, state, r2_key, actor, supersedes_id, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, 'stored', ?, 'restore', ?, ?)`
+			)
+			.bind(newId(), eventId, table, item.zoneKey, item.promptId, item.model, item.r2Key, item.currentId, monotonicNow())
+			.run();
+		n++;
+	}
+	return n;
 }

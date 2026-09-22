@@ -8,3 +8,8 @@ ADMIN_TOKEN=
 # Total renders one table may spend all night (first submit + every regenerate).
 # Unset or unparseable falls back to 12, never to "no cap".
 MAX_RENDERS_PER_TABLE=12
+
+# The line under the waiting screen and the front page ("Powered by …").
+# Unset renders nothing at all: no company name lives in this repo, so this
+# is a deploy value exactly like EVENT_ID.
+BRAND_LINE=

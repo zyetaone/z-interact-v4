@@ -64,6 +64,8 @@ import {
   getRenderBudget,
   getImageDetail,
   getTableFutures,
+  findRestorable,
+  restoreImages,
 } from "$lib/server/room";
 import {
   checkCooldown,
@@ -413,6 +415,18 @@ export const tableStatus = query(
       // `prompt-edit.test.ts` pins the behaviour either way.
       promptEditable: activeZones(env.ZONE_SET).length > 1,
       images,
+      // WHETHER THERE IS ANYTHING TO GO BACK TO. Computed here rather than
+      // inferred on the phone from "have I redrawn?", because a table that
+      // redrew and then undid has redrawn twice and has nothing further
+      // back that is not already on screen.
+      canUndo:
+        (await findRestorable(
+          env.DB,
+          event,
+          table,
+          activeZones(env.ZONE_SET).map((z) => z.key),
+          since
+        )).length > 0,
       narrative,
       submittedAt: state.submittedAt,
       closed: !!locked,
@@ -885,6 +899,56 @@ export const regenerate = command(
  * is the wrong behaviour in front of a live table. The per-table cap still
  * binds, because that one is about spend.
  */
+/**
+ * GO BACK TO THE LAST ONE.
+ *
+ * v1's undo swapped two URLs in a client store — real to the table, gone on
+ * reload, invisible to the wall. Here the earlier render is still a row and
+ * its bytes are still in R2, so this restores it for real: a new `stored`
+ * row pointing at the earlier object, superseding the one on screen.
+ * Append-only, nothing rewritten, nothing deleted, and `/admin/photos`
+ * still lists every picture that ever existed.
+ *
+ * IT SPENDS NOTHING, so it deliberately skips the cooldown AND the cap.
+ * Both exist to bound money; going back to a picture already paid for costs
+ * none, and making a table wait sixty seconds to undo a mistake in front of
+ * a live room is the wrong behaviour.
+ *
+ * The room lock still applies — once the wall has moved on, a table
+ * changing its picture underneath it is not undo, it is a surprise.
+ */
+export const undoRender = command(
+  v.object({ table: tableNo }),
+  async ({ table }) =>
+    withTableLock(table, async () => {
+      const env = requestEnv();
+      if (!env) return { ok: false as const, reason: "no environment" };
+      const event = eventId(env);
+      if (await lockedAt(env.DB, event)) {
+        return { ok: false as const, reason: "The room is closed — the screen has moved on." };
+      }
+      // A generation in flight would be superseded the moment it lands, so
+      // the table would appear to undo and then watch it undo itself.
+      if ((await getPendingImagesForTable(env.DB, event, table)).length > 0) {
+        return { ok: false as const, reason: "Still drawing — wait for this one to land." };
+      }
+      const since = await getResetAt(env.DB, event, table);
+      const items = await findRestorable(
+        env.DB,
+        event,
+        table,
+        activeZones(env.ZONE_SET).map((z) => z.key),
+        since
+      );
+      if (items.length === 0) {
+        return { ok: false as const, reason: "This is the only one you have drawn." };
+      }
+      const restored = await restoreImages(env.DB, event, table, items);
+      refreshQuietly(table);
+      return { ok: true as const, restored };
+    }),
+);
+
 export const retryZone = command(
   v.object({ table: tableNo, zone: v.string() }),
   async ({ table, zone }) =>

@@ -39,6 +39,8 @@ export interface TableStatus {
     url: string | null;
     error: string | null;
   }[];
+  /** True when an earlier render exists that is not the one on screen — what the undo button asks. */
+  canUndo?: boolean;
   /** The done screen's read-back paragraph, or null until one has been written (it arrives on a later poll). */
   narrative: string | null;
   submittedAt: number | null;

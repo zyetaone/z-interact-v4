@@ -138,6 +138,11 @@
 			</li>
 		{/each}
 	</ul>
+
+	<!-- Absent entirely when `BRAND_LINE` is unset, which is the default. -->
+	{#if data.brand}
+		<p class="brand">{data.brand}</p>
+	{/if}
 </main>
 
 {#if zoomed !== null}
@@ -174,6 +179,15 @@
 {/if}
 
 <style>
+	.brand {
+		text-align: center;
+		font-size: 12px;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+		margin: 2px 0 0;
+	}
+
 	.vision {
 		margin: 14px auto 0;
 		max-width: 62ch;

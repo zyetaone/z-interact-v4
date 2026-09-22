@@ -14,10 +14,16 @@
 	let {
 		prompt,
 		images,
+		brand = '',
 		refresh
 	}: {
 		prompt: string;
 		images: { zoneKey: string; state: string; url: string | null; error: string | null }[];
+		/**
+		 * `BRAND_LINE`, or empty. A PROP rather than a reach into page state,
+		 * so this component stays as pure as the rest of `lib/ui/table`.
+		 */
+		brand?: string;
 		refresh: () => Promise<unknown>;
 	} = $props();
 
@@ -47,7 +53,23 @@
 
 <div class="grow"></div>
 
+<!-- The waiting screen is where v1 put it, and it is the right place: the
+     one moment a table is looking at the phone with nothing to do. Absent
+     entirely when `BRAND_LINE` is unset. -->
+{#if brand}
+	<p class="brand">{brand}</p>
+{/if}
+
 <style>
+	.brand {
+		text-align: center;
+		font-size: 12px;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+		margin: 0 0 6px;
+	}
+
 	.zones {
 		list-style: none;
 		margin: 0 0 24px;

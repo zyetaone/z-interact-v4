@@ -64,6 +64,16 @@ export interface Env {
 	 * so turning this off loses nothing.
 	 */
 	SYSTEM_PROMPT?: string;
+	/**
+	 * The line under the waiting screen and the front page — v1 had
+	 * "Powered by ZyetaI" and this is where that lives now.
+	 *
+	 * AN ENV VAR, NOT A STRING IN SOURCE, for the same reason `EVENT_ID` is
+	 * one: this repo carries no client, event or company name (CLAUDE.md's
+	 * first rule). Unset renders nothing at all, so a fork or a different
+	 * event gets a clean app rather than somebody else's brand.
+	 */
+	BRAND_LINE?: string;
 	/** Total renders one table may spend across the whole event — first submit plus every regenerate. Parsed by `limits.ts`'s `maxRendersPerTable`, which falls back to 12 rather than to "no cap". */
 	MAX_RENDERS_PER_TABLE?: string;
 }

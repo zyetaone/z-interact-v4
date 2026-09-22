@@ -151,7 +151,11 @@ export const QUESTIONS: Question[] = [
 		select: { kind: 'one' },
 		diamond: true,
 		visualCues: false,
-		push: 'Name two materials you would want to touch.',
+		// A QUESTION, like the other three. This was the set's one imperative —
+		// "Name two materials…" — and an instruction in a box reads as homework
+		// where a question reads as an invitation. The field has always been
+		// optional; only this label was still ordering people about.
+		push: 'Which two materials would you want to touch?',
 		pushCapturesReply: true,
 		options: [
 			{
@@ -300,6 +304,29 @@ export const QUESTIONS: Question[] = [
 		// The order below is enclosure, not brightness: the water room is
 		// warm, steamy and sealed, so it sits BEFORE the tea room, whose paper
 		// screens are the first thing on the list you can see daylight through.
+		//
+		// FOUR, NOT SIX. The earth room and the sand room are gone, for the same
+		// reason the city list went from six to four: the NAMES collided. And this
+		// screen shows no pictures (`visualCues: false`), so the name is the whole
+		// of what a table gets.
+		//
+		//   igloo      <-> earth room   both "a small round room you get into and
+		//                               sit down in"; only the material told them
+		//                               apart, and the material was not in the name
+		//   earth room <-> q5c's        an earthen hut in two separate questions.
+		//                 "sealed       One table picks both, and one prompt then
+		//                 mud hut"      describes the same room twice
+		//   sand room  <-> outdoors     both "no furniture, sit on the ground"
+		//
+		// What is left is four with nothing in common: sealed and dry, sealed and
+		// wet, a room that opens, and no room at all. The igloo keeps the closed
+		// end because it is the owner's own anchor for it ("igloo is close"), and
+		// dropping the earth room leaves exactly ONE earthen space in the app —
+		// q5c's, which is where the owner put it.
+		//
+		// A dropped OPTION is not a dropped question: `fragmentsFor` resolves by
+		// key within the live question, so a row stored under `mud-hut` composes
+		// nothing for this layer. Same trade q8 already took when the slider went.
 		prompt: 'Where do people recharge?',
 		layer: 'programme',
 		select: { kind: 'one' },
@@ -315,20 +342,6 @@ export const QUESTIONS: Question[] = [
 					'a smooth white domed room entered on hands and knees, curved seamless walls, no windows at all, one person lying back in soft indirect light'
 			},
 			{
-				key: 'mud-hut',
-				label: 'The earth room',
-				// DELIBERATELY NOT "thick hand-built earth walls, one low
-				// doorway" any more. q5c's "sealed mud hut" says exactly that,
-				// and a table drawn to earth picks both — its deep-work room
-				// and its recharge room then compose as the same room twice,
-				// described in the same words, in one prompt. The two labels
-				// are the owner's and stay; the pictures they compose are now
-				// different rooms. This one is sunk, domed and lit from above;
-				// the working one is walled, sealed and lit from a doorway.
-				promptFragment:
-					'a round room sunk into warm ochre earth under a domed plaster ceiling, daylight falling through one round opening overhead, woven mats on a beaten floor, people sitting on the ground'
-			},
-			{
 				key: 'water-room',
 				label: 'The water room',
 				promptFragment:
@@ -339,12 +352,6 @@ export const QUESTIONS: Question[] = [
 				label: 'The tea room',
 				promptFragment:
 					'a small tatami room whose paper screens are slid open to a garden, a low kettle and a single flower, people kneeling on the mats'
-			},
-			{
-				key: 'sand-room',
-				label: 'The sand room',
-				promptFragment:
-					'a bright room with a deep raked sand floor and no furniture at all, people sitting and lying directly on it, tall windows open along one whole wall'
 			},
 			{
 				key: 'outdoors',

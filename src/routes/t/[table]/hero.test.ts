@@ -42,7 +42,7 @@ const T10: AnswerLike[] = [
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['soft-pastel'] },
 	{ questionId: 'q5c', keys: ['glass-dome'] },
-	{ questionId: 'q6r', keys: ['mud-hut'] },
+	{ questionId: 'q6r', keys: ['igloo'] },
 	{ questionId: 'q8', keys: ['saturated'] },
 	// A V4-era row. It still composes — see `layers.test.ts`'s note.
 	{ questionId: 'q7', keys: ['light-and-sound'] }
@@ -95,7 +95,7 @@ describe('every answer reaches the hero prompt', () => {
 		// folded q4w (the workstation) into q5c, so deep work and recharge are
 		// the whole programme.
 		expect(p).toMatch(/Deep work happens as a glass geodesic room standing alone/);
-		expect(p).toContain(`They recharge in ${fragmentFor('q6r', 'mud-hut')}`);
+		expect(p).toContain(`They recharge in ${fragmentFor('q6r', 'igloo')}`);
 	});
 
 	it('carries the room participating, nature, the materials, the scale and the lens light', () => {

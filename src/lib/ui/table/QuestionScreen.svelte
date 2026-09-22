@@ -13,6 +13,15 @@
 	 * fix 8). Every question captures a reply now, so the spoken-only "Talk"
 	 * variant has no question left to render and went with the rest.
 	 *
+	 * IT SAYS "OPTIONAL", because it always was and only the code knew. `ready`
+	 * counts selected options and has never looked at this field, so Next has
+	 * always enabled without a word typed — but the label is an imperative
+	 * ("Name two materials you would want to touch."), which a table under
+	 * time pressure reads as a thing it must do. Four of these, plus the
+	 * wildcard, is five typing events invented by punctuation. The wildcard
+	 * screen has always said so out loud with its Skip button; this is the
+	 * same promise on the four screens that were only implying it.
+	 *
 	 * The screen never advances on an unsaved answer: a failed save leaves
 	 * the selection on screen with a retry banner (game-flow.md §1).
 	 */
@@ -57,7 +66,9 @@
 
 {#if question.pushCapturesReply && question.push}
 	<section class="push-field">
-		<label class="field-label" for="push">{question.push}</label>
+		<label class="field-label" for="push">
+			{question.push}<span class="optional">optional</span>
+		</label>
 		<textarea
 			id="push"
 			class="field"
@@ -80,5 +91,20 @@
 <style>
 	.push-field {
 		margin-bottom: 18px;
+	}
+
+	/* Set apart from the label rather than appended to it: the label is a
+	   sentence a table reads, and "… you would want to touch. OPTIONAL" reads
+	   as part of the sentence. A separate token reads as a property of the
+	   field. */
+	.optional {
+		margin-left: 8px;
+		padding: 1px 6px;
+		border: 1px solid var(--line, currentColor);
+		border-radius: 999px;
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		opacity: 0.75;
+		white-space: nowrap;
 	}
 </style>

@@ -143,9 +143,17 @@ export const FUTURES: Future[] = [
 	}),
 	future({
 		key: 'solarpunk',
-		name: 'The abundant city',
+		// NOT "The abundant city". That name and "The garden city" both read as
+		// "the green one" on a phone card that shows a name over a picture, and
+		// the old blurb admitted it — it opened "A city of plenty, NOT OF
+		// WILDERNESS", a disclaimer against being mistaken for its neighbour.
+		// A name that needs a disclaimer is the wrong name. What this city
+		// actually is, is the one that MAKES what it uses, in public; the
+		// garden city is the one that disappears into nature. Those are not
+		// confusable, so the blurb no longer has to argue.
+		name: 'The self-sufficient city',
 		provenance: '"From Steampunk to Solarpunk", 2008 — a design movement, not a film',
-		blurb: 'A city of plenty, not of wilderness. Energy, food, water and amenity are abundant and ON SHOW \u2014 dense, urban, and generous with everything it makes.',
+		blurb: 'It makes its own energy, food and water, and shows you doing it. Dense and urban \u2014 solar skins, edible facades, pipes and pumps left on display.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],

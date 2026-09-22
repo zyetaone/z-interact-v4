@@ -296,7 +296,15 @@ button {
 }
 
 .field-label {
-  display: block;
+  /* FLEX, NOT BLOCK. The chip is a sibling of the label's text, so on a
+     question whose text wraps to two lines it was landing mid-sentence at
+     the end of line one — seen the moment q2's follow-up got longer. As a
+     flex item it goes after the WHOLE question instead, wrapping onto its
+     own line when there is no room. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
   font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;

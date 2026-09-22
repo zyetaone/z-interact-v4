@@ -195,3 +195,48 @@ describe('the loader says what is happening, in plain words', () => {
 		for (const src of [drawing, gallery, mark]) expect(src).not.toMatch(/Zyeta/i);
 	});
 });
+
+describe('the first screen does not show four empty boxes', () => {
+	const lens = readFileSync('src/lib/ui/table/FutureScreen.svelte', 'utf-8');
+
+	it('the lens images are eager — all four are above the fold', () => {
+		// `loading="lazy"` was deferring exactly the images the screen is made
+		// of, on a venue's wifi with twenty phones asking at once.
+		//
+		// Comments stripped first: the note explaining this fix quotes the
+		// attribute it removed, and the first version of this test failed on
+		// its own prose.
+		const markup = lens.replace(/<!--[\s\S]*?-->/g, '');
+		expect(markup).toContain('loading="eager"');
+		expect(markup).not.toContain('loading="lazy"');
+	});
+
+	it('and a skeleton sits behind them until they paint', () => {
+		expect(lens).toContain('class="lens skeleton"');
+		// The same shorthand trap: `.lens` set `background:` and would have
+		// wiped the gradient exactly as `.pending` did.
+		expect(lens).toContain('.lens:not(.skeleton)');
+	});
+});
+
+describe('the optional bits read as optional', () => {
+	it('a skipped wildcard says Skipped, not Not answered yet', () => {
+		const review = readFileSync('src/lib/ui/table/ReviewScreen.svelte', 'utf-8');
+		expect(review).toContain("row.optional ? 'Skipped' : 'Not answered yet'");
+		expect(review).toMatch(/label: 'Wildcard'[^}]*optional: true/);
+	});
+
+	it('the optional chip cannot land mid-sentence on a wrapped label', () => {
+		// It is a SIBLING of the label text, so as a block it wrapped into the
+		// middle of a two-line question. As a flex item it follows the whole
+		// question instead.
+		const rule = css.match(/\.field-label \{[\s\S]*?\n\}/)?.[0] ?? '';
+		expect(rule).toContain('display: flex');
+		expect(rule).toContain('flex-wrap: wrap');
+	});
+
+	it('the wildcard screen makes the promise CLAUDE.md says it makes', () => {
+		const wild = readFileSync('src/lib/ui/table/WildcardScreen.svelte', 'utf-8');
+		expect(wild).toContain('goes into the drawing exactly as you write it');
+	});
+});

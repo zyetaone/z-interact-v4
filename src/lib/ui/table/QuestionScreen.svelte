@@ -117,7 +117,6 @@
 	   as part of the sentence. A separate token reads as a property of the
 	   field. */
 	.optional {
-		margin-left: 8px;
 		padding: 1px 6px;
 		border: 1px solid var(--line, currentColor);
 		border-radius: 999px;

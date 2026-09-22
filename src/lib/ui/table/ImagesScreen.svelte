@@ -211,7 +211,6 @@
 	/* Same token as the questions' optional field, so "you do not have to
 	   fill this in" looks identical everywhere it is true. */
 	.optional {
-		margin-left: 8px;
 		padding: 1px 6px;
 		border: 1px solid var(--line, currentColor);
 		border-radius: 999px;

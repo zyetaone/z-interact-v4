@@ -21,6 +21,12 @@
 </script>
 
 <h1 class="stem">{WILDCARD.prompt}</h1>
+<!-- THE PROMISE. CLAUDE.md records this screen as promising that whatever
+     the table writes "goes into the drawing exactly as you write it" — and
+     it did not say so anywhere. It is the sentence that earns a good answer
+     rather than a shrug, and since the 21 Sep fix it is also TRUE on the
+     hero path, which is the only path most rooms render. -->
+<p class="hint">Whatever it is, it goes into the drawing exactly as you write it.</p>
 
 <textarea
 	class="field"

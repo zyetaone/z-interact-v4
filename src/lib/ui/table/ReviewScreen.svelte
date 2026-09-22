@@ -44,6 +44,8 @@
 		stepKey: string;
 		label: string;
 		value: string;
+		/** The row may legitimately be empty — an empty one says "Skipped", not "Not answered yet". */
+		optional?: boolean;
 	}
 
 	function labelsFor(id: string): string {
@@ -72,7 +74,7 @@
 	const rows = $derived<Row[]>([
 		{ key: FUTURE_ID, stepKey: 'future', label: 'Our future', value: labelsFor(FUTURE_ID) },
 		...FLOW_QUESTIONS.map((q) => ({ key: q.id, stepKey: q.id, label: q.prompt, value: labelsFor(q.id) })),
-		{ key: WILDCARD.id, stepKey: 'wildcard', label: 'Wildcard', value: labelsFor(WILDCARD.id) }
+		{ key: WILDCARD.id, stepKey: 'wildcard', label: 'Wildcard', value: labelsFor(WILDCARD.id), optional: true }
 	]);
 </script>
 
@@ -84,7 +86,11 @@
 		<li>
 			<button type="button" class="row" class:flagged={missing.includes(row.key)} onclick={() => onedit(row.stepKey)}>
 				<span class="q">{row.label}</span>
-				<span class="a">{row.value || 'Not answered yet'}</span>
+				<!-- "Not answered yet" on an OPTIONAL row reads as an error on the
+				     last screen before the table spends money — the wildcard is
+				     allowed to be empty and the screen should say so rather than
+				     flag it. `missing` still marks what genuinely is missing. -->
+				<span class="a">{row.value || (row.optional ? 'Skipped' : 'Not answered yet')}</span>
 			</button>
 		</li>
 	{/each}

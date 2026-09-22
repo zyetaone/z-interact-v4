@@ -50,11 +50,26 @@
 			<button
 				type="button"
 				role="radio"
-				class="lens"
+				class="lens skeleton"
 				aria-checked={picked}
 				onclick={() => onpick(future.key)}
 			>
-				<img class="lens-img" src={LENS_IMAGE[future.key]} alt={future.name} loading="lazy" />
+				<!-- EAGER, not lazy. These four are the first thing the table looks
+				     at and every one of them is above the fold, so `loading="lazy"`
+				     was deferring exactly the images the screen is made of — on a
+				     venue's wifi with twenty phones asking at once. Measured
+				     22 Sep: ~1.2 MB across the four, and a capture taken two
+				     seconds in showed three empty cards.
+				     The skeleton on the card behind them is what the table looks
+				     at meanwhile; an opaque `object-fit: cover` image covers it
+				     the moment it paints, so no JS tracks the load. -->
+				<img
+					class="lens-img"
+					src={LENS_IMAGE[future.key]}
+					alt={future.name}
+					loading="eager"
+					fetchpriority="high"
+				/>
 				<span class="lens-shade"></span>
 				<span class="lens-check" aria-hidden="true">&#10003;</span>
 				<!-- NAME OVER PICTURE. "The cityscapes need to be simplified"
@@ -133,11 +148,19 @@
 		overflow: hidden;
 		border: 2px solid var(--line);
 		border-radius: var(--radius);
-		background: var(--card-solid);
 		color: var(--ink);
 		text-align: left;
 		cursor: pointer;
 		transition: border-color 0.12s ease;
+	}
+
+	/* `:not(.skeleton)` for the reason ImagesScreen's `.pending` carries it:
+	   a bare `background` shorthand resets `background-image`/`-size` and
+	   Svelte's scoping class outranks the global rule. Here the class is
+	   always on, so this is the never-taken branch that keeps the card navy
+	   if the skeleton is ever removed. */
+	.lens:not(.skeleton) {
+		background: var(--card-solid);
 	}
 
 	.lens-img {

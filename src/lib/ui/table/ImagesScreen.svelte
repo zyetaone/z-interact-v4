@@ -130,7 +130,7 @@
 									Try this one again
 								</button>
 							{:else if waitingLabel(image.state) && brand.trim()}
-								<BrandMark line={brand} />
+								<BrandMark line={brand} note="Redrawing your workspace" />
 							{:else}
 								still drawing
 							{/if}

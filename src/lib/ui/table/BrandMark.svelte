@@ -12,7 +12,7 @@
 	 * cannot know which one that is. A one-character brand animates whole;
 	 * an empty one renders nothing at all.
 	 */
-	let { line = '' }: { line?: string } = $props();
+	let { line = '', note = '' }: { line?: string; note?: string } = $props();
 
 	const mark = $derived.by(() => {
 		const text = line.trim();
@@ -22,10 +22,35 @@
 </script>
 
 {#if mark}
-	<span class="mark">{mark.head}<span class="brand-tick">{mark.tick}</span></span>
+	<span class="wrap">
+		<span class="mark">{mark.head}<span class="brand-tick">{mark.tick}</span></span>
+		<!-- What is happening, in the table's language rather than the state
+		     machine's. Carries no company name — that is the mark above it,
+		     and it is a deploy value. -->
+		{#if note}<span class="note">{note}</span>{/if}
+	</span>
 {/if}
 
 <style>
+	.wrap {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		text-align: center;
+		padding: 0 16px;
+	}
+
+	.note {
+		font-family: var(--display);
+		font-size: 17px;
+		line-height: 1.35;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--ink-dim);
+		max-width: 22ch;
+	}
+
 	.mark {
 		font-size: 12px;
 		letter-spacing: 0.16em;

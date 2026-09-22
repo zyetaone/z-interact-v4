@@ -47,7 +47,7 @@ describe('the brand mark breathes while the render runs', () => {
 	it('is animated, and is inside the frame — the moment it describes', () => {
 		expect(css).toMatch(/\.brand-tick\s*\{[^}]*animation:\s*brand-tick/);
 		expect(mark).toContain('class="brand-tick"');
-		expect(drawing).toContain('<BrandMark line={brand} />');
+		expect(drawing).toContain('<BrandMark line={brand}');
 	});
 
 	it('animates the LAST GLYPH positionally, never a letter named in source', () => {
@@ -142,7 +142,7 @@ describe('the loader says the brand, not the machine state', () => {
 
 	it('both waiting surfaces show it while a render is in flight', () => {
 		for (const src of [drawing, gallery]) {
-			expect(src).toContain('<BrandMark line={brand} />');
+			expect(src).toContain('<BrandMark line={brand}');
 			expect(src).toContain('waitingLabel(image.state) && brand.trim()');
 		}
 	});
@@ -178,5 +178,20 @@ describe('a finished render is not a screen you go Back from', () => {
 		expect(rule).toContain('"drawing"');
 		expect(rule).toContain('"images"');
 		expect(rule).toContain('"done"');
+	});
+});
+
+describe('the loader says what is happening, in plain words', () => {
+	it('a first draw and a redraw say different things', () => {
+		// The gallery screen is only reached once something has landed, so a
+		// pending tile THERE is always a redraw or a retry. Saying "imagining"
+		// over a picture the table is already looking at would be a lie.
+		expect(drawing).toContain('Imagining your future workspace');
+		expect(gallery).toContain('Redrawing your workspace');
+	});
+
+	it('the line carries no company name — that is the mark above it', () => {
+		const mark = readFileSync('src/lib/ui/table/BrandMark.svelte', 'utf-8');
+		for (const src of [drawing, gallery, mark]) expect(src).not.toMatch(/Zyeta/i);
 	});
 });

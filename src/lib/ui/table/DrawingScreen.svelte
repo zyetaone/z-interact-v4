@@ -64,7 +64,7 @@
 				     an unset BRAND_LINE falls back to the state line, so this
 				     never renders an empty frame. -->
 				{#if waitingLabel(image.state) && brand.trim()}
-					<BrandMark line={brand} />
+					<BrandMark line={brand} note="Imagining your future workspace" />
 				{:else}
 					<span class="state">{generationLine(image.state)}</span>
 				{/if}

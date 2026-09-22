@@ -7,10 +7,22 @@
  * presenter screen, whose black goes to mud under venue bounce) is not set
  * here — that belongs to the projector workstream's own surface.
  *
- * ponytail: imported from `t/[table]/+page.svelte` rather than the root
- * layout, because two other routes are being written in parallel and the
- * layout is the one file all three would collide in. Hoisting this to
- * `+layout.svelte` is a one-line change once the tree is quiet.
+ * ponytail: imported by each page rather than by the root layout, because
+ * when this was written two other routes were being built in parallel and
+ * the layout was the one file all three would collide in.
+ *
+ * THAT TRADE HAS NOW COST SOMETHING, once, so it is no longer theoretical:
+ * `/admin/photos` shipped without this import and served in Times New Roman
+ * on white. Nothing catches it — not the build, not `svelte-check`, not the
+ * test suite. A new page is styled only if whoever wrote it remembered.
+ *
+ * Hoisting it is still not a one-line change, and that is the part the
+ * original note had wrong. `routes/projector/+layout.svelte` deliberately
+ * declares its OWN tokens scoped to `.projector-root` and imports nothing
+ * from here; this file also styles bare `body`, `button` and `input`, so
+ * hoisting puts phone styling on the wall and on the desk. Whoever does it
+ * checks the projector and `/admin` first, not just that the phone still
+ * looks right.
  */
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Playfair+Display:wght@500;600&display=swap");
 

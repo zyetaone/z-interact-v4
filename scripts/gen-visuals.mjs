@@ -159,6 +159,25 @@ const NOT_TODAY = 'present-day office, 2020s office furniture, cubicles, drop ce
  */
 const NO_TEXT = 'text, lettering, signage, logos, branding, watermarks, readable writing';
 
+/**
+ * PER-LENS CAMERA, FOR THE SELECTION CARD ONLY.
+ *
+ * The lens prompt says "seen from inside", which is right for every lens
+ * whose idea is a room — and wrong for the dispersed city, whose idea is
+ * the DISTANCE BETWEEN rooms. Shot from inside, "an acre each" reads as one
+ * isolated cabin; the neighbours are the point and you cannot see them from
+ * a sofa.
+ *
+ * Deliberately NOT a field on `Future`: a table's render is a workspace
+ * interior whatever lens it picks, so this must never reach `layers.ts` or
+ * `hero.ts`. The card and the render are different jobs and this file owns
+ * the card.
+ */
+const CARD_CAMERA = {
+	'broadacre-city': 'seen from a low aerial three-quarter view'
+};
+const DEFAULT_CAMERA = 'seen from inside';
+
 function lensJobs() {
 	return FUTURES.map((f) => ({
 		kind: 'lens',
@@ -166,7 +185,7 @@ function lensJobs() {
 		// `styleDna` + `worldOutside` + `insideCue`, NOT `moodLine`. Those three
 		// are what recipe v2 split out precisely so a lens keeps its identity
 		// at any hour; `moodLine` still carries the night and the weather.
-		prompt: `A workplace of 2040 seen from inside, ${f.styleDna}. ${f.worldOutside}. ${f.insideCue}. Photoreal film still, ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}, ${NO_TEXT}.`,
+		prompt: `A workplace of 2040 ${CARD_CAMERA[f.key] ?? DEFAULT_CAMERA}, ${f.styleDna}. ${f.worldOutside}. ${f.insideCue}. Photoreal film still, ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}, ${NO_TEXT}.`,
 		aspect_ratio: '4:3',
 		resolution: '1K'
 	}));

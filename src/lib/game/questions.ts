@@ -274,11 +274,14 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'sealed-cell',
-				// Renamed from "the sealed cell" to the owner's own "hermetically
-				// sealed mud hut", so the FRAGMENT moves with the label — an
-				// acoustic box and an earth room do not draw alike, and a label
-				// the picture contradicts is worse than either on its own.
-				label: 'The sealed mud hut',
+				// "The sealed cell" -> "The sealed mud hut" -> "The mud hut".
+				// The first rename moved the FRAGMENT with the label, because an
+				// acoustic box and an earth room do not draw alike. This one does
+				// NOT touch the fragment: dropping "sealed" makes the label say
+				// less than the picture, which is safe — windowless, thick earth
+				// walls and one low doorway are all still drawn. A label that
+				// says MORE than the fragment is the direction that breaks.
+				label: 'The mud hut',
 				promptFragment:
 					'a small windowless room of thick hand-built earth walls, a single low doorway, no screens and no devices, one person working by hand at a plain table'
 			},

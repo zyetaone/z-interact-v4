@@ -53,7 +53,26 @@
 	const minimum = $derived(
 		question.select.kind === 'pick' ? question.select.n : question.select.kind === 'many' ? (question.select.min ?? 1) : 1
 	);
-	const ready = $derived(keys.length >= minimum);
+	/**
+	 * AN OPEN OPTION IS NOT ANSWERED UNTIL IT IS WRITTEN IN.
+	 *
+	 * "Somewhere from our imagination" has `promptFragment: '{text}'` — it is
+	 * the one option in the app whose entire contribution is the table's own
+	 * words. Picked and left blank it composes nothing, so the deep-work
+	 * layer disappears from the prompt and nothing anywhere says so: the
+	 * table taps Next, sees its picture, and the question it answered is
+	 * simply not in it.
+	 *
+	 * The composer is already safe (no text, no clause, no dangling lead-in).
+	 * Safe is not the same as served.
+	 */
+	const openUnfilled = $derived(
+		keys.some((k) => {
+			const option = question.options.find((o) => o.key === k);
+			return option?.open && !(texts[k] ?? '').trim();
+		})
+	);
+	const ready = $derived(keys.length >= minimum && !openUnfilled);
 </script>
 
 <h1 class="stem">{question.prompt}</h1>

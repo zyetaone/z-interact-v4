@@ -206,7 +206,7 @@ export const QUESTIONS: Question[] = [
 		// answer "None", and that line asks them about greenery they have just
 		// said they do not want. A push has to be answerable from every option
 		// above it, or it reads as the form ignoring the reply.
-		push: 'Beyond how it looks, what is that choice for?',
+		push: 'Why that much?',
 		pushCapturesReply: true,
 		options: [
 			{

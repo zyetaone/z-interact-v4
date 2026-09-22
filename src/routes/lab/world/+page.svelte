@@ -29,6 +29,7 @@
 	 */
 	import '../../../app.css';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	const WORLDS = [
 		{ key: 'valley', label: 'A valley', mb: 6.4, url: 'https://sparkjs.dev/assets/splats/valley.spz' },
@@ -55,7 +56,12 @@
 
 	/** Everything the room needs to judge this, measured rather than claimed. */
 	const device = $derived.by(() => {
-		if (typeof navigator === 'undefined') return '';
+		// `browser`, not `typeof navigator === 'undefined'`. Node 21+ ships a
+		// global `navigator`, so that guard passes ON THE SERVER and the next
+		// line reaches for `window` and throws — this page 500'd in SSR for
+		// exactly that reason. The old shibboleth stopped working when the
+		// runtime grew the object it was testing for.
+		if (!browser) return '';
 		const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
 		return [
 			`${window.innerWidth}x${window.innerHeight}`,

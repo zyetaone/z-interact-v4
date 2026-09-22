@@ -508,6 +508,27 @@ export async function getResetAt(d: D1Database, eventId: string, table: number):
 }
 
 /**
+ * Every table's reset watermark in ONE query — the room-wide companion to
+ * `getResetAt`.
+ *
+ * A missing entry means "never reset", so a caller reads it as
+ * `createdAt > map.get(table) ?? 0`, exactly as the single-table version is
+ * used. This exists because a room read that loops `getResetAt` is twenty
+ * sequential D1 round trips inside a 5s poll — the same trap
+ * `getNarratives` and `getAdminRoomRows` each already avoid for their own
+ * rows.
+ */
+export async function getResetAtMap(d: D1Database, eventId: string): Promise<Map<number, number>> {
+	const db = await dbWith(d, 'table_reset', TABLE_RESET_SCHEMA);
+	if (!db) return new Map();
+	const res = await db
+		.prepare(`SELECT table_no, MAX(reset_at) as reset_at FROM table_reset WHERE event_id = ? GROUP BY table_no`)
+		.bind(eventId)
+		.all<{ table_no: number; reset_at: number }>();
+	return new Map((res.results ?? []).map((r) => [r.table_no, r.reset_at]));
+}
+
+/**
  * Appends a reset watermark and clears `event_table.submitted_at` — the
  * latter is a lifecycle-field mutation of the same kind `finishTable`
  * already performs (not a content edit of an append-only row), and is what

@@ -27,6 +27,7 @@
  * `npm run dev` the adapter's platformProxy proxies `ai` to the REAL
  * remote binding, so an unfaked local run spends.
  */
+import { getResetAtMap } from '$lib/server/room';
 import { dbWith, monotonicNow } from '$lib/server/d1';
 import { fragmentsFor, QUESTION_BY_ID, type AnswerLike } from './layers';
 
@@ -156,14 +157,38 @@ export async function getNarrative(d: D1Database, eventId: string, table: number
 export async function getNarratives(d: D1Database, eventId: string): Promise<Map<number, string>> {
 	const db = await dbWith(d, 'narrative', NARRATIVE_SCHEMA);
 	if (!db) return new Map();
-	const res = await db
-		.prepare(`SELECT table_no, text, created_at FROM narrative WHERE event_id = ? ORDER BY created_at ASC`)
-		.bind(eventId)
-		.all<{ table_no: number; text: string; created_at: number }>();
+	const [res, resetAt] = await Promise.all([
+		db
+			.prepare(`SELECT table_no, text, created_at FROM narrative WHERE event_id = ? ORDER BY created_at ASC`)
+			.bind(eventId)
+			.all<{ table_no: number; text: string; created_at: number }>(),
+		getResetAtMap(d, eventId)
+	]);
 	const out = new Map<number, string>();
 	// Ascending, so a later row simply overwrites an earlier one and the last
 	// write per table is the current one.
-	for (const r of res.results ?? []) out.set(r.table_no, r.text);
+	for (const r of res.results ?? []) {
+		// THE RESET WATERMARK, which this read ignored until 22 Sep.
+		//
+		// `getNarrative` (the phone's single-table read) has always filtered
+		// on it; this batched one did not, and it is what feeds BOTH the
+		// projector and the front page through `getProjectorRoom`. After a
+		// Reset room, a table that answered again and redrew got its new
+		// picture on the wall with the PREVIOUS run's paragraph underneath
+		// it — until the new narrative was written on the done screen.
+		//
+		// Masked rather than harmless: both surfaces only print a narrative
+		// beside a picture, and image reads do honour the watermark, so the
+		// stale line is invisible right up to the moment the reset table
+		// draws. Which is the entire scenario the Reset verb exists for.
+		//
+		// Same shape as the resetRoom bug found the same day: the per-table
+		// path was correct, the room-wide one was not, and the test suite
+		// asserted the per-table path. `reset-completeness.test.ts` checked
+		// `getNarrative(db, EVENT, T, since)` and passed straight through this.
+		if (r.created_at <= (resetAt.get(r.table_no) ?? 0)) continue;
+		out.set(r.table_no, r.text);
+	}
 	return out;
 }
 

@@ -37,7 +37,7 @@ import {
 	seedTables
 } from './room';
 import { getLatestPrompt } from '../../routes/t/[table]/prompt-store';
-import { getNarrative, insertNarrative } from '../../routes/t/[table]/narrative';
+import { getNarrative, getNarratives, insertNarrative } from '../../routes/t/[table]/narrative';
 
 const EVENT = 'reset-completeness';
 const T = 4;
@@ -102,6 +102,30 @@ describe('a reset room', () => {
 		expect(await getLatestPrompt(db, EVENT, T, since)).toBeNull();
 		// ...and the allowance is back, which is the point of resetting.
 		expect((await getRenderBudget(db, EVENT, T, since)).used).toBe(0);
+	});
+
+	/**
+	 * THE ROOM-WIDE READ, not the per-table one.
+	 *
+	 * Every assertion above takes `since` and asks a single-table function.
+	 * The projector and the front page do not: they call `getProjectorRoom`,
+	 * which batches one query per KIND across the whole room. Three of those
+	 * four honoured the watermark; `getNarratives` did not, and this suite
+	 * passed straight through it because it only ever asked `getNarrative`.
+	 *
+	 * Same shape as the resetRoom bug found the same day — the data half
+	 * right, the room half wrong, and the tests looking at the data half.
+	 */
+	it('the BATCHED narrative read honours the watermark too, not just the per-table one', async () => {
+		await resetTable(db, EVENT, T);
+		expect(await getNarratives(db, EVENT)).not.toHaveProperty(String(T));
+		expect((await getNarratives(db, EVENT)).get(T)).toBeUndefined();
+	});
+
+	it('a narrative written AFTER the reset is the one the wall shows', async () => {
+		await resetTable(db, EVENT, T);
+		await insertNarrative(db, { eventId: EVENT, table: T, text: 'second run', model: 'test', actor: 'system' });
+		expect((await getNarratives(db, EVENT)).get(T)).toBe('second run');
 	});
 
 	it('a second run starts a fresh lineage, not an edit of the room that was reset away', async () => {

@@ -80,14 +80,16 @@ const lensCards = FUTURES.map(
  * The typed field under a question's options — the 21 Sep note "similar to
  * KL, allow open text below", KL being generation 1, where every field was
  * free text. It used to print as a "Talk" line, which reads as something
- * said at the table and never typed; on q8 and q6r that was true and is not
- * any more. A reply that is kept but never drawn says so.
+ * said at the table and never typed. Since 22 Sep only q2 has one: q8's and
+ * q5c's boxes were removed and q6r's became an open option, and `pushNotDrawn`
+ * went with them — every surviving push reply IS drawn, so there is no longer
+ * a second case to print.
  */
 function openText(q) {
 	if (!q.push || !q.pushCapturesReply) return '';
 	return `<div class="open-text">
 		<h3>Open text: ${esc(q.push)}</h3>
-		<p class="meta">Optional \u2014 ${q.pushNotDrawn ? 'kept with the answers for the wall, never drawn' : 'added to the prompt word for word'}.</p>
+		<p class="meta">Optional \u2014 added to the prompt word for word.</p>
 		<div class="field"></div>
 	</div>`;
 }

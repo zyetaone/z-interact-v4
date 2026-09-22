@@ -170,7 +170,11 @@ src/lib/server/
   fake-d1.ts   # an in-memory D1Database for the tests; no test talks to a real binding
 src/lib/game/
   questions.ts # the FOUR surviving questions (q2, q8, q5c, q6r) + wildcard + STEER.
-               #   No slider on q8 any more (None/20%/40%). Every push field is OPTIONAL.
+               #   No slider on q8 any more (None/20%/40%). ONE push field left (q2's,
+               #   optional, and drawn): q8's and q5c's were removed 22 Sep because the
+               #   hero composer reads only q2's reply, and q6r's became a fifth OPEN
+               #   option so its words are drawn. q5c and q6r both end in an open option
+               #   whose `{text}` IS the programme layer; neither needs artwork.
   futures.ts   # FOUR offered futures + RETIRED_FUTURES (the two withdrawn, still resolvable
                #   via ALL_FUTURES) + era + lightLine
   zones.ts     # the zone sets behind ZONE_SETS (+ RETIRED_ZONES for historical rows)

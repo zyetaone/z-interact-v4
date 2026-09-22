@@ -33,7 +33,7 @@ const PICKS: { label: string }[] = [
 	{ label: 'Earth and timber' },
 	{ label: '20%' },
 	{ label: 'The dome in the rainforest' },
-	{ label: 'The water room' }
+	{ label: 'The hydro sensory room' }
 ];
 
 const PUSHES = [
@@ -78,6 +78,7 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await page.reload();
 
 	const prompts: string[] = [];
+	const typed: (string | null)[] = PICKS.map(() => null);
 	for (let i = 0; i < PICKS.length; i++) {
 		const stem = (await page.locator('h1.stem').textContent())?.trim() ?? '';
 		prompts.push(stem);
@@ -85,8 +86,16 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 		// The typed reply — every question captures one now, which is the
 		// 21 Sep "allow open text below" note. Filled here so the book shows
 		// the field with real words in it rather than an empty box.
+		// THREE OF THE FOUR BOXES ARE GONE (22 Sep). q8's and q5c's were
+		// removed and q6r's became an open option, so only q2 still has one.
+		// `typed[i]` records what was actually filled — the book used to print
+		// PUSHES[i] under every question whether a box existed or not, which
+		// would now caption three screenshots with words nobody typed.
 		const box = page.locator('#push');
-		if (await box.count()) await box.fill(PUSHES[i]);
+		if (await box.count()) {
+			await box.fill(PUSHES[i]);
+			typed[i] = PUSHES[i];
+		}
 		await shoot(page, `0${4 + i}-q${i + 1}`);
 		await page.getByRole('button', { name: 'Next' }).click();
 		// Wait for the stem to CHANGE, not for a fixed delay. A flat timeout
@@ -145,7 +154,7 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await writeFile(
 		`${DIR}/composed-prompt.txt`,
 		`table ${TABLE} · the garden city\n` +
-			`${prompts.map((p, i) => `Q${i + 1} ${p} -> ${PICKS[i].label}\n    typed: ${PUSHES[i]}`).join('\n')}\n` +
+			`${prompts.map((p, i) => `Q${i + 1} ${p} -> ${PICKS[i].label}${typed[i] ? `\n    typed: ${typed[i]}` : ''}`).join('\n')}\n` +
 			`wildcard: ${WILDCARD}\n\n` +
 			`--- composed (${composed.length} characters) ---\n${composed}\n`,
 		'utf-8'

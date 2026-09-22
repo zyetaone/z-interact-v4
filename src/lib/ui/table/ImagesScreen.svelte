@@ -107,7 +107,14 @@
 						</div>
 					{/if}
 				</div>
-				<span class="zone">{zoneLabel(image.zoneKey)}</span>
+				<!-- The zone label earns its place only when there is more than one
+				     zone to tell apart. In a hero room there is exactly one picture
+				     and the heading above it already says "Your workspace of the
+				     future" — the caption was the same words again, printed on the
+				     picture. -->
+				{#if images.length > 1}
+					<span class="zone">{zoneLabel(image.zoneKey)}</span>
+				{/if}
 			</li>
 		{/each}
 	</ul>

@@ -166,7 +166,7 @@
 			resuming={flow.status.answers.length > 0}
 			closed={flow.status.closed}
 			gateReason={flow.status.gateReason}
-			onbegin={() => flow.next()}
+			onbegin={() => flow.resume()}
 		/>
 	{:else if current.kind === 'future'}
 		<FutureScreen
@@ -246,12 +246,17 @@
 			ondone={() => flow.go('done')}
 		/>
 	{:else}
+		<!-- `onedit` goes to REVIEW, not to the first question. It used to send a
+		     submitted table back to the lens and make it walk all five screens
+		     again, re-answering what it had already answered. The review screen
+		     lists every answer and its own edit jumps to the ONE line tapped,
+		     which is what this button meant all along. -->
 		<DoneScreen
 			closed={flow.status.closed}
 			gateReason={flow.status.gateReason}
 			images={flow.status.images}
 			narrative={flow.status.narrative}
-			onedit={() => flow.go('future')}
+			onedit={() => flow.go('review')}
 			onimages={() => flow.go('images')}
 		/>
 	{/if}

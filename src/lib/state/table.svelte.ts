@@ -194,6 +194,20 @@ export function createTableState(initial: TableStatus) {
     next() {
       cursor = Math.min(cursor + 1, STEPS.length - 1);
     },
+    /**
+     * WHAT THE LANDING'S BUTTON PROMISES. "Pick up where you left off" used
+     * to call `next()`, which is the landing's NEIGHBOUR — the lens — so a
+     * table that had answered four questions and walked Back to the start was
+     * asked the lens again, and then everything after it.
+     *
+     * `resumeIndex` already knows the first unanswered step; the landing is
+     * simply the one screen that was not asking it.
+     */
+    resume() {
+      cursor = status.answers.length
+        ? resumeIndex(status)
+        : Math.min(cursor + 1, STEPS.length - 1);
+    },
     back() {
       cursor = Math.max(cursor - 1, 0);
     },

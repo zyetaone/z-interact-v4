@@ -1414,3 +1414,90 @@ export async function exportRoomRows(d: D1Database, eventId: string, tableCount:
 	}
 	return rows;
 }
+
+/**
+ * THE TWO ROOM-WIDE VERBS game-flow.md §5 asked for and this app never had
+ * ("delete one table / clear the room"). They are deliberately not the same
+ * verb, because they are not the same risk.
+ *
+ * `resetRoom` is twenty `resetTable` calls: a watermark per table, nothing
+ * deleted, every row still in D1 and still in the export. It is what a dry
+ * run wants — rehearse the whole room, then hand it back to the real tables
+ * with their allowance restored.
+ *
+ * `clearRoom` is a DELETE, and the only one in this codebase. It is what a
+ * new event on a reused database wants. It cannot be undone, `wrangler d1
+ * export` before it is the whole safety net, and the caller has to say the
+ * event id back for it to run at all — see the route.
+ */
+export async function resetRoom(d: D1Database, eventId: string, tableCount: number): Promise<number> {
+	for (let table = 1; table <= tableCount; table++) {
+		await resetTable(d, eventId, table, 'admin');
+	}
+	return tableCount;
+}
+
+export type ClearedCounts = { answer: number; prompt: number; image: number; narrative: number; table_reset: number };
+
+/**
+ * Deletes every row this event owns, and reports what went. R2 objects are
+ * NOT touched: they are keyed by image row id, so once the rows are gone
+ * nothing in the app can name them again — they are orphaned, not served.
+ *
+ * ponytail: orphaned objects cost storage and nothing else. Sweeping them
+ * needs a list-and-delete over the bucket prefix, which is a second failure
+ * mode (a half-finished sweep) for a bill measured in cents. Add it when a
+ * bucket is actually reused across many events.
+ */
+export async function clearRoom(d: D1Database, eventId: string): Promise<ClearedCounts> {
+	const out: ClearedCounts = { answer: 0, prompt: 0, image: 0, narrative: 0, table_reset: 0 };
+	for (const table of Object.keys(out) as (keyof ClearedCounts)[]) {
+		// Every one of these tables is created by `ensureTable` on first use,
+		// so on a fresh database some of them genuinely do not exist yet.
+		// A missing table is nothing to delete, not an error.
+		try {
+			const res = await d.prepare(`DELETE FROM ${table} WHERE event_id = ?`).bind(eventId).run();
+			out[table] = res.meta?.changes ?? 0;
+		} catch {
+			out[table] = 0;
+		}
+	}
+	try {
+		await d.prepare(`UPDATE event_table SET submitted_at = NULL WHERE event_id = ?`).bind(eventId).run();
+	} catch {
+		/* same reasoning */
+	}
+	return out;
+}
+
+export type StoredImageRow = { id: string; table: number; zoneKey: string; r2Key: string; createdAt: number };
+
+/**
+ * Every render this event ever stored, oldest first — for the desk's
+ * "save the photographs" page.
+ *
+ * DELIBERATELY IGNORES THE RESET WATERMARK, which every other read here
+ * honours. A watermark means "the room should stop showing this"; it does
+ * not mean the picture never happened. A table that redrew four times made
+ * four pictures and the one you want to keep is as likely to be an earlier
+ * one. This is the archive path, not a room read.
+ */
+export async function listStoredImages(d: D1Database, eventId: string): Promise<StoredImageRow[]> {
+	const db = await dbWith(d, 'image', IMAGE_SCHEMA);
+	if (!db) return [];
+	const res = await db
+		.prepare(
+			`SELECT id, table_no, zone_key, r2_key, created_at FROM image
+			 WHERE event_id = ? AND r2_key IS NOT NULL AND r2_key != ''
+			 ORDER BY table_no ASC, created_at ASC`
+		)
+		.bind(eventId)
+		.all<{ id: string; table_no: number; zone_key: string; r2_key: string; created_at: number }>();
+	return (res.results ?? []).map((r) => ({
+		id: r.id,
+		table: r.table_no,
+		zoneKey: r.zone_key,
+		r2Key: r.r2_key,
+		createdAt: r.created_at
+	}));
+}

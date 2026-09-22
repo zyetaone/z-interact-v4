@@ -34,6 +34,8 @@ import {
 	setBeat as setBeatRow,
 	getBeat,
 	exportRoomRows,
+	resetRoom as resetRoomRows,
+	clearRoom as clearRoomRows,
 	type Beat
 } from '$lib/server/room';
 import { tickImageRow, tickRowSafely } from '$lib/server/ticker';
@@ -338,6 +340,53 @@ export const resetTable = command(v.object({ token: tokenField, table: tableNo }
  * This used to insert one per zone, which left `getLatestPrompt` choosing
  * between four near-identical rows written in the same breath.
  */
+/**
+ * RESET THE WHOLE ROOM — twenty watermarks, nothing deleted.
+ *
+ * What a dry run needs: rehearse with real phones and real renders, then
+ * hand the room back to the tables who will actually sit at it, with their
+ * render allowance restored and their answers no longer showing. Every row
+ * stays in D1 and stays in the export, exactly as the per-table reset the
+ * desk already had.
+ */
+export const resetRoom = command(v.object({ token: tokenField }), async ({ token }) => {
+	const env = requestEnv();
+	if (!env) return { ok: false as const, reason: 'no environment' };
+	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const tables = await resetRoomRows(env.DB, eventId(env), TABLE_COUNT);
+	return { ok: true as const, tables };
+});
+
+/**
+ * CLEAR THE ROOM — the only DELETE in this codebase, and the only command
+ * here that asks for more than a token.
+ *
+ * The caller must send the event id back in `confirm`. A shared-secret
+ * token is in the desk's URL, which means it is in a browser history, a
+ * screenshot and possibly a projector; it is the right gate for "advance
+ * the beat" and the wrong one on its own for "delete the event". Saying the
+ * event id proves the caller knows WHICH room they are erasing, which is
+ * the mistake actually worth preventing — the desk for last week's event
+ * left open in a tab while this week's runs.
+ *
+ * `wrangler d1 export` is the entire safety net. There is no undo.
+ */
+export const clearRoom = command(
+	v.object({ token: tokenField, confirm: v.pipe(v.string(), v.minLength(1)) }),
+	async ({ token, confirm }) => {
+		const env = requestEnv();
+		if (!env) return { ok: false as const, reason: 'no environment' };
+		if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+		const event = eventId(env);
+		if (confirm !== event) {
+			return { ok: false as const, reason: `type the event id (${event}) to confirm` };
+		}
+		const cleared = await clearRoomRows(env.DB, event);
+		await seedTables(env.DB, event, TABLE_COUNT);
+		return { ok: true as const, cleared };
+	}
+);
+
 export const regenerateTable = command(
 	v.object({ token: tokenField, table: tableNo, zone: v.optional(v.string()) }),
 	async ({ token, table, zone }) => {

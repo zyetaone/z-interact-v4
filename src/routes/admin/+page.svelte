@@ -12,7 +12,7 @@
 	import '../../app.css';
 	import { page } from '$app/state';
 	import { poll } from '$lib/poll.svelte';
-	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, seedRoom, exportRoom } from './admin.remote';
+	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, resetRoom, clearRoom, seedRoom, exportRoom } from './admin.remote';
 	import { FIXTURE_ROOM } from '$lib/ui/admin/fixtures';
 	import { zoneLabel } from '$lib/game/zones';
 	import { ALL_FUTURES } from '$lib/game/futures';
@@ -150,6 +150,30 @@
 		await run('seed 20 tables', () => seedRoom({ token }));
 	}
 
+	/**
+	 * THE TWO ROOM-WIDE VERBS, and they are deliberately not alike on screen.
+	 *
+	 * Reset is one confirm, because nothing is lost: it writes twenty
+	 * watermarks and every row stays in D1 and in the Export. Clear types the
+	 * event id, because it is the only DELETE in the app — and because this
+	 * desk's token lives in a URL that has been in a browser history and
+	 * quite possibly on a projector. Naming the event proves the facilitator
+	 * knows WHICH room they are erasing, which is the mistake worth stopping:
+	 * last week's desk still open in a tab while this week's event runs.
+	 */
+	async function doResetRoom() {
+		if (!confirm('Reset all 20 tables?\n\nEvery table goes back to the start and gets its render allowance back. Nothing is deleted — the answers and pictures stay in the database and in the Export.')) return;
+		await run('reset the room', () => resetRoom({ token }));
+	}
+
+	async function doClearRoom() {
+		const typed = prompt(
+			'CLEAR THE ROOM — this permanently deletes every answer, prompt and picture for this event. It cannot be undone.\n\nRun `wrangler d1 export` first if you want them.\n\nType the event id to confirm:'
+		);
+		if (!typed) return;
+		await run('clear the room', () => clearRoom({ token, confirm: typed.trim() }));
+	}
+
 	async function doExport() {
 		if (fixturesMode) {
 			banner = 'fixtures mode — export is not wired to a server';
@@ -215,6 +239,9 @@
 			     to read the room. The token rides along, as it does everywhere. -->
 			<a class="desk-link" href="/admin/cards?token={token}">Table cards</a>
 			<a class="desk-link" href="/admin/analytics?token={token}">Readout</a>
+			<a class="desk-link" href="/admin/photos?token={token}">Photographs</a>
+			<button class="danger" disabled={busy} onclick={doResetRoom}>Reset room</button>
+			<button class="danger" disabled={busy} onclick={doClearRoom}>Clear all</button>
 		</div>
 		</header>
 	</div>
@@ -302,6 +329,14 @@
 </div>
 
 <style>
+	/* Reset and Clear sit in the same row as Export and Seed, and a
+	   facilitator under pressure reaches for whatever is nearest. They get
+	   their own colour so the row cannot be tabbed through by muscle memory. */
+	.danger {
+		border-color: #a3434d;
+		color: #e8a0a8;
+	}
+
 	/* The desk wears the phone's tokens (app.css, imported above): navy
 	   ground, gold accent, the same display/body faces. No white ground, no
 	   system-ui (design-review.md desk scorecard). Only desk-specific

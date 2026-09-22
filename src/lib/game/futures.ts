@@ -135,10 +135,11 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'One vast continuous interior: a single megastructure canyon of stacked terraces bridging overhead, seen from a mid-level walkway. Board-marked concrete, dark steel, deep planting spilling from every edge. Light falls in enormous shafts from an apex oculus far above, leaving the lower levels in cool blue shadow and warm pooled lamplight. Palette: graphite, moss, amber, dust. Monumental scale; a single small figure dwarfed by structure. No exterior sky, no horizon. Awe with a trace of confinement.',
-		styleDna: 'board-marked concrete piers, stacked balconies bridging an inner void, hanging planting, one oculus',
-		worldOutside: 'through the glass, terraces stacked around an inner void; board-marked concrete, dark steel',
-		insideCue: 'inside, a vertical transit car crossing the inner void',
-		negativeFragment: 'suburb, lawns, open sky',
+		styleDna:
+			'a vast interior canyon of terraces receding level after level, dwellings, gardens and workrooms throughout',
+		worldOutside: 'across the void, homes and planting stacked out of sight; pale concrete, warm timber',
+		insideCue: 'inside, a transit car climbing the void, market stalls below',
+		negativeFragment: 'suburb, lawns, open sky, brutalist civic building, 1970s office block',
 		lightLine: 'daylight pouring down the apex oculus and bouncing off pale concrete into every terrace',
 		shadowFace: 'Elysium: the ring above, the ground below'
 	}),
@@ -160,11 +161,12 @@ export const FUTURES: Future[] = [
 		eraWarn: [],
 		moodLine:
 			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
-		styleDna: 'photovoltaic glass roof, hanging planters and vines, exposed copper pipe, teal and terracotta',
+		styleDna:
+			'photovoltaic glass roof, hanging planters and vines, exposed copper pipe and water tanks, teal and terracotta',
 		worldOutside: 'through the glass, photovoltaic canopies, edible facades, trams; reclaimed timber, copper',
 		insideCue: 'inside, a living wall as a working surface',
 		negativeFragment: 'neon signage, dead plants',
-		lightLine: 'bright diffuse light through the glass canopy, green reflected light, no deep shadow',
+		lightLine: 'sunlight through the photovoltaic canopy, warm patches on timber, green reflected light',
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
 	}),
 	future({

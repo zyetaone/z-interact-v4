@@ -153,25 +153,40 @@
 	/**
 	 * THE TWO ROOM-WIDE VERBS, and they are deliberately not alike on screen.
 	 *
-	 * Reset is one confirm, because nothing is lost: it writes twenty
-	 * watermarks and every row stays in D1 and in the Export. Clear types the
-	 * event id, because it is the only DELETE in the app — and because this
-	 * desk's token lives in a URL that has been in a browser history and
-	 * quite possibly on a projector. Naming the event proves the facilitator
-	 * knows WHICH room they are erasing, which is the mistake worth stopping:
-	 * last week's desk still open in a tab while this week's event runs.
+	 * Both arm in place rather than opening a browser dialog, because that is
+	 * what every other destructive control on this desk already does — a
+	 * facilitator who has learned "press it twice" on a row should not meet a
+	 * modal on the header.
+	 *
+	 * Reset arms and confirms: nothing is lost, it writes twenty watermarks
+	 * and every row stays in D1 and in the Export.
+	 *
+	 * Clear arms into a TEXT FIELD that wants the event id. It is the only
+	 * DELETE in the app, and this desk's token lives in a URL that has been
+	 * in a browser history and quite possibly on a projector — a second
+	 * click is not a second decision. Naming the event proves the facilitator
+	 * knows WHICH room they are erasing, which is the mistake actually worth
+	 * stopping: last week's desk still open in a tab while this week's runs.
 	 */
+	let roomVerb = $state<'' | 'reset' | 'clear'>('');
+	let clearConfirm = $state('');
+
+	function armRoom(verb: 'reset' | 'clear') {
+		roomVerb = roomVerb === verb ? '' : verb;
+		clearConfirm = '';
+	}
+
 	async function doResetRoom() {
-		if (!confirm('Reset all 20 tables?\n\nEvery table goes back to the start and gets its render allowance back. Nothing is deleted — the answers and pictures stay in the database and in the Export.')) return;
+		roomVerb = '';
 		await run('reset the room', () => resetRoom({ token }));
 	}
 
 	async function doClearRoom() {
-		const typed = prompt(
-			'CLEAR THE ROOM — this permanently deletes every answer, prompt and picture for this event. It cannot be undone.\n\nRun `wrangler d1 export` first if you want them.\n\nType the event id to confirm:'
-		);
+		const typed = clearConfirm.trim();
 		if (!typed) return;
-		await run('clear the room', () => clearRoom({ token, confirm: typed.trim() }));
+		roomVerb = '';
+		clearConfirm = '';
+		await run('clear the room', () => clearRoom({ token, confirm: typed }));
 	}
 
 	async function doExport() {
@@ -240,8 +255,48 @@
 			<a class="desk-link" href="/admin/cards?token={token}">Table cards</a>
 			<a class="desk-link" href="/admin/analytics?token={token}">Readout</a>
 			<a class="desk-link" href="/admin/photos?token={token}">Photographs</a>
-			<button class="danger" disabled={busy} onclick={doResetRoom}>Reset room</button>
-			<button class="danger" disabled={busy} onclick={doClearRoom}>Clear all</button>
+
+			<span class="danger-slot">
+				<button
+					disabled={busy}
+					class="danger-outline armable"
+					class:armed={roomVerb === 'reset'}
+					aria-pressed={roomVerb === 'reset'}
+					onclick={() => armRoom('reset')}
+				>
+					Reset room
+				</button>
+				{#if roomVerb === 'reset'}
+					<button disabled={busy} class="confirm danger" onclick={doResetRoom}>
+						Confirm — 20 tables back to the start, nothing deleted
+					</button>
+				{/if}
+			</span>
+
+			<span class="danger-slot">
+				<button
+					disabled={busy}
+					class="danger-outline armable"
+					class:armed={roomVerb === 'clear'}
+					aria-pressed={roomVerb === 'clear'}
+					onclick={() => armRoom('clear')}
+				>
+					Clear all
+				</button>
+				{#if roomVerb === 'clear'}
+					<!-- Not a second click: the event id, typed. Export first — this
+					     cannot be undone. -->
+					<input
+						class="clear-confirm"
+						placeholder="type the event id"
+						bind:value={clearConfirm}
+						onkeydown={(e) => e.key === 'Enter' && doClearRoom()}
+					/>
+					<button disabled={busy || !clearConfirm.trim()} class="confirm danger" onclick={doClearRoom}>
+						Delete everything
+					</button>
+				{/if}
+			</span>
 		</div>
 		</header>
 	</div>
@@ -329,13 +384,6 @@
 </div>
 
 <style>
-	/* Reset and Clear sit in the same row as Export and Seed, and a
-	   facilitator under pressure reaches for whatever is nearest. They get
-	   their own colour so the row cannot be tabbed through by muscle memory. */
-	.danger {
-		border-color: #a3434d;
-		color: #e8a0a8;
-	}
 
 	/* The desk wears the phone's tokens (app.css, imported above): navy
 	   ground, gold accent, the same display/body faces. No white ground, no

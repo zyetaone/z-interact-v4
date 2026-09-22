@@ -13,6 +13,10 @@
 	 * Add a zip when this is hundreds of files or when someone is doing it
 	 * over a hotel connection.
 	 */
+	// Every page in this app imports the stylesheet itself — there is no
+	// layout that does it. Omitting it does not fail a build or a check; it
+	// just serves the page in Times New Roman on white.
+	import '../../../app.css';
 	import { roomPhotos } from './photos.remote';
 	import { page } from '$app/state';
 
@@ -92,6 +96,12 @@
 		max-width: 1100px;
 		margin: 0 auto;
 		padding: 24px 16px 60px;
+	}
+	/* `.btn` is full-width by default — it is a phone control everywhere else
+	   in this app. Here it sits beside a heading. */
+	header .btn {
+		width: auto;
+		flex: 0 0 auto;
 	}
 	header {
 		display: flex;

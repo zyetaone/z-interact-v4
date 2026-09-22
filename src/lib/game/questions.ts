@@ -166,7 +166,7 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'soft-pastel',
-				label: 'Soft pastels',
+				label: 'Soft pastels and matte finishes',
 				promptFragment:
 					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
 			},

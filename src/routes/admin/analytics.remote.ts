@@ -16,7 +16,7 @@ import { requestEnv, eventId } from '$lib/server/env';
 import { getRenderStamps } from '$lib/server/room';
 import { exportRoomRows } from '$lib/server/archive';
 import { summarise, type Analytics } from '$lib/server/analytics';
-import { adminTokenOk } from '$lib/server/admin-gate';
+import { adminDenial, type AdminDenial } from '$lib/server/admin-gate';
 import { maxRendersPerTable } from '$lib/server/limits';
 import { QUESTIONS, WILDCARD, TABLE_COUNT } from '$lib/game/questions';
 import { FUTURES } from '$lib/game/futures';
@@ -25,8 +25,9 @@ import { activeZones } from '$lib/game/zones';
 type Env = NonNullable<ReturnType<typeof requestEnv>>;
 
 /** The desk's rule, from the one place that states it. */
-function checkToken(env: Env, token: string): boolean {
-	return adminTokenOk(env.ADMIN_TOKEN, token, { devOpen: true });
+/** Null when the caller may act; otherwise the reason, in the words the screen prints. */
+function checkToken(env: Env, token: string): AdminDenial | null {
+	return adminDenial(env.ADMIN_TOKEN, token, { devOpen: true });
 }
 
 export type AnalyticsResult = { ok: true; analytics: Analytics } | { ok: false; reason: string };
@@ -34,7 +35,8 @@ export type AnalyticsResult = { ok: true; analytics: Analytics } | { ok: false; 
 export const roomAnalytics = query(v.object({ token: v.string() }), async ({ token }): Promise<AnalyticsResult> => {
 	const env = requestEnv();
 	if (!env) return { ok: false, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false, reason: denied };
 	const event = eventId(env);
 
 	const rows = await exportRoomRows(

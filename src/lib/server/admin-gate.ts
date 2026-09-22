@@ -71,3 +71,28 @@ export function adminTokenOk(
 	if (token && token.includes(' ')) return secretEquals(token.replaceAll(' ', '+'), expected);
 	return false;
 }
+
+/**
+ * WHY a call was refused, in the words the screen should say.
+ *
+ * `adminTokenOk` answers yes/no, and every admin surface turned a no into
+ * the same string: "bad token". `/admin/photos` then printed "Add
+ * `?token=…` to the URL" UNDER it, unconditionally — so a facilitator whose
+ * token was on the URL and simply wrong was told to add the thing they had
+ * already added, and one whose URL had no token at all was told their token
+ * was bad. Both readings send you to the wrong place, which is the same
+ * failure as the `+` bug above: the screen's one sentence is the whole
+ * diagnosis, and it was pointing away from the fault.
+ *
+ * Returns null when the call is allowed.
+ */
+export type AdminDenial = 'no token on this URL' | 'that token was rejected';
+
+export function adminDenial(
+	expected: string | undefined,
+	token: string | null | undefined,
+	options: AdminGateOptions = {}
+): AdminDenial | null {
+	if (adminTokenOk(expected, token, options)) return null;
+	return token && token.trim() ? 'that token was rejected' : 'no token on this URL';
+}

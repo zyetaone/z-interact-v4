@@ -57,7 +57,7 @@ const TOTAL_STEPS = STEP_IDS.length;
 // One per isolate, separate from the phone's own throttle instance in
 // answers.remote.ts — regenerate applies the same per-table rule
 // (game-flow.md §8), keyed here rather than shared across modules.
-import { adminTokenOk } from '$lib/server/admin-gate';
+import { adminDenial, type AdminDenial } from '$lib/server/admin-gate';
 
 const throttle = createThrottle();
 
@@ -70,8 +70,9 @@ type Env = NonNullable<ReturnType<typeof requestEnv>>;
  * in a private copy here and a second private copy in the readout, which
  * is how `/health` and `/simulate` ended up with a different one.
  */
-function checkToken(env: Env, token: string): boolean {
-	return adminTokenOk(env.ADMIN_TOKEN, token, { devOpen: true });
+/** Null when the caller may act; otherwise the reason, in the words the screen prints. */
+function checkToken(env: Env, token: string): AdminDenial | null {
+	return adminDenial(env.ADMIN_TOKEN, token, { devOpen: true });
 }
 
 function emptyRoom(): AdminRoom {
@@ -194,7 +195,7 @@ async function tickSliceOrThrow(env: Env, event: string): Promise<void> {
 
 export const adminRoom = query(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
-	if (!env || !checkToken(env, token)) return emptyRoom();
+	if (!env || checkToken(env, token)) return emptyRoom();
 	const event = eventId(env);
 
 	// THE DESK ANSWERS FROM D1. THE TICK HAPPENS AFTERWARDS.
@@ -258,7 +259,8 @@ export const adminRoom = query(v.object({ token: tokenField }), async ({ token }
 export const lockRoom = command(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	await setLocked(env.DB, eventId(env), true);
 	return { ok: true as const };
 });
@@ -266,7 +268,8 @@ export const lockRoom = command(v.object({ token: tokenField }), async ({ token 
 export const openRoom = command(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	await setLocked(env.DB, eventId(env), false);
 	return { ok: true as const };
 });
@@ -280,7 +283,8 @@ export const setBeat = command(
 	async ({ token, beat, table }) => {
 		const env = requestEnv();
 		if (!env) return { ok: false as const, reason: 'no environment' };
-		if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+		const denied = checkToken(env, token);
+		if (denied) return { ok: false as const, reason: denied };
 		if (beat === 'focus' && !table) return { ok: false as const, reason: 'focus needs a table number' };
 		await setBeatRow(env.DB, eventId(env), beat, beat === 'focus' ? (table ?? null) : null);
 		return { ok: true as const };
@@ -295,7 +299,8 @@ export const setBeat = command(
 export const reopenTable = command(v.object({ token: tokenField, table: tableNo }), async ({ token, table }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	await grantReopen(env.DB, eventId(env), table);
 	return { ok: true as const };
 });
@@ -304,7 +309,8 @@ export const reopenTable = command(v.object({ token: tokenField, table: tableNo 
 export const resetTable = command(v.object({ token: tokenField, table: tableNo }), async ({ token, table }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	await resetTableRow(env.DB, eventId(env), table, 'admin');
 	return { ok: true as const };
 });
@@ -332,7 +338,8 @@ export const resetTable = command(v.object({ token: tokenField, table: tableNo }
 export const resetRoom = command(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	const tables = await resetRoomRows(env.DB, eventId(env), TABLE_COUNT);
 	return { ok: true as const, tables };
 });
@@ -356,7 +363,8 @@ export const clearRoom = command(
 	async ({ token, confirm }) => {
 		const env = requestEnv();
 		if (!env) return { ok: false as const, reason: 'no environment' };
-		if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+		const denied = checkToken(env, token);
+		if (denied) return { ok: false as const, reason: denied };
 		const event = eventId(env);
 		if (confirm !== event) {
 			return { ok: false as const, reason: `type the event id (${event}) to confirm` };
@@ -372,7 +380,8 @@ export const regenerateTable = command(
 	async ({ token, table, zone }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	// ONE ZONE, OPTIONALLY. The 20-table run lost a single zone on four
 	// tables; redrawing all four to recover one spends four of that table's
 	// twelve. With `zone` the desk repairs exactly the tile that failed,
@@ -520,7 +529,8 @@ export const regenerateTable = command(
 export const seedRoom = command(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	return seedTables(env.DB, eventId(env), TABLE_COUNT);
 });
 
@@ -528,7 +538,8 @@ export const seedRoom = command(v.object({ token: tokenField }), async ({ token 
 export const exportRoom = query(v.object({ token: tokenField }), async ({ token }) => {
 	const env = requestEnv();
 	if (!env) return { ok: false as const, reason: 'no environment' };
-	if (!checkToken(env, token)) return { ok: false as const, reason: 'bad token' };
+	const denied = checkToken(env, token);
+	if (denied) return { ok: false as const, reason: denied };
 	const event = eventId(env);
 	// What this room renders. A row from a previous ZONE_SET is not in this
 	// view; `wrangler d1 export` (NEW-EVENT.md's archive step) is the

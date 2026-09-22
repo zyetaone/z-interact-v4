@@ -52,7 +52,18 @@
 	{#if !res.ok}
 		<h1>Photographs</h1>
 		<p class="bad">{res.reason}</p>
-		<p class="note">Add <code>?token=…</code> to the URL.</p>
+		<!--
+			The hint used to print under EVERY failure, so a wrong token was told
+			to add the token it already had. It belongs to one reason only.
+		-->
+		{#if res.reason === 'no token on this URL'}
+			<p class="note">
+				Open this page from the desk's <b>Photographs</b> link, which carries the token, or add
+				<code>?token=…</code> yourself.
+			</p>
+		{:else}
+			<p class="note">The token on this URL is not the one the deploy is holding. The desk's link carries the right one.</p>
+		{/if}
 	{:else}
 		<header>
 			<div>

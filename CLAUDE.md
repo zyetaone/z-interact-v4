@@ -116,6 +116,7 @@ leaves the key unset in production, which then looks exactly like a dead key.
 | `REFERENCE_MODE` | `none` \| `lens` \| `chain`; unrecognised falls back to `none` |
 | `ADMIN_TICK_BUDGET` | rows the admin read advances in `waitUntil`, default 8 |
 | `SIMULATE_ENABLED` | `/simulate` rejects unless `'true'` |
+| `PUBLIC_EVENT_TITLE` | the wall's Lobby headline. Falls back to **"The Cognitive City Vision"** — the subject, not the furniture (it used to fall back to "Twenty Tables"). A real event's own name goes here, never in the repo |
 | `BRAND_LINE` | the line under the waiting screen and the front page. **Unset renders nothing** — this repo carries no company name, so the brand is a deploy value like `EVENT_ID` |
 | `FAL_FAKE=1` / `AI_FAKE=1` | the two dev fakes — no image call, no Workers AI call. `FAL_FAKE` must be set in the SHELL, not `.dev.vars`: it is read from `process.env` and `.dev.vars` lands in `platform.env` (see NEW-EVENT.md) |
 

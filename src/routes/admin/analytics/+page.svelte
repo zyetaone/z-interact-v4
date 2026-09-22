@@ -49,7 +49,7 @@
 	</header>
 
 	{#if !result.ok}
-		<p class="empty">Can't read the room: {result.reason}. The desk's token goes on this URL too — <code>?token=…</code></p>
+		<p class="empty">Can't read the room: {result.reason}. The desk's <b>Readout</b> link carries the right token — <code>?token=…</code></p>
 	{:else if a}
 		<p class="asof">As of {clock(a.generatedAt)}. This page reads only — it never ticks a render or spends.</p>
 

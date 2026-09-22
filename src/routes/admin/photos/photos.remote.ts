@@ -13,7 +13,7 @@
 import * as v from 'valibot';
 import { query } from '$app/server';
 import { requestEnv, eventId } from '$lib/server/env';
-import { adminTokenOk } from '$lib/server/admin-gate';
+import { adminDenial } from '$lib/server/admin-gate';
 import { listStoredImages } from '$lib/server/archive';
 
 export type Photo = { id: string; table: number; zoneKey: string; url: string; filename: string; createdAt: number };
@@ -24,7 +24,8 @@ export const roomPhotos = query(v.object({ token: v.string() }), async ({ token 
 	// `devOpen: true` matches the desk and the readout: an unset token is
 	// open in dev only, and production is unaffected because `dev` is false
 	// there. This page reads; it does not spend.
-	if (!adminTokenOk(env.ADMIN_TOKEN, token, { devOpen: true })) return { ok: false as const, reason: 'bad token' };
+	const denied = adminDenial(env.ADMIN_TOKEN, token, { devOpen: true });
+	if (denied) return { ok: false as const, reason: denied };
 
 	const event = eventId(env);
 	const rows = await listStoredImages(env.DB, event);

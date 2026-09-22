@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>The questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+	:root { --ink: #10192a; --muted: #5b6579; --gold: #9c7433; --line: #d9d5cc; }
+	* { box-sizing: border-box; }
+	body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; color: var(--ink); font-size: 11pt; line-height: 1.45; }
+	h1, h2, .n { font-family: "Playfair Display", Georgia, serif; }
+	h1 { font-size: 24pt; margin: 0 0 2pt; }
+	.sub { margin: 0 0 16pt; color: var(--muted); font-size: 9.5pt; }
+	.q { page-break-inside: avoid; margin-bottom: 15pt; }
+	h2 { font-size: 13pt; margin: 0 0 5pt; line-height: 1.3; display: flex; gap: 8pt; align-items: baseline; }
+	/* The number is the screen's position on the phone: the lens is 1. */
+	.n { color: var(--gold); font-size: 10pt; min-width: 14pt; }
+	ul { margin: 0 0 0 22pt; padding: 0; }
+	li { margin: 0 0 2pt; }
+	/* The table writes its own: a line to write on, not a bullet to pick. */
+	li.own { list-style: none; margin-left: -22pt; }
+	li.own b { font-weight: 500; }
+	.rule { display: block; height: 8mm; border-bottom: 0.5pt solid var(--line); margin-top: 1pt; }
+	.then { margin: 5pt 0 0 22pt; color: var(--muted); font-size: 10pt; }
+	.then b { color: var(--gold); text-transform: uppercase; letter-spacing: .08em; font-size: 8pt; margin-right: 4pt; }
+	.then em { font-style: normal; font-size: 8pt; border: 0.5pt solid var(--line); border-radius: 8pt; padding: 0 5pt; margin-left: 4pt; }
+	.skip { color: var(--muted); font-size: 10pt; margin: 3pt 0 0 22pt; }
+	footer { margin-top: 10pt; padding-top: 6pt; border-top: 0.5pt solid var(--line); color: var(--muted); font-size: 8pt; }
+</style></head>
+<body>
+	<h1>The questions</h1>
+	<p class="sub">6 screens · 20 tables · 2026-09-22</p>
+
+	<section class="q">
+		<h2><span class="n">1</span>How do you imagine your future cognitive city?</h2>
+		<ul><li>The garden city</li><li>The vertical city</li><li>The dispersed city</li><li>Neo Retro</li></ul>
+		<p class="skip">or — No future fits us, skip</p>
+	</section>
+
+	
+	<section class="q">
+		<h2><span class="n">2</span>What is your city made of, and how does it feel?</h2>
+		<ul><li>White and steel</li><li>Soft pastels and rounded edges</li><li>Concrete and stone</li><li>Earth and timber</li></ul>
+		<p class="then"><b>Then</b> Which other materials or palette would you want to see? <em>optional</em></p>
+	</section>
+	<section class="q">
+		<h2><span class="n">3</span>How much of the outdoors is inside?</h2>
+		<ul><li>None</li><li>20%</li><li>40%</li></ul>
+		
+	</section>
+	<section class="q">
+		<h2><span class="n">4</span>Where does deep work happen in a centaur organisation?</h2>
+		<ul><li>The dome in the rainforest</li><li>The zen garden café</li><li>The immersion chamber</li><li>The mud hut</li><li class="own"><b>Somewhere from our imagination</b><span class="rule"></span></li></ul>
+		
+	</section>
+	<section class="q">
+		<h2><span class="n">5</span>Where do people recharge?</h2>
+		<ul><li>The igloo</li><li>The hydro sensory room</li><li>The tea room</li><li>Outdoors, on the grass</li><li class="own"><b>Somewhere from our imagination</b><span class="rule"></span></li></ul>
+		
+	</section>
+
+	<section class="q">
+		<h2><span class="n">6</span>Any other flights of fancy?</h2>
+		<ul><li class="own"><b>Anything at all — it is drawn word for word</b><span class="rule"></span></li></ul>
+	</section>
+
+	<footer>Generated from questions.ts and futures.ts by scripts/gen-questions-sheet.mjs. Re-run it after any change to either.</footer>
+</body></html>

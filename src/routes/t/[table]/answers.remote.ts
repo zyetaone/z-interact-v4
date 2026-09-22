@@ -394,6 +394,9 @@ export const tableStatus = query(
       granted,
     });
 
+    // At least one picture is on screen. Nothing earlier can exist otherwise.
+    const hasArrived = images.some((i) => i.url);
+
     return {
       table,
       future: futureOf(answers),
@@ -419,14 +422,21 @@ export const tableStatus = query(
       // inferred on the phone from "have I redrawn?", because a table that
       // redrew and then undid has redrawn twice and has nothing further
       // back that is not already on screen.
-      canUndo:
-        (await findRestorable(
-          env.DB,
-          event,
-          table,
-          activeZones(env.ZONE_SET).map((z) => z.key),
-          since
-        )).length > 0,
+      //
+      // GUARDED, because this poll runs every two seconds on twenty phones.
+      // A table that has not submitted has no image rows at all, and one
+      // whose picture has not arrived has nothing earlier than it — asking
+      // D1 once per zone to be told so is a query per zone per table per two
+      // seconds, bought for an answer that is always false.
+      canUndo: hasArrived
+        ? (await findRestorable(
+            env.DB,
+            event,
+            table,
+            activeZones(env.ZONE_SET).map((z) => z.key),
+            since
+          )).length > 0
+        : false,
       narrative,
       submittedAt: state.submittedAt,
       closed: !!locked,

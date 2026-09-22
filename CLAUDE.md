@@ -50,6 +50,23 @@ wrangler pages dev .svelte-kit/cloudflare        # exercise the built output, no
 `cp .dev.vars.example .dev.vars` before the first `npm run dev` — it lists
 every variable and what unsetting it does.
 
+**`wrangler d1 execute --local` and `npm run dev` fight over one SQLite
+file.** Wrangler starts its own miniflare against `.wrangler/state`, which
+the dev server already has open, and a write from one makes D1 reads fail
+inside the other:
+
+```
+D1_ERROR: Failed to parse body as JSON, got: Error: internal error
+```
+
+Measured 22 Sep: 1 request in 30 failed that way during two `npm run
+flow:reset` calls, from `getCurrentImage` and `getLatestPrompt` — two
+innocent reads with nothing in this repo's code at fault. It clears on its
+own, which is what makes it worth knowing: the symptom reads as a database
+bug and is a second process. `flow:reset` now warns when the dev server is
+up. **Local only** — production D1 is a Cloudflare service, not a file two
+processes can open.
+
 E2E (Playwright, `tests/e2e/`, not part of `npm run test`):
 ```bash
 npx playwright test                              # all

@@ -29,24 +29,23 @@
  *  - **Every command is throttled by table number**, never by client IP
  *    (one venue router is one IP).
  */
-import { FAL_MODEL } from '$lib/server/fal';
 import * as v from "valibot";
 import { command, query } from "$app/server";
 import {
   requestEnv,
   eventId,
   requestWaitUntil,
-  requestOrigin,
+  requestOrigin
 } from "$lib/server/env";
-import { TABLE_COUNT, WILDCARD, STEER } from "$lib/game/questions";
+import { WILDCARD, STEER } from "$lib/game/questions";
 import { activeZones, zoneByKey } from "$lib/game/zones";
-import { ERA_SCALE, eraVerdict, type Era } from "$lib/game/era";
-import { ALL_FUTURES, FUTURES } from "$lib/game/futures";
+import { eraVerdict, type Era } from "$lib/game/era";
+import { ALL_FUTURES } from "$lib/game/futures";
 import {
   decideSubmit,
   lockedAt,
   mayReopen,
-  assertCanSubmit,
+  assertCanSubmit
 } from "$lib/server/gate";
 import {
   saveAnswer as saveAnswerRow,
@@ -56,26 +55,22 @@ import {
   getCurrentImageSince,
   getResetAt,
   finishTable as finishTableRow,
-  insertPrompt,
-  insertQueuedImage,
-  getCurrentImage,
   getPendingImagesForTable,
   insertQueuedImageIfIdle,
   getRenderBudget,
   getImageDetail,
-  getTableFutures,
+  getTableFutures
 } from "$lib/server/room";
 import { findRestorable, restoreImages } from "$lib/server/archive";
 import {
   checkCooldown,
   checkRenderCap,
-  maxRendersPerTable,
+  maxRendersPerTable
 } from "$lib/server/limits";
-import { tickImageRow, tickRowSafely, type TickContext } from "$lib/server/ticker";
+import { tickImageRow, tickRowSafely } from "$lib/server/ticker";
 import { getLatestPrompt, getPromptById } from "./prompt-store";
 import { composePromptFor } from "./hero";
 import { ensureNarrative, getNarrative } from "./narrative";
-import { sanitizeComposed } from "$lib/server/prompt";
 import {
   FREE_TEXT_MAX,
   FUTURE_ID,
@@ -88,18 +83,14 @@ import {
   refreshQuietly,
   tableNo,
   tickContext,
-  withTableLock,
-  type Env,
-  type Fail,
-} from "./guards";
+  withTableLock
+  } from "./guards";
 import { queueGeneration } from "./queue";
 import {
   buildLayerInputs,
   composeBase,
-  composeZonePrompt,
-  resolveZone,
   type AnswerLike,
-  eraOf,
+  eraOf
 } from "./layers";
 
 /* Read — one call per poll, everything a screen needs                        */
@@ -130,7 +121,7 @@ export const tableStatus = query(
         canSubmit: false,
         narrative: null as string | null,
         gateReason:
-          "We could not reach the room, so nothing was sent — your answer is still on this phone. Try again.",
+          "We could not reach the room, so nothing was sent — your answer is still on this phone. Try again."
       };
     }
     const event = eventId(env);
@@ -164,7 +155,7 @@ export const tableStatus = query(
           falRequestId: row.falRequestId,
           createdAt: row.createdAt,
           table,
-          zoneKey: row.zoneKey,
+          zoneKey: row.zoneKey
         },
         composePromptFor(zone, {
           composed: stored.composed,
@@ -172,7 +163,7 @@ export const tableStatus = query(
           answers,
           futureKey: futureOf(answers),
           era: eraOf(answers),
-          table,
+          table
         }),
       );
     }
@@ -194,7 +185,7 @@ export const tableStatus = query(
         url: arrived && row ? `/t/${table}/img/${row.id}` : null,
         error: missing
           ? "this one was never sent — try it again"
-          : (row?.error ?? null),
+          : (row?.error ?? null)
       });
     }
 
@@ -224,7 +215,7 @@ export const tableStatus = query(
       futureKey: futureOf(answers),
       era: eraOf(answers),
       answers,
-      table,
+      table
     });
     const base = composeBase(layers);
     const shown = activeZones(env.ZONE_SET);
@@ -236,7 +227,7 @@ export const tableStatus = query(
             answers,
             futureKey: futureOf(answers),
             era: eraOf(answers),
-            table,
+            table
           })
         : base;
 
@@ -262,7 +253,7 @@ export const tableStatus = query(
       reachable: true,
       locked: !!locked,
       alreadyAnswered,
-      granted,
+      granted
     });
 
     // At least one picture is on screen. Nothing earlier can exist otherwise.
@@ -313,7 +304,7 @@ export const tableStatus = query(
       closed: !!locked,
       granted,
       canSubmit: decision.ok,
-      gateReason: decision.ok ? "" : decision.reason,
+      gateReason: decision.ok ? "" : decision.reason
     };
   },
 );
@@ -347,7 +338,7 @@ export const saveFuture = command(
         questionId: FUTURE_ID,
         keys: [future ? future.key : SKIPPED],
         actor: "table",
-        source: "tap",
+        source: "tap"
       });
       if (future) {
         await saveAnswerRow(env.DB, {
@@ -356,7 +347,7 @@ export const saveFuture = command(
           questionId: "q1",
           keys: [future.eraDefault],
           actor: "table",
-          source: "tap",
+          source: "tap"
         });
       }
       refreshQuietly(tableStatus({ table }));
@@ -373,7 +364,7 @@ export const saveEra = command(
   v.object({
     table: tableNo,
     era: eraSchema,
-    pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
+    pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX)))
   }),
   async ({ table, era, pushReply }) =>
     withTableLock(table, async () => {
@@ -389,7 +380,7 @@ export const saveEra = command(
       if (future && eraVerdict(future, era) === "blocked") {
         return {
           ok: false as const,
-          reason: `${future.name} cannot be set in that era.`,
+          reason: `${future.name} cannot be set in that era.`
         };
       }
       await saveAnswerRow(env.DB, {
@@ -399,7 +390,7 @@ export const saveEra = command(
         keys: [era],
         pushReply: pushReply?.trim() || undefined,
         actor: "table",
-        source: "tap",
+        source: "tap"
       });
       refreshQuietly(tableStatus({ table }));
       return { ok: true as const };
@@ -415,7 +406,7 @@ const SaveAnswerInput = v.object({
     v.record(v.string(), v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
   ),
   /** Where the Push line doubles as a typed capture field (V4: q2, q5c). */
-  pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX))),
+  pushReply: v.optional(v.pipe(v.string(), v.maxLength(FREE_TEXT_MAX)))
 });
 
 export const saveAnswer = command(SaveAnswerInput, async (input) =>
@@ -432,7 +423,7 @@ export const saveAnswer = command(SaveAnswerInput, async (input) =>
       text: input.text,
       pushReply: input.pushReply?.trim() || undefined,
       actor: "table",
-      source: "tap",
+      source: "tap"
     });
     refreshQuietly(tableStatus({ table: input.table }));
     return { ok: true as const };
@@ -456,7 +447,7 @@ export const saveWildcard = command(
         keys: trimmed ? [WILDCARD.options[0].key] : [],
         text: trimmed ? { [WILDCARD.options[0].key]: trimmed } : undefined,
         actor: "table",
-        source: "tap",
+        source: "tap"
       });
       refreshQuietly(tableStatus({ table }));
       return { ok: true as const };
@@ -490,7 +481,7 @@ export const finishTable = command(
       const cap = checkRenderCap({
         used: budget.used,
         about: activeZones(env.ZONE_SET).length,
-        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
@@ -509,7 +500,7 @@ export const finishTable = command(
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: false,
-        since,
+        since
       });
       refreshQuietly(tableStatus({ table }));
       return { ok: true as const, queued: result.queued };
@@ -546,7 +537,7 @@ export const regenerate = command(
       if (await lockedAt(env.DB, event)) {
         return {
           ok: false as const,
-          reason: "The room is closed — the screen has moved on.",
+          reason: "The room is closed — the screen has moved on."
         };
       }
       // *Draw again* redraws something. A table that has never submitted has
@@ -557,7 +548,7 @@ export const regenerate = command(
       if (!regenState.submittedAt) {
         return {
           ok: false as const,
-          reason: "Nothing to redraw yet — send your answers first.",
+          reason: "Nothing to redraw yet — send your answers first."
         };
       }
       // "Regenerate (throttled, per table)" (game-flow §1, screen 17).
@@ -567,7 +558,7 @@ export const regenerate = command(
       if ((await getPendingImagesForTable(env.DB, event, table)).length > 0) {
         return {
           ok: false as const,
-          reason: "Still drawing — wait for this one before asking for another.",
+          reason: "Still drawing — wait for this one before asking for another."
         };
       }
 
@@ -578,14 +569,14 @@ export const regenerate = command(
       const budget = await getRenderBudget(env.DB, event, table, since);
       const cooldown = checkCooldown({
         lastRenderAt: budget.lastRenderAt,
-        now: Date.now(),
+        now: Date.now()
       });
       if (!cooldown.ok)
         return { ok: false as const, reason: cooldown.reason };
       const cap = checkRenderCap({
         used: budget.used,
         about: activeZones(env.ZONE_SET).length,
-        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
@@ -607,19 +598,19 @@ export const regenerate = command(
           keys: trimmed ? [STEER.options[0].key] : [],
           text: trimmed ? { [STEER.options[0].key]: trimmed } : undefined,
           actor: "table",
-          source: "tap",
+          source: "tap"
         });
       }
 
       const result = await queueGeneration(env, event, table, {
         composedOverride: composed,
         regenerate: true,
-        since,
+        since
       });
       if (result.queued === 0 && result.inFlight > 0) {
         return {
           ok: false as const,
-          reason: "Still drawing — wait for this one before asking for another.",
+          reason: "Still drawing — wait for this one before asking for another."
         };
       }
       refreshQuietly(tableStatus({ table }));
@@ -712,7 +703,7 @@ export const retryZone = command(
       if (await lockedAt(env.DB, event)) {
         return {
           ok: false as const,
-          reason: "The room is closed — the screen has moved on.",
+          reason: "The room is closed — the screen has moved on."
         };
       }
       const zoneDef = zoneByKey(zone);
@@ -741,7 +732,7 @@ export const retryZone = command(
           reason:
             existing.state === "stored" || existing.state === "done"
               ? "That one landed — use Draw again for a new set."
-              : "Still drawing — give it a moment.",
+              : "Still drawing — give it a moment."
         };
       }
 
@@ -750,7 +741,7 @@ export const retryZone = command(
       const cap = checkRenderCap({
         used: budget.used,
         about: 1,
-        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE),
+        max: maxRendersPerTable(env.MAX_RENDERS_PER_TABLE)
       });
       if (!cap.ok) return { ok: false as const, reason: cap.reason };
 
@@ -776,7 +767,7 @@ export const retryZone = command(
           answers,
           futureKey: futureOf(answers),
           era: eraOf(answers),
-          table,
+          table
         });
       }
       if (!promptRow) {
@@ -795,14 +786,14 @@ export const retryZone = command(
           prompt: zonePrompt,
           model: MODEL,
           actor: "table",
-          supersedesId: existing?.id ?? null,
+          supersedesId: existing?.id ?? null
         },
         since,
       );
       if (!image) {
         return {
           ok: false as const,
-          reason: "Already trying that one — hang tight.",
+          reason: "Already trying that one — hang tight."
         };
       }
 
@@ -815,7 +806,7 @@ export const retryZone = command(
             event,
             origin: requestOrigin(),
             futureKey: futures.get(table) ?? null,
-            since,
+            since
           },
           {
             id: image.id,
@@ -823,7 +814,7 @@ export const retryZone = command(
             falRequestId: image.falRequestId,
             createdAt: image.createdAt,
             table,
-            zoneKey: zone,
+            zoneKey: zone
           },
           zonePrompt,
         ),

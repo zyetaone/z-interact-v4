@@ -8,15 +8,14 @@
  * them) all funnel into. It changes when what we send to fal changes —
  * not when a screen does.
  */
-import { WILDCARD, STEER } from '$lib/game/questions';
 import { activeZones } from '$lib/game/zones';
-import { eventId, requestWaitUntil } from '$lib/server/env';
+import { requestWaitUntil } from '$lib/server/env';
 import { getCurrentAnswers, getCurrentImageSince, insertPrompt, insertQueuedImageIfIdle } from '$lib/server/room';
-import { tickImageRow, tickRowSafely } from '$lib/server/ticker';
+import { tickImageRow } from '$lib/server/ticker';
 import { sanitizeComposed } from '$lib/server/prompt';
 import { getLatestPrompt } from './prompt-store';
 import { composePromptFor } from './hero';
-import { buildLayerInputs, composeBase, composeZonePrompt, resolveZone, eraOf } from './layers';
+import { buildLayerInputs, composeBase, eraOf } from './layers';
 import { type Env, MODEL, answersOf, futureOf, tickContext } from './guards';
 
 
@@ -40,7 +39,7 @@ export async function queueGeneration(
     futureKey: futureOf(answers),
     era: eraOf(answers),
     answers,
-    table,
+    table
   });
   // A table-edited prompt is free text that becomes the ENTIRE prompt sent
   // to fal and then shown on a public screen. It is capped and stripped
@@ -67,7 +66,7 @@ export async function queueGeneration(
     negative: layers.negative,
     editedByTable: edited,
     actor: "table",
-    supersedesId: previous?.id ?? null,
+    supersedesId: previous?.id ?? null
   });
 
   let queued = 0;
@@ -101,7 +100,7 @@ export async function queueGeneration(
       answers,
       futureKey: futureOf(answers),
       era: eraOf(answers),
-      table,
+      table
     });
     // The check and the write are ONE statement (`insertQueuedImageIfIdle`).
     // The read-then-write above is per-isolate and two isolates can both
@@ -118,7 +117,7 @@ export async function queueGeneration(
         prompt: zonePrompt,
         model: MODEL,
         actor: "table",
-        supersedesId: existing?.id ?? null,
+        supersedesId: existing?.id ?? null
       },
       opts.since,
     );
@@ -139,7 +138,7 @@ export async function queueGeneration(
           falRequestId: image.falRequestId,
           createdAt: image.createdAt,
           table,
-          zoneKey: zone.key,
+          zoneKey: zone.key
         },
         zonePrompt,
       ),

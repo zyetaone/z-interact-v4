@@ -1,9 +1,17 @@
 <script lang="ts">
 	/**
-	 * Screen 18 — in, and waiting. The copy says watch the screen, so the
-	 * one gold primary is *See ours again*; editing stays open until the
-	 * room locks but is demoted (design-review.md fix 10). The four zone
-	 * frames the table just made fill the screen instead of empty ground.
+	 * Screen 18 — in, and waiting. THE LAST SCREEN, with nothing to press.
+	 *
+	 * It used to carry *Edit answers* and *See ours again*. Both are gone,
+	 * which is v1's shape: its ThankYouScreen showed the picture and the
+	 * message and offered no way back into the questions at all. Checked end
+	 * to end before removing them — v1 needs no "see it again" button
+	 * because the picture is already on this screen, and it needs no "edit"
+	 * because a table that has said it is done has said it is done.
+	 *
+	 * A table that finishes by accident is not stuck: the desk can Reopen or
+	 * Reset it. That belongs to the facilitator, not to a button on a phone
+	 * the whole table is crowded around.
 	 */
 	import { zoneLabel } from '$lib/game/zones';
 
@@ -11,9 +19,7 @@
 		closed,
 		gateReason,
 		images = [],
-		narrative = null,
-		onedit,
-		onimages
+		narrative = null
 	}: {
 		closed: boolean;
 		gateReason: string;
@@ -25,8 +31,6 @@
 		 * so nothing is shown in its place.
 		 */
 		narrative?: string | null;
-		onedit: () => void;
-		onimages: () => void;
 	} = $props();
 </script>
 
@@ -51,20 +55,18 @@
 						<span class="pending">{image.state === 'failed' ? 'failed' : 'drawing'}</span>
 					{/if}
 				</div>
-				<span class="zone">{zoneLabel(image.zoneKey)}</span>
+				<!-- Same rule as the images screen: the label earns its place only
+				     when there is more than one zone to tell apart. -->
+				{#if images.length > 1}
+					<span class="zone">{zoneLabel(image.zoneKey)}</span>
+				{/if}
 			</li>
 		{/each}
 	</ul>
 {/if}
 
-<div class="grow"></div>
-
-<div class="actions">
-	<button class="btn ghost" disabled={closed} onclick={onedit}>
-		{closed ? 'Answers are closed' : 'Edit answers'}
-	</button>
-	<button class="btn" onclick={onimages}>See ours again</button>
-</div>
+<!-- No `.grow` spacer: its only job was pushing the action row to the bottom
+     of the viewport, and there is no action row any more. -->
 
 <style>
 	/* The read-back sits between the hint and the four frames, quieter than

@@ -252,18 +252,14 @@
 			ondone={() => flow.go('done')}
 		/>
 	{:else}
-		<!-- `onedit` goes to REVIEW, not to the first question. It used to send a
-		     submitted table back to the lens and make it walk all five screens
-		     again, re-answering what it had already answered. The review screen
-		     lists every answer and its own edit jumps to the ONE line tapped,
-		     which is what this button meant all along. -->
+		<!-- Terminal. No edit, no see-it-again — the picture is on the screen
+		     and a table that has said it is done has said it is done. The desk
+		     reopens a table that finished by accident. -->
 		<DoneScreen
 			closed={flow.status.closed}
 			gateReason={flow.status.gateReason}
 			images={flow.status.images}
 			narrative={flow.status.narrative}
-			onedit={() => flow.go('review')}
-			onimages={() => flow.go('images')}
 		/>
 	{/if}
 

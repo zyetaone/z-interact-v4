@@ -387,6 +387,26 @@ What is actually still open:
 
 ### Recently closed, with the defaults they set
 
+- **A reset room is now USABLE, not merely empty (22 Sep).** `resetRoom` was
+  a loop over `resetTable`, and a reset watermark is PER TABLE. The room lock
+  and the projector beat are room-wide and neither moved — so the run the
+  verb exists to enable (close the room, reset, hand the cards to a new set
+  of tables) ended with twenty phones refused by `decideSubmit` and the wall
+  still showing the finale of a room with nothing in it. The data half was
+  right the whole time, which is why `reset-completeness.test.ts` passed
+  through it. `resetRoom` now also unlocks and returns the beat to `lobby`;
+  `clearRoom` now deletes `room_state`/`table_reopen`/`room_beat` as well, so
+  a reused database stops remembering a lock and a reopen grant from an event
+  that no longer has a row in it. `reset-room-usable.test.ts` pins both, and
+  was confirmed to fail without the fix.
+- **The favicon was the Svelte scaffold logo**, bundled through
+  `$lib/assets` and therefore served under a content hash — so `/favicon.svg`
+  itself 404'd and what the hash served was the orange Svelte mark, on twenty
+  phones and on the projector. It is now `static/favicon.svg` at a stable
+  path: nine tiles on `--ground-deep`, four lit in `--gold` — the front
+  page's own shape, no wordmark, because the brand is a deploy value
+  (`BRAND_LINE`) and this repo carries no company name.
+
 - **The admin's room-wide verbs, and the photographs (22 Sep).** game-flow.md
   §5's "delete one table / clear the room" is done, as two verbs that are
   deliberately not alike. `resetRoom` is twenty watermarks — nothing deleted,

@@ -27,6 +27,8 @@ import {
 	type PromptRow
 } from './room';
 import { IMAGE_SCHEMA, getImageDetail } from './image';
+import { setBeat } from './beat';
+import { setLocked } from './gate';
 
 /* -------------------------------------------------------------------------- */
 /* Export — one JSON per table, taken before any destructive verb            */
@@ -135,10 +137,33 @@ export async function resetRoom(d: D1Database, eventId: string, tableCount: numb
 	for (let table = 1; table <= tableCount; table++) {
 		await resetTable(d, eventId, table, 'admin');
 	}
+	// The two things a per-table watermark cannot reach, and the reason this
+	// is not just a loop over `resetTable`.
+	//
+	// Found 22 Sep by auditing the verb against its own promise. `resetRoom`
+	// says "hand the room back for another run"; the lock and the beat are
+	// room-wide and neither moved. A facilitator who closed the room at the
+	// end of run one — which is exactly what the desk's Close button is for —
+	// then pressed Reset all and handed out the cards again would have had
+	// twenty phones refused with "the room is closed", and the wall still
+	// showing the finale of a room that no longer has any answers in it. The
+	// data was right everywhere; the room was not usable.
+	await setLocked(d, eventId, false);
+	await setBeat(d, eventId, 'lobby', null);
 	return tableCount;
 }
 
-export type ClearedCounts = { answer: number; prompt: number; image: number; narrative: number; table_reset: number };
+export type ClearedCounts = {
+	answer: number;
+	prompt: number;
+	image: number;
+	narrative: number;
+	table_reset: number;
+	/** The gate's own rows. Left behind until 22 Sep, so a cleared database still remembered a lock, a reopen grant and a beat from the previous event. */
+	room_state: number;
+	table_reopen: number;
+	room_beat: number;
+};
 
 /**
  * Deletes every row this event owns, and reports what went. R2 objects are
@@ -151,7 +176,16 @@ export type ClearedCounts = { answer: number; prompt: number; image: number; nar
  * bucket is actually reused across many events.
  */
 export async function clearRoom(d: D1Database, eventId: string): Promise<ClearedCounts> {
-	const out: ClearedCounts = { answer: 0, prompt: 0, image: 0, narrative: 0, table_reset: 0 };
+	const out: ClearedCounts = {
+		answer: 0,
+		prompt: 0,
+		image: 0,
+		narrative: 0,
+		table_reset: 0,
+		room_state: 0,
+		table_reopen: 0,
+		room_beat: 0
+	};
 	for (const table of Object.keys(out) as (keyof ClearedCounts)[]) {
 		// Every one of these tables is created by `ensureTable` on first use,
 		// so on a fresh database some of them genuinely do not exist yet.

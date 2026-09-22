@@ -188,7 +188,21 @@ export function createTableState(initial: TableStatus) {
       return done;
     },
     get canGoBack() {
-      return cursor > 0 && step.kind !== "drawing" && step.kind !== "done";
+      // `images` joined `drawing`/`done` on 22 Sep. Back from a FINISHED
+      // render walked the table into the Drawing screen, which then said
+      // "Being drawn" over a picture that had already arrived — and from
+      // there back into a questionnaire whose saves `assertCanSave` refuses,
+      // because the table has submitted. A dead end reached by a control
+      // that looked live.
+      //
+      // Nothing is lost: everything a table might want from that screen is
+      // already on it — Draw again, Undo, and We're done.
+      return (
+        cursor > 0 &&
+        step.kind !== "drawing" &&
+        step.kind !== "images" &&
+        step.kind !== "done"
+      );
     },
     answer(id: string) {
       return answersById.get(id);

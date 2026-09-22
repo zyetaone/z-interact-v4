@@ -155,7 +155,7 @@ export const QUESTIONS: Question[] = [
 		// "Name two materials…" — and an instruction in a box reads as homework
 		// where a question reads as an invitation. The field has always been
 		// optional; only this label was still ordering people about.
-		push: 'Which two materials would you want to touch?',
+		push: 'Which other materials or palette would you want to see?',
 		pushCapturesReply: true,
 		options: [
 			{

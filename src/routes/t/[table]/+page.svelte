@@ -239,6 +239,7 @@
 		/>
 	{:else if current.kind === 'images'}
 		<ImagesScreen
+			brand={data.brand}
 			prompt={flow.status.prompt}
 			images={flow.status.images}
 			regenerating={saving}

@@ -39,21 +39,27 @@ describe('the skeleton shimmers', () => {
 });
 
 describe('the brand mark breathes while the render runs', () => {
-	it('is animated, and is on the DRAWING screen — the moment it describes', () => {
+	// The split moved into BrandMark.svelte when the waiting FRAME started
+	// showing it too — two call sites, and "everything but the last
+	// character" is the kind of logic that drifts if it is written twice.
+	const mark = readFileSync('src/lib/ui/table/BrandMark.svelte', 'utf-8');
+
+	it('is animated, and is inside the frame — the moment it describes', () => {
 		expect(css).toMatch(/\.brand-tick\s*\{[^}]*animation:\s*brand-tick/);
-		expect(drawing).toContain('class="brand-tick"');
+		expect(mark).toContain('class="brand-tick"');
+		expect(drawing).toContain('<BrandMark line={brand} />');
 	});
 
 	it('animates the LAST GLYPH positionally, never a letter named in source', () => {
 		// CLAUDE.md's first rule: no client, event or company name in this
 		// repo. The brand is a deploy value, so the markup cannot know which
 		// character it is animating — only that it is the final one.
-		expect(drawing).toContain('line.slice(-1)');
-		expect(drawing).not.toMatch(/Zyeta/i);
+		expect(mark).toContain('text.slice(-1)');
+		expect(mark).not.toMatch(/Zyeta/i);
 	});
 
 	it('renders nothing at all when BRAND_LINE is unset', () => {
-		expect(drawing).toMatch(/if \(!line\) return null/);
+		expect(mark).toMatch(/if \(!text\) return null/);
 	});
 });
 
@@ -127,5 +133,50 @@ describe('the shimmer actually travels across the frame', () => {
 		expect(front).not.toContain('class="sheen skeleton"');
 		// Same keyframes, transparent base.
 		expect(front).toMatch(/\.sheen \{[\s\S]*?animation: shimmer/);
+	});
+});
+
+describe('the loader says the brand, not the machine state', () => {
+	const mark = readFileSync('src/lib/ui/table/BrandMark.svelte', 'utf-8');
+	const line = readFileSync('src/lib/ui/table/generation-line.ts', 'utf-8');
+
+	it('both waiting surfaces show it while a render is in flight', () => {
+		for (const src of [drawing, gallery]) {
+			expect(src).toContain('<BrandMark line={brand} />');
+			expect(src).toContain('waitingLabel(image.state) && brand.trim()');
+		}
+	});
+
+	it('only the states where the table is genuinely waiting on us', () => {
+		// A terminal state has something to say — `failed — draw again` is an
+		// instruction — and an unknown state is a bug to show, not paper over.
+		const block = line.match(/const WAITING[\s\S]*?\n\};/)?.[0] ?? '';
+		expect(block).toMatch(/queued: true/);
+		expect(block).toMatch(/requested: true/);
+		expect(block).toMatch(/failed: false/);
+		expect(block).toMatch(/stored: false/);
+	});
+
+	it('falls back to the state line when BRAND_LINE is unset', () => {
+		// Otherwise an unbranded deploy shows an empty frame.
+		expect(drawing).toContain('generationLine(image.state)');
+		expect(gallery).toContain('still drawing');
+	});
+
+	it('still animates the last glyph positionally, never a named letter', () => {
+		expect(mark).toContain('text.slice(-1)');
+		expect(mark).toContain('class="brand-tick"');
+		expect(mark).not.toMatch(/Zyeta/i);
+	});
+});
+
+describe('a finished render is not a screen you go Back from', () => {
+	const flow = readFileSync('src/lib/state/table.svelte.ts', 'utf-8');
+
+	it('images joins drawing and done as a one-way screen', () => {
+		const rule = flow.match(/get canGoBack\(\) \{[\s\S]*?\n {4}\},/)?.[0] ?? '';
+		expect(rule).toContain('"drawing"');
+		expect(rule).toContain('"images"');
+		expect(rule).toContain('"done"');
 	});
 });

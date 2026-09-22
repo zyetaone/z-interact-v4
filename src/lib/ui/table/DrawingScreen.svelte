@@ -17,6 +17,8 @@
 	import { poll } from '$lib/poll.svelte';
 	import { isHeroZone, zoneLabel } from '$lib/game/zones';
 	import { generationLine } from './generation-line';
+	import BrandMark from './BrandMark.svelte';
+	import { waitingLabel } from './generation-line';
 
 	let {
 		prompt,
@@ -36,19 +38,6 @@
 
 	const beat = poll(2000, () => refresh());
 
-	/**
-	 * The brand line split into "everything but the last glyph" and the last
-	 * glyph, which is the bit that breathes. Deliberately positional rather
-	 * than matching a letter: no company name may appear in this repo, so the
-	 * markup cannot know which character it is animating — only that it is
-	 * the last one. A one-character brand animates whole; an empty one
-	 * renders nothing at all.
-	 */
-	const mark = $derived.by(() => {
-		const line = brand.trim();
-		if (!line) return null;
-		return { head: line.slice(0, -1), tick: line.slice(-1) };
-	});
 </script>
 
 <h1 class="stem">Being drawn.</h1>
@@ -67,7 +56,18 @@
 			<!-- A failed frame stops shimmering: movement reads as progress, and
 			     there is none. -->
 			<div class="frame" class:skeleton={image.state !== 'failed'} class:failed={image.state === 'failed'}>
-				<span class="state">{generationLine(image.state)}</span>
+				<!-- THE BRAND IS THE LOADER. While a render is genuinely in
+				     flight the frame carries the mark with its last glyph
+				     breathing, rather than the word DRAWING — the machine's own
+				     state name, which told the table nothing it could not see.
+				     A terminal or unknown state still says what happened, and
+				     an unset BRAND_LINE falls back to the state line, so this
+				     never renders an empty frame. -->
+				{#if waitingLabel(image.state) && brand.trim()}
+					<BrandMark line={brand} />
+				{:else}
+					<span class="state">{generationLine(image.state)}</span>
+				{/if}
 			</div>
 			{#if images.length > 1}
 				<span class="zone">{zoneLabel(image.zoneKey)}</span>
@@ -78,23 +78,7 @@
 
 <div class="grow"></div>
 
-<!-- The waiting screen is where v1 put it, and it is the right place: the
-     one moment a table is looking at the phone with nothing to do. Absent
-     entirely when `BRAND_LINE` is unset. -->
-{#if mark}
-	<p class="brand">{mark.head}<span class="brand-tick">{mark.tick}</span></p>
-{/if}
-
 <style>
-	.brand {
-		text-align: center;
-		font-size: 12px;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: var(--ink-faint);
-		margin: 0 0 6px;
-	}
-
 	.zones {
 		list-style: none;
 		margin: 0 0 24px;

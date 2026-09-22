@@ -33,3 +33,27 @@ export const GENERATION_LINE: Record<ShownState, string> = {
 export function generationLine(state: string): string {
 	return GENERATION_LINE[state as ShownState] ?? state;
 }
+
+/**
+ * The states where the BRAND may stand in for the state word.
+ *
+ * Only the ones where the table is genuinely waiting on us. A terminal
+ * state has something to say — `failed — draw again` is an instruction —
+ * and an unknown state is a bug the screen should show rather than paper
+ * over with a logo. Typed against `ShownState` for the same reason
+ * `GENERATION_LINE` is: a new state must be decided about here, not
+ * defaulted into.
+ */
+const WAITING: Record<ShownState, boolean> = {
+	none: true,
+	queued: true,
+	requested: true,
+	stored: false,
+	done: false,
+	failed: false
+};
+
+/** True while the table is waiting on us and nothing more useful can be said. */
+export function waitingLabel(state: string): boolean {
+	return WAITING[state as ShownState] ?? false;
+}

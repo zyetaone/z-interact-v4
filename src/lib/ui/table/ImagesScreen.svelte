@@ -13,11 +13,14 @@
 	 */
 	import { poll } from '$lib/poll.svelte';
 	import { isHeroZone, zoneLabel } from '$lib/game/zones';
+	import BrandMark from './BrandMark.svelte';
+	import { waitingLabel } from './generation-line';
 
 	let {
 		prompt,
 		images,
 		narrative = null,
+		brand = '',
 		regenerating,
 		canUndo = false,
 		onundo,
@@ -31,6 +34,8 @@
 		images: { zoneKey: string; state: string; url: string | null; error: string | null }[];
 		/** How this picture follows from the table's selections. Null until it has been written; it arrives on a later poll. */
 		narrative?: string | null;
+		/** `BRAND_LINE`, or empty — the loader inside a tile that has not arrived. Same prop as DrawingScreen's. */
+		brand?: string;
 		regenerating: boolean;
 		/** Why the last *Draw again* was refused — the throttle's own words, not a generic line. */
 		failed: string;
@@ -124,6 +129,8 @@
 								<button class="btn ghost retry" disabled={regenerating} onclick={() => onretry(image.zoneKey)}>
 									Try this one again
 								</button>
+							{:else if waitingLabel(image.state) && brand.trim()}
+								<BrandMark line={brand} />
 							{:else}
 								still drawing
 							{/if}

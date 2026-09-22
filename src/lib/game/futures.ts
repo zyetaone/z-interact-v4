@@ -144,30 +144,21 @@ export const FUTURES: Future[] = [
 		shadowFace: 'Elysium: the ring above, the ground below'
 	}),
 	future({
-		key: 'solarpunk',
-		// NOT "The abundant city". That name and "The garden city" both read as
-		// "the green one" on a phone card that shows a name over a picture, and
-		// the old blurb admitted it — it opened "A city of plenty, NOT OF
-		// WILDERNESS", a disclaimer against being mistaken for its neighbour.
-		// A name that needs a disclaimer is the wrong name. What this city
-		// actually is, is the one that MAKES what it uses, in public; the
-		// garden city is the one that disappears into nature. Those are not
-		// confusable, so the blurb no longer has to argue.
-		name: 'The self-sufficient city',
-		provenance: '"From Steampunk to Solarpunk", 2008 — a design movement, not a film',
-		blurb: 'It makes its own energy, food and water, and shows you doing it. Dense and urban \u2014 solar skins, edible facades, pipes and pumps left on display.',
+		key: 'broadacre-city',
+		name: 'The dispersed city',
+		provenance: 'Frank Lloyd Wright, The Disappearing City, 1932',
+		blurb: 'No centre at all. An acre each, work wherever the network reaches. The office comes to you.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],
 		moodLine:
-			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
-		styleDna:
-			'copper pipework, water tanks and filtration banks on show, dials and valves, hanging vines, teal and terracotta',
-		worldOutside: 'through the glass, photovoltaic canopies, edible facades, trams; reclaimed timber, copper',
-		insideCue: 'inside, a filtration bank and gauges beside the desks',
-		negativeFragment: 'neon signage, dead plants',
-		lightLine: 'sunlight through the photovoltaic canopy, warm patches on timber, green reflected light',
-		shadowFace: 'Aesthetic greenwash over unchanged extraction'
+			'A single-storey timber work pavilion alone on open land at dusk, mist in the middle distance. Charred larch cladding, stone plinth, deep glazed veranda, a lit hearth inside. Light is low, warm, interior lamplight spilling onto grass against a cooling blue landscape. Palette: char, ember, wet green, fog grey. No skyline at all; the nearest neighbour is a distant roof. One figure at one desk. Autonomous, remote, faintly lonely.',
+		styleDna: 'a lone flat-roofed timber pavilion on a stone plinth, charred cladding, full-height glass, a hearth',
+		worldOutside: 'through the glass, open grassland to the horizon; charred larch, stone',
+		insideCue: 'inside, one screen-wall; a drone landing at the edge',
+		negativeFragment: 'skyline, towers, crowds',
+		lightLine: 'full sun across open grass and deep into the pavilion through full-height glass',
+		shadowFace: 'Ex Machina: isolation sold as autonomy'
 	}),
 	future({
 		key: 'retrofuturism',
@@ -221,22 +212,31 @@ export const RETIRED_FUTURES: Future[] = [
 		shadowFace: 'It is the shadow'
 	}),
 	future({
-		key: 'broadacre-city',
-		name: 'The dispersed city',
-		provenance: 'Frank Lloyd Wright, The Disappearing City, 1932',
-		blurb: 'No centre at all. An acre each, work wherever the network reaches. The office comes to you.',
+		key: 'solarpunk',
+		// NOT "The abundant city". That name and "The garden city" both read as
+		// "the green one" on a phone card that shows a name over a picture, and
+		// the old blurb admitted it — it opened "A city of plenty, NOT OF
+		// WILDERNESS", a disclaimer against being mistaken for its neighbour.
+		// A name that needs a disclaimer is the wrong name. What this city
+		// actually is, is the one that MAKES what it uses, in public; the
+		// garden city is the one that disappears into nature. Those are not
+		// confusable, so the blurb no longer has to argue.
+		name: 'The self-sufficient city',
+		provenance: '"From Steampunk to Solarpunk", 2008 — a design movement, not a film',
+		blurb: 'It makes its own energy, food and water, and shows you doing it. Dense and urban \u2014 solar skins, edible facades, pipes and pumps left on display.',
 		eraDefault: 'recognisably-2035',
 		eraLocked: false,
 		eraWarn: [],
 		moodLine:
-			'A single-storey timber work pavilion alone on open land at dusk, mist in the middle distance. Charred larch cladding, stone plinth, deep glazed veranda, a lit hearth inside. Light is low, warm, interior lamplight spilling onto grass against a cooling blue landscape. Palette: char, ember, wet green, fog grey. No skyline at all; the nearest neighbour is a distant roof. One figure at one desk. Autonomous, remote, faintly lonely.',
-		styleDna: 'a lone flat-roofed timber pavilion on a stone plinth, charred cladding, full-height glass, a hearth',
-		worldOutside: 'through the glass, open grassland to the horizon; charred larch, stone',
-		insideCue: 'inside, one screen-wall; a drone landing at the edge',
-		negativeFragment: 'skyline, towers, crowds',
-		lightLine: 'full sun across open grass and deep into the pavilion through full-height glass',
-		shadowFace: 'Ex Machina: isolation sold as autonomy'
-	})
+			'A working floor inside a green volume at golden hour; photovoltaic glass canopy, mycelium acoustic panels, reclaimed timber, hemp textiles, visible copper conduit and water channels. Suspended planting pods and edible vines hang between occupied desks with warm task lamps. Light is diffuse, humid, shafts through mist; deep green shadow behind. Palette: leaf, terracotta, brass, teal. Mid-rise, terraced, open to a planted street. Repair and making are visible. Abundant, tended, optimistic.',
+		styleDna:
+			'copper pipework, water tanks and filtration banks on show, dials and valves, hanging vines, teal and terracotta',
+		worldOutside: 'through the glass, photovoltaic canopies, edible facades, trams; reclaimed timber, copper',
+		insideCue: 'inside, a filtration bank and gauges beside the desks',
+		negativeFragment: 'neon signage, dead plants',
+		lightLine: 'sunlight through the photovoltaic canopy, warm patches on timber, green reflected light',
+		shadowFace: 'Aesthetic greenwash over unchanged extraction'
+	}),
 ];
 
 /** Lookup only — never render this. See `RETIRED_FUTURES` above. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FUTURES } from './futures';
+import { ALL_FUTURES, FUTURES } from './futures';
 import { QUESTIONS, WILDCARD } from './questions';
 import { LENS_IMAGE, OPTION_IMAGE, hasOptionImage } from './visuals';
 import { VISUAL_FILES } from './visuals-manifest';
@@ -22,13 +22,36 @@ describe('visuals-manifest', () => {
 });
 
 describe('LENS_IMAGE', () => {
-	it('has one entry per future', () => {
-		expect(Object.keys(LENS_IMAGE)).toHaveLength(FUTURES.length);
+	/**
+	 * This used to assert `FUTURES.length` and it was the weaker rule.
+	 *
+	 * A WITHDRAWN lens keeps its picture, exactly as it keeps its styleDna,
+	 * window and cue — `layers.ts`'s `lensFor` reads ALL_FUTURES for that
+	 * reason, and this map did not, so a row stored under a withdrawn lens
+	 * kept its words and lost its reference image. Half a lens.
+	 */
+	it('covers every OFFERED future — a missing one is a lens card with no picture', () => {
+		for (const f of FUTURES) expect(LENS_IMAGE[f.key], f.key).toBeTruthy();
 	});
 
-	it.each(FUTURES.map((f) => f.key))('lens file for %s exists on disk', (key) => {
-		expect(fileExistsForPublicPath(LENS_IMAGE[key])).toBe(true);
+	it('covers withdrawn futures too, so a stored row keeps its reference picture', () => {
+		const retired = ALL_FUTURES.filter((f) => !FUTURES.includes(f));
+		expect(retired.length, 'no retired lens to check').toBeGreaterThan(0);
+		for (const f of retired) {
+			// Only where the file was actually generated — `ON_DISK` is what
+			// stops this map ever producing a 404 <img>.
+			if (fileExistsForPublicPath(`/visuals/lens/${f.key}.jpg`)) {
+				expect(LENS_IMAGE[f.key], f.key).toBe(`/visuals/lens/${f.key}.jpg`);
+			}
+		}
 	});
+
+	it.each(ALL_FUTURES.map((f) => f.key).filter((k) => LENS_IMAGE[k]))(
+		'lens file for %s exists on disk',
+		(key) => {
+			expect(fileExistsForPublicPath(LENS_IMAGE[key])).toBe(true);
+		}
+	);
 });
 
 describe('OPTION_IMAGE coverage', () => {

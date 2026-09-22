@@ -9,7 +9,7 @@
  * `hasOptionImage` is the one call site that needs to know that up front,
  * rather than every consumer probing `OPTION_IMAGE` for `undefined`.
  */
-import { FUTURES, type Future } from './futures';
+import { ALL_FUTURES, FUTURES, type Future } from './futures';
 import { QUESTIONS } from './questions';
 import { VISUAL_FILES } from './visuals-manifest';
 
@@ -29,9 +29,26 @@ function optionImageKey(questionId: string, optionId: string): string {
  */
 const ON_DISK: ReadonlySet<string> = new Set(VISUAL_FILES.map((f) => `/visuals/${f}`));
 
-/** Every future's lens picture path, for the ones on disk (all six today). */
+/**
+ * Every future's lens picture path, for the ones on disk (all six today).
+ *
+ * ALL_FUTURES, NOT FUTURES. `layers.ts`'s `lensFor` already reads
+ * ALL_FUTURES so a row stored under a WITHDRAWN lens still composes its
+ * style, window and cue — but this map read the offered four, so the same
+ * row lost its reference PICTURE. Half a lens: the words survived a
+ * withdrawal and the image did not.
+ *
+ * Found on 22 Sep by swapping the self-sufficient city out for the
+ * dispersed city: a `REFERENCE_MODE=lens` submit for a solarpunk row
+ * silently stopped using the edit endpoint, because there was no reference
+ * URL to send. Invisible on the default `REFERENCE_MODE=none`, which is
+ * why nothing else caught it.
+ *
+ * The `ON_DISK` filter is what keeps this honest — a key with no generated
+ * file is still absent, so this can never produce a 404 <img>.
+ */
 export const LENS_IMAGE: Record<Future['key'], string> = Object.fromEntries(
-	FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`] as const).filter(([, path]) => ON_DISK.has(path))
+	ALL_FUTURES.map((f) => [f.key, `/visuals/lens/${f.key}.jpg`] as const).filter(([, path]) => ON_DISK.has(path))
 ) as Record<Future['key'], string>;
 
 /** Every non-open option's picture path, for the ones that exist on disk. */

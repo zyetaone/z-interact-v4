@@ -9,7 +9,7 @@
  * is its POSITION, right after the frame.
  */
 import { describe, it, expect } from 'vitest';
-import { FUTURES } from '$lib/game/futures';
+import { ALL_FUTURES, FUTURES } from '$lib/game/futures';
 import { QUESTIONS } from '$lib/game/questions';
 import { IMPOSSIBLE_IDEAS, ZONE_SETS, impossibleIdea } from '$lib/game/zones';
 import { sanitizeComposed, NO_TEXT, houseBase } from '$lib/server/prompt';
@@ -27,7 +27,11 @@ import {
 	type AnswerLike
 , HOUSE_REGISTER} from './layers';
 
-const ABUNDANT = FUTURES.find((f) => f.key === 'solarpunk')!;
+// ALL_FUTURES: this fixture lens was withdrawn on 22 Sep when the dispersed
+// city took its place. The lens is still whole — that is what RETIRED_FUTURES
+// is for — so these composition tests keep working AND now exercise the
+// stored-row-under-a-withdrawn-lens path that `lensFor` exists to handle.
+const ABUNDANT = ALL_FUTURES.find((f) => f.key === 'solarpunk')!;
 const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
 const FRAME_2040 =
 	'A film still, a 2040 workplace: anamorphic 35 mm, volumetric light, ' +
@@ -218,7 +222,7 @@ describe('buildLayerInputs', () => {
 	 * light as dark.
 	 */
 	it('builds feel from the chosen lens light line, and from nothing else', () => {
-		expect(built.feel).toBe(FUTURES.find((f) => f.key === 'solarpunk')!.lightLine);
+		expect(built.feel).toBe(ALL_FUTURES.find((f) => f.key === 'solarpunk')!.lightLine);
 		expect(buildLayerInputs({ futureKey: undefined, answers: ANSWERS }).feel).toBe('');
 	});
 

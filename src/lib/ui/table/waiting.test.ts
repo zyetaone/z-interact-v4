@@ -96,3 +96,36 @@ describe('the front page shows a table at work', () => {
 		expect(body).not.toContain('stored');
 	});
 });
+
+describe('the shimmer actually travels across the frame', () => {
+	/**
+	 * Photographed on production 22 Sep: two frames a second apart, pixel
+	 * identical. The animation WAS running — the highlight was just parked
+	 * off-canvas for most of an ease-in-out cycle, because percentage
+	 * background-position resolves against (container - image) and the image
+	 * is 200% of the container, making that term negative. A ±200% range
+	 * sweeps four container widths; ±100% sweeps two, which is one pass.
+	 */
+	it('sweeps ±100%, not ±200% — the range is the bug, not the animation', () => {
+		const frames = css.match(/@keyframes shimmer \{[\s\S]*?\n\}/)?.[0] ?? '';
+		expect(frames).toContain('background-position: 100% 0');
+		expect(frames).toContain('background-position: -100% 0');
+		expect(frames).not.toContain('200% 0');
+	});
+
+	it('the highlight is visible against the navy it sits on', () => {
+		// 0.07 cream over #1a2740 is a four-step delta — it survives neither a
+		// projector nor a phone at arm's length in a lit room.
+		const rule = css.match(/\.skeleton \{[\s\S]*?\n\}/)?.[0] ?? '';
+		const alpha = Number(rule.match(/rgba\(244, 237, 224, ([\d.]+)\)/)?.[1] ?? 0);
+		expect(alpha).toBeGreaterThanOrEqual(0.12);
+	});
+
+	it('the front page sheen does NOT reuse .skeleton — its base is opaque', () => {
+		const front = readFileSync('src/routes/+page.svelte', 'utf-8');
+		expect(front).toContain('<span class="sheen"');
+		expect(front).not.toContain('class="sheen skeleton"');
+		// Same keyframes, transparent base.
+		expect(front).toMatch(/\.sheen \{[\s\S]*?animation: shimmer/);
+	});
+});

@@ -153,7 +153,7 @@
 					{#if drawing}
 						<!-- Sits over the code, because the code is no longer the point
 						     for this table — nobody else should be scanning it. -->
-						<span class="sheen skeleton" aria-hidden="true"></span>
+						<span class="sheen" aria-hidden="true"></span>
 						<span class="step">drawing</span>
 					{:else if !shot && view && view.step !== null && view.step > 0}
 						<span class="step">{view.step} of {view.totalSteps}</span>
@@ -436,12 +436,27 @@
 		opacity: 0.25;
 	}
 
+	/* NOT `.skeleton`: that class paints an OPAQUE navy base, and screening
+	   an opaque colour over the tile lightens the whole thing instead of
+	   sweeping a highlight across it. Same keyframes, transparent base. */
 	.sheen {
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
-		opacity: 0.6;
-		mix-blend-mode: screen;
 		pointer-events: none;
+		background: linear-gradient(
+			100deg,
+			transparent 30%,
+			rgba(244, 237, 224, 0.22) 50%,
+			transparent 70%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.8s ease-in-out infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sheen {
+			animation: none;
+		}
 	}
 </style>

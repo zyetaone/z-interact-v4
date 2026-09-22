@@ -406,3 +406,70 @@ button {
   border-left-color: var(--teal);
   background: rgba(62, 201, 176, 0.08);
 }
+
+/* --- waiting ------------------------------------------------------------ */
+/*
+ * ONE shimmer, shared by every place the app is waiting on a render — the
+ * drawing screen's per-zone frames and the gallery's not-yet-arrived tile.
+ * v1 had a skeleton frame here and v4 shipped the words "still drawing" in
+ * a flat box: a static box is indistinguishable from a broken one, which is
+ * the whole reason a skeleton moves.
+ *
+ * `background-size` is 200% so the highlight has somewhere to travel; the
+ * frame it sits in already reserves the image's aspect ratio, so nothing
+ * reflows when the picture lands.
+ */
+.skeleton {
+  background:
+    linear-gradient(
+      100deg,
+      var(--card-solid) 30%,
+      rgba(244, 237, 224, 0.07) 50%,
+      var(--card-solid) 70%
+    );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/*
+ * The brand mark's last glyph, breathing while the room waits. Generic on
+ * purpose: this repo carries no company name (CLAUDE.md's first rule), so
+ * the markup animates *the final character of whatever `BRAND_LINE` is*
+ * rather than a letter named in source.
+ */
+.brand-tick {
+  display: inline-block;
+  color: var(--gold);
+  animation: brand-tick 1.6s ease-in-out infinite;
+}
+
+@keyframes brand-tick {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .brand-tick {
+    animation: none;
+  }
+  .brand-tick {
+    opacity: 1;
+  }
+}

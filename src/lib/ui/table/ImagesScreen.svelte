@@ -71,6 +71,13 @@
 	 * tables start losing work to accidental refreshes.
 	 */
 	let steer = $state('');
+
+	/**
+	 * The enlarged picture, or null. Same shape as the front page's tile zoom
+	 * (`routes/+page.svelte`) — tap anywhere or press Escape to close. It holds
+	 * the URL rather than the zone so nothing here has to re-find the row.
+	 */
+	let zoomed = $state<string | null>(null);
 </script>
 
 <h1 class="stem">Your workspace of the future.</h1>
@@ -99,9 +106,19 @@
 				     as a placeholder, never as a hole in the gallery. -->
 				<div class="frame">
 					{#if image.url}
-						<img src={image.url} alt="Our {zoneLabel(image.zoneKey).toLowerCase()}" loading="lazy" />
+						<!-- A render on a phone is 390px wide and full of small things the
+						     table chose. Tapping it is how they get to look. The button
+						     sits above the frame's scrim, which is inert. -->
+						<button
+							class="open"
+							type="button"
+							onclick={() => (zoomed = image.url)}
+							aria-label="Enlarge our {zoneLabel(image.zoneKey).toLowerCase()}"
+						>
+							<img src={image.url} alt="Our {zoneLabel(image.zoneKey).toLowerCase()}" loading="lazy" />
+						</button>
 					{:else}
-						<div class="pending" class:failed={image.state === 'failed'}>
+						<div class="pending" class:skeleton={image.state !== 'failed'} class:failed={image.state === 'failed'}>
 							{#if image.state === 'failed'}
 								<span>this one failed</span>
 								<button class="btn ghost retry" disabled={regenerating} onclick={() => onretry(image.zoneKey)}>
@@ -162,6 +179,22 @@
 	</button>
 	<button class="btn" onclick={ondone}>We're done</button>
 </div>
+
+{#if zoomed}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div
+		class="zoom-back"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Our workspace, enlarged"
+		tabindex="-1"
+		onclick={() => (zoomed = null)}
+		onkeydown={(e) => e.key === 'Escape' && (zoomed = null)}
+	>
+		<img class="zoom-shot" src={zoomed} alt="Our workspace, enlarged" />
+		<p class="zoom-hint">Tap anywhere to close</p>
+	</div>
+{/if}
 
 <style>
 	.steer-field {
@@ -282,4 +315,44 @@
 		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 	}
 
+
+	/* The button is a frame-filling hit target, not a control with a look of
+	   its own — the picture is the affordance. */
+	.open {
+		display: block;
+		width: 100%;
+		height: 100%;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: zoom-in;
+	}
+
+	.zoom-back {
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 14px;
+		padding: 16px;
+		background: rgba(4, 8, 18, 0.94);
+	}
+
+	.zoom-shot {
+		max-width: 100%;
+		max-height: 82vh;
+		object-fit: contain;
+		border-radius: var(--radius);
+	}
+
+	.zoom-hint {
+		margin: 0;
+		font-size: 12px;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+	}
 </style>

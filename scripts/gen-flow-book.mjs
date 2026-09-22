@@ -102,7 +102,7 @@ const html = `<!doctype html>
 	<div class="strip">
 		${shot('01-landing', 'Landing', 'the title and a button, nothing else')}
 		${shot('02-lens', 'Screen 1 — the lens', 'six cities, two across, one screenful')}
-		${shot('03-lens-chosen', 'Lens chosen', 'the era chip appears only once the pick lands server-side')}
+		${shot('03-lens-chosen', 'Lens chosen', 'Next appears only once the pick lands server-side')}
 		${shot('04-q1', 'Q1 — materials', 'four options in plain words, and a box to write in')}
 	</div>
 </div>

@@ -54,9 +54,10 @@ export class TablePage {
 	async pickFutureAndAdvance(futureNameSubstring: string, dir: string) {
 		const card = this.page.getByRole('radio', { name: new RegExp(escapeRegex(futureNameSubstring)) });
 		await card.click();
-		// Prove the pick landed server-side: the era chip row only renders
-		// once `flow.status.future` comes back non-null from the server.
-		await expect(this.page.getByRole('region', { name: 'Era' })).toBeVisible({ timeout: 10_000 });
+		// Prove the pick landed server-side: `Next` only renders once
+		// `flow.status.future` comes back non-null. (This used to wait on the
+		// era chip row, which was removed on 22 Sep.)
+		await expect(this.page.getByRole('button', { name: 'Next' })).toBeVisible({ timeout: 10_000 });
 		await this.screenshot(dir, '03-future-stuck-no-continue-button');
 		await this.page.reload();
 	}

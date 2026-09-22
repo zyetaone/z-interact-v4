@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { composeHeroPrompt, composePromptFor, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
-import { wordCount, wildcardFragment, type AnswerLike } from './layers';
+import { wordCount, wildcardFragment, ERA_YEAR, type AnswerLike } from './layers';
 import { FUTURES } from '$lib/game/futures';
 import { QUESTIONS, TABLE_COUNT, WILDCARD } from '$lib/game/questions';
 import { HERO_ZONE, IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
@@ -36,6 +36,44 @@ const T10: AnswerLike[] = [
 ];
 
 const t10 = () => composeHeroPrompt({ futureKey: 'neo-seoul', answers: T10, table: 10 });
+
+/**
+ * THE ERA CHIP IS GONE FROM THE SCREEN, SO THE LENS HAS TO CARRY THE YEAR.
+ *
+ * Removed 22 Sep: it was a fifth control on a screen whose job is to pick a
+ * city, and the era it set is already a property of the city — `eraDefault`
+ * on every future. What must NOT have gone with it is the year itself: the
+ * hero's opening clause is "Design a workplace that is relevant in <year>",
+ * and an empty year there would read as a broken sentence on every table.
+ *
+ * `hero.ts` resolves era as `input.era ?? q1's stored key ?? eraDefault`, so
+ * a table that never touches an era — which is now every table — still gets
+ * its lens's own. `/simulate` still drives `saveEra`, and a `q1` row saved
+ * before today still wins over the default, which is why the second test is
+ * here rather than deleted.
+ */
+describe('the year survives the era chip', () => {
+	it('takes the lens default when no era was ever stored', () => {
+		for (const future of FUTURES) {
+			const p = composeHeroPrompt({ futureKey: future.key, era: null, table: 3, answers: [] });
+			const year = ERA_YEAR[future.eraDefault];
+			expect(p, future.key).toContain(`relevant in ${year}`);
+			// Never an empty or slug-shaped year — the failure this guards.
+			expect(year, future.key).toBeTruthy();
+			expect(year, future.key).not.toMatch(/-/);
+		}
+	});
+
+	it('still honours a stored q1 row over the lens default', () => {
+		const p = composeHeroPrompt({
+			futureKey: 'garden-city',
+			era: null,
+			table: 3,
+			answers: [{ questionId: 'q1', keys: ['hyperfuturistic-2040'] }]
+		});
+		expect(p).toContain(`relevant in ${ERA_YEAR['hyperfuturistic-2040']}`);
+	});
+});
 
 describe('every answer reaches the hero prompt', () => {
 	it('carries each surviving act and the frame that holds them', () => {

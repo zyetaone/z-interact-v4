@@ -65,7 +65,10 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await expect(page.locator('h1.stem')).toContainText('cognitive city');
 	await shoot(page, '02-lens');
 	await page.getByRole('radio', { name: /garden city/i }).click();
-	await expect(page.getByRole('region', { name: 'Era' })).toBeVisible({ timeout: 15_000 });
+	// The era chip was removed on 22 Sep, and it was what this waited on to
+	// prove the pick had landed SERVER-side. `Next` only renders once the
+	// server has answered with a future, so it proves the same thing.
+	await expect(page.getByRole('button', { name: 'Next' })).toBeVisible({ timeout: 15_000 });
 	await shoot(page, '03-lens-chosen');
 	await page.reload();
 

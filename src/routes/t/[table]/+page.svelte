@@ -14,10 +14,9 @@
 	 * `poll.svelte.ts`, mounted by the two screens that poll.
 	 */
 	import '../../../app.css';
-	import { tableStatus, saveAnswer, saveFuture, saveEra, saveWildcard, finishTable, regenerate, retryZone } from './answers.remote';
+	import { tableStatus, saveAnswer, saveFuture, saveWildcard, finishTable, regenerate, retryZone } from './answers.remote';
 	import { allRendersSettled, createTableState, FLOW_QUESTIONS, type TableStatus } from '$lib/state/table.svelte';
 	import { andId } from '$lib/game/questions';
-	import type { Era } from '$lib/game/era';
 	import Topbar from '$lib/ui/table/Topbar.svelte';
 	import LandingScreen from '$lib/ui/table/LandingScreen.svelte';
 	import FutureScreen from '$lib/ui/table/FutureScreen.svelte';
@@ -172,9 +171,7 @@
 	{:else if current.kind === 'future'}
 		<FutureScreen
 			futureKey={flow.status.future}
-			era={flow.status.era}
 			onpick={(key) => run(() => saveFuture({ table, futureKey: key }), false)}
-			onera={(era: Era) => run(() => saveEra({ table, era }), false)}
 			onskip={() => run(() => saveFuture({ table, futureKey: null }))}
 			onnext={() => flow.next()}
 		/>

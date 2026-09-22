@@ -80,6 +80,7 @@ contain). `docs/screens/` and `docs/fidelity/` are the committed output.
 
 Deploy (manual, not wired to CI yet):
 ```bash
+rm -rf .svelte-kit && npm run build   # NOT optional — see below
 wrangler pages deploy .svelte-kit/cloudflare --project-name <project> --branch main
 # --branch main is not optional: from a detached-HEAD checkout wrangler names the branch "head"
 # and the upload lands on a preview URL while production keeps serving the old build (seen 20 Sep).
@@ -87,6 +88,17 @@ wrangler pages secret put FAL_KEY --project-name <project>
 wrangler pages secret put FAL_WEBHOOK_SECRET --project-name <project>
 wrangler pages secret put ADMIN_TOKEN --project-name <project>
 ```
+
+**`rm -rf .svelte-kit` before every deploy build.** An incremental build
+reuses emitted assets AND the page-analysis step, and both went stale on
+22 Sep: a new `.clear-confirm` rule never reached the shipped stylesheet
+(the CSS asset kept its old content hash, so the deploy uploaded the
+previous CSS and the control stayed invisible in production while the
+source, the check and the test suite were all correct), and an illegal
+`export const` from a `+page.server.ts` — which a clean build rejects
+outright — shipped three times without the build ever failing. Neither is
+visible in `npm run check`, in the tests, or in the build's own output.
+Deleting the directory costs four seconds.
 
 **The real deploy is cut from a separate worktree, not this checkout.**
 `~/Developer/zyetaone/_deploy/v4-release` is a detached-HEAD git worktree of

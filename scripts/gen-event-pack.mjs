@@ -164,6 +164,12 @@ const html = `<!doctype html>
 		<div class="lens">
 			${FUTURES.map((f) => `<div class="one"><b>${esc(f.name)}</b><p>${esc(f.blurb)}</p></div>`).join('')}
 		</div>
+		<!-- A REAL BUTTON ON A REAL SCREEN, and the pack did not mention it.
+		     A facilitator reading this to answer "what if none of them fit us?"
+		     would have said there is no such option. There is, it is on screen
+		     one, and a skipped lens still renders — the house register supplies
+		     what the lens would have. -->
+		<p class="push"><b>Also on this screen:</b> <em>No future fits us — skip</em>. A skipped lens still draws — the house style supplies what the lens would have.</p>
 	</div>
 
 	${QUESTIONS.map(

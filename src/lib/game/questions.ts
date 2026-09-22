@@ -44,11 +44,10 @@
  * carries `{text}` except the wildcard's.
  *
  * Push lines: `push` is her "PUSH —" line verbatim, spoken at the table.
- * Two double as a typed capture field (`pushCapturesReply`): Q2's "name two
- * materials" (as in V3, and drawn) and Q5's "what did your table refuse to
- * automate?" (V3 captured that through an `open` facet; V4 makes it the
- * push line, so the capture moves with it — kept for the wall, never
- * drawn: `pushNotDrawn`). The rest are spoken only.
+ * TWO of the four now double as a typed capture field
+ * (`pushCapturesReply`): q2's materials reply and q6r's. q8's and q5c's
+ * boxes were both removed on 22 Sep — see each question for why. The rest
+ * are spoken only.
  *
  * Fixed interface the plumbing builds against (routes, `answers.remote.ts`,
  * `prompt.ts`'s programme layer): an ordered `QUESTIONS` array, each with a
@@ -98,11 +97,8 @@ export interface Question {
 	diamond: boolean;
 	/** The "PUSH —" line, verbatim. Shown as a hint under the stem; spoken at the table. */
 	push?: string;
-	/** True where the push line doubles as a typed capture field (Q2, Q5). */
+	/** True where the push line doubles as a typed capture field (q2, q6r). */
 	pushCapturesReply?: boolean;
-	/** True where that captured reply is kept for the wall and the export but never composed
-	 *  into the prompt (Q5's "refused to automate" — a decision, not a subject; `layers.ts`). */
-	pushNotDrawn?: boolean;
 	/** The "And:" sub-question, where V4 has one. Optional to answer; never blocks Next. */
 	and?: AndQuestion;
 	/**
@@ -248,9 +244,15 @@ export const QUESTIONS: Question[] = [
 		select: { kind: 'one' },
 		diamond: true,
 		visualCues: false,
-		push: 'What did your table refuse to automate?',
-		pushCapturesReply: true,
-		pushNotDrawn: true,
+		// NO PUSH. It was "What did your table refuse to automate?" — a good
+		// question at the table and a poor one on the phone: its reply was
+		// never composed into the prompt, so the box was a third
+		// row of furniture that changed nothing anyone would see. Owner's
+		// call, 22 Sep, the same call as q8's.
+		//
+		// The open option "Somewhere from our imagination" still has its own
+		// box, which appears only when that option is picked and IS drawn.
+		// That is now the one place q5c takes words.
 		options: [
 			{
 				key: 'glass-dome',
@@ -545,13 +547,13 @@ const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) =>
 if (DIAMOND_IDS.join(',') !== 'q2,q5c,q6r') {
 	throw new Error(`expected diamond (◆) questions q2,q5c,q6r, got ${DIAMOND_IDS.join(',')}`);
 }
-// THREE of the four take typed words — the 21 Sep note "similar to KL,
-// allow open text below", KL being generation 1, where every field was free
-// text. q8 is the exception (22 Sep): its answer is already a percentage and
-// the reason behind it paints nothing. q5c's reply is captured but kept off
-// the render (`pushNotDrawn`): "what did your table refuse to automate" is a
-// decision about the table, which has nothing to paint.
-if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q5c,q6r') {
+// TWO of the four take typed words. The 21 Sep note ("similar to KL, allow
+// open text below", KL being generation 1, where every field was free text)
+// put a box on all four; 22 Sep took two back off. q8's answer is already a
+// percentage, and q5c's reply was never composed into the prompt, so both
+// boxes asked for words that changed nothing the table would see. q5c still
+// takes words through its OPEN option, which is drawn.
+if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q6r') {
 	throw new Error(`expected every question to capture typed words, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 

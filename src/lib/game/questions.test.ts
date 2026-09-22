@@ -72,10 +72,12 @@ describe('V4 shape', () => {
 	 * second push vanished by accident. This fails either way: a push that
 	 * disappears AND a push that reappears.
 	 */
-	it('carries a push line on q2, q5c and q6r — and none on q8', () => {
+	it('carries a push line on q2 and q6r only — q8 and q5c have none', () => {
 		const withPush = QUESTIONS.filter((q) => q.push).map((q) => q.id);
-		expect(withPush).toEqual(['q2', 'q5c', 'q6r']);
-		expect(QUESTIONS.find((q) => q.id === 'q8')?.pushCapturesReply).toBeUndefined();
+		expect(withPush).toEqual(['q2', 'q6r']);
+		for (const id of ['q8', 'q5c']) {
+			expect(QUESTIONS.find((q) => q.id === id)?.pushCapturesReply, id).toBeUndefined();
+		}
 	});
 
 	/**

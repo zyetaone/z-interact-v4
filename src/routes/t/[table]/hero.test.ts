@@ -28,11 +28,8 @@ const T10: AnswerLike[] = [
 	{ questionId: 'future', keys: ['neo-seoul'] },
 	{ questionId: 'q1', keys: ['hyperfuturistic-2040'] },
 	{ questionId: 'q2', keys: ['soft-pastel'] },
-	{ questionId: 'q2:and', keys: ['generous'] },
 	{ questionId: 'q5c', keys: ['glass-dome'] },
-	{ questionId: 'q5c:and', keys: ['in-the-room'] },
 	{ questionId: 'q6r', keys: ['mud-hut'] },
-	{ questionId: 'q6r:and', keys: ['a-view-of-it'] },
 	{ questionId: 'q8', keys: ['landscape-indoors'] },
 	// A V4-era row. It still composes — see `layers.test.ts`'s note.
 	{ questionId: 'q7', keys: ['light-and-sound'] }
@@ -41,13 +38,13 @@ const T10: AnswerLike[] = [
 const t10 = () => composeHeroPrompt({ futureKey: 'neo-seoul', answers: T10, table: 10 });
 
 describe('every answer reaches the hero prompt', () => {
-	it('carries each surviving act, its "And:" pick, and the frame that holds them', () => {
+	it('carries each surviving act and the frame that holds them', () => {
 		const p = t10();
 		// TWO acts now, not four. The 21 Sep minutes cut q3 (arrival) and
 		// folded q4w (the workstation) into q5c, so deep work and recharge are
 		// the whole programme.
-		expect(p).toMatch(/Deep work happens as a glass geodesic room standing alone[^.]*a hologram or figure at the table/);
-		expect(p).toMatch(/They recharge in a round room of thick hand-built earth walls[^.]*only a view through the far glass/);
+		expect(p).toMatch(/Deep work happens as a glass geodesic room standing alone/);
+		expect(p).toMatch(/They recharge in a round room of thick hand-built earth walls/);
 	});
 
 	it('carries the room participating, nature, the materials, the scale and the lens light', () => {
@@ -56,7 +53,6 @@ describe('every answer reaches the hero prompt', () => {
 		expect(p).toContain('a wall brightens toward whoever walks to it and dims behind them');
 		expect(p).toContain('trees, water, rock and soil indoors'); // q8
 		expect(p).toContain('blush, sage and butter'); // q2
-		expect(p).toContain('wide lens, high ceilings, open floor'); // q2:and, as the camera
 		// The feel is the LENS's `lightLine` now that q11 is cut.
 		expect(p).toContain(FUTURES.find((f) => f.key === 'neo-seoul')!.lightLine);
 	});

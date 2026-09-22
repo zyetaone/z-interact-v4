@@ -27,13 +27,13 @@ const TABLE = 4;
 
 /** One table's answers — one per question, chosen to be visibly different from each other in the render. */
 // The 21 Sep 19:42 order: materials, outdoors, deep work, recharge.
-const PICKS: { label: string; and?: string; sliderIndex?: number }[] = [
-	{ label: 'Earth and timber', and: 'Generous' },
+const PICKS: { label: string; sliderIndex?: number }[] = [
+	{ label: 'Earth and timber' },
 	// q8 renders ONLY a range input — no radios exist on that screen at all.
 	// Index 3 of its six options is "Courtyards".
 	{ label: 'Courtyards', sliderIndex: 3 },
-	{ label: 'The dome in the rainforest', and: 'In the light' },
-	{ label: 'The water room', and: 'Fully immersive' }
+	{ label: 'The dome in the rainforest' },
+	{ label: 'The water room' }
 ];
 
 const PUSHES = [
@@ -80,12 +80,6 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 			await range.fill(String(pick.sliderIndex));
 		} else {
 			await page.getByRole('radio', { name: pick.label, exact: true }).click();
-		}
-		if (pick.and) {
-			await page
-				.getByRole('radiogroup', { name: /^And: / })
-				.getByRole('radio', { name: pick.and, exact: true })
-				.click();
 		}
 		// The typed reply — every question captures one now, which is the
 		// 21 Sep "allow open text below" note. Filled here so the book shows
@@ -150,7 +144,7 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await writeFile(
 		`${DIR}/composed-prompt.txt`,
 		`table ${TABLE} · the garden city\n` +
-			`${prompts.map((p, i) => `Q${i + 1} ${p} -> ${PICKS[i].label}${PICKS[i].and ? ` (And: ${PICKS[i].and})` : ''}\n    typed: ${PUSHES[i]}`).join('\n')}\n` +
+			`${prompts.map((p, i) => `Q${i + 1} ${p} -> ${PICKS[i].label}\n    typed: ${PUSHES[i]}`).join('\n')}\n` +
 			`wildcard: ${WILDCARD}\n\n` +
 			`--- composed (${composed.length} characters) ---\n${composed}\n`,
 		'utf-8'

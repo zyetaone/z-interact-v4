@@ -79,17 +79,23 @@ describe('buildLayerInputs', () => {
 		}
 	});
 
+	/**
+	 * The phrase that used to collide here came from q5c's "And: where does
+	 * the AI sit?" pick ("the AI unseen, no device anywhere"), and the "And:"
+	 * rows were removed on 21 Sep. The DEDUPLICATION is not removed, so the
+	 * collision is driven from the option fragment that still says it —
+	 * `sealed-cell`'s "no screens and no devices" against q7's
+	 * "no device anywhere". Same machinery, a source that still exists.
+	 */
 	it('drops a moment phrase the room-participates clause already says (no device anywhere, once)', () => {
 		const answers = [
 			{ questionId: 'q5c', keys: ['sealed-cell'] },
-			{ questionId: 'q5c:and', keys: ['unseen'] },
 			{ questionId: 'q7', keys: ['nothing-to-see'] }
 		];
 		const inp = buildLayerInputs({ futureKey: 'solarpunk', answers });
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		const prompt = composeZonePrompt(composeBase(inp), resolveZone(library, answers), inp.negative);
 		expect(prompt.match(/no device anywhere/g)).toHaveLength(1);
-		expect(prompt).toContain('the AI unseen');
 		expect(prompt).toContain(ROOM_PARTICIPATES['nothing-to-see']);
 	});
 
@@ -160,10 +166,12 @@ describe('buildLayerInputs', () => {
 		expect(skipped.mood).toContain('moody rather than stark');
 	});
 
-	it('builds materialsAndLight from q2 (her tone; materials; finish), its scale as a camera clause, its push reply, then the room participating (q7) and q8', () => {
+	// The scale clause ("eye level, ceilings within reach") was q2's "And:"
+	// pick and went with the rest of them on 21 Sep. The camera is now said
+	// once, by the frame, rather than chosen per table.
+	it('builds materialsAndLight from q2 (her tone; materials; finish), its push reply, then the room participating (q7) and q8', () => {
 		expect(built.materialsAndLight).toBe(
 			'grey, sand and ochre; board-marked concrete, stone, rough timber; rugged and unpolished. ' +
-				'eye level, ceilings within reach. ' +
 				'raw concrete and brushed steel. ' +
 				'a bare table wakes under their hands and shows the work. ' +
 				'deliberate pockets of greenery'
@@ -193,12 +201,11 @@ describe('buildLayerInputs', () => {
 		expect(composeBase(built)).not.toContain('who gets fired');
 	});
 
-	it('the zones moment carries that zones own question and its And pick, exactly once', () => {
+	it('the zones moment carries that zones own question, exactly once', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		const prompt = composeZonePrompt(composeBase(built), resolveZone(library, ANSWERS), built.negative);
 		const moment = 'a glass geodesic room standing alone among mature trees';
 		expect(prompt).toContain(moment);
-		expect(prompt).toContain('the AI present only as light'); // its "And:" pick rides with it
 		expect(prompt.split(moment)).toHaveLength(2);
 		expect(prompt).not.toContain('tatami'); // the garden's question, not this zone's
 	});
@@ -255,9 +262,25 @@ describe('buildLayerInputs', () => {
 		for (const f of FUTURES) expect(f.negativeFragment, f.key).not.toMatch(materialWords);
 	});
 
-	it('ignores an And pick whose parent question was never answered, without a placeholder', () => {
+	/**
+	 * A STORED `:and` ROW IS NOW INERT, AND THAT IS THE POINT OF THIS TEST.
+	 *
+	 * Until 21 Sep this asserted the opposite — an orphan "And:" pick still
+	 * composed its fragment. The rows were removed that evening, and
+	 * `OPTIONS_BY_ID` builds its `<qid>:and` entries by filtering `q.and`,
+	 * so taking the data out took the lookup with it.
+	 *
+	 * That is a deliberate difference from `RETIRED_ZONES`. A zone key is
+	 * structural — an image row cannot be labelled without one — so it must
+	 * resolve for ever. An "And:" fragment is additive to a prompt, so a
+	 * regenerated old render loses one clause instead of breaking.
+	 *
+	 * What must NOT change is the second assertion: whatever happens to the
+	 * fragment, no `{text}` placeholder may reach a prompt.
+	 */
+	it('composes nothing from a stored And pick, and leaks no placeholder', () => {
 		const orphanAnd = buildLayerInputs({ futureKey: 'solarpunk', answers: [{ questionId: 'q2:and', keys: ['cathedral'] }] });
-		expect(orphanAnd.materialsAndLight).toBe('wide lens, low, a tall volume overhead');
+		expect(orphanAnd.materialsAndLight).toBe('');
 		expect(composeBase(orphanAnd)).not.toContain('{');
 	});
 });
@@ -328,10 +351,10 @@ describe('composeBase / composeZonePrompt', () => {
 		expect(full.indexOf(zone.renderSuffix)).toBeGreaterThan(full.indexOf('EDITED BY THE TABLE'));
 	});
 
-	it('resolves the library moment with the deep-work pick and where the AI sits', () => {
+	it('resolves the library moment with the deep-work pick', () => {
 		const library = ZONE_SETS.book.find((z) => z.key === 'library')!;
 		expect(resolveZone(library, ANSWERS).renderSuffix).toBe(
-			'Deep work mid-act, no one posed: a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane, the AI present only as light'
+			'Deep work mid-act, no one posed: a glass geodesic room standing alone among mature trees, one person working inside, forest pressing against every pane'
 		);
 	});
 

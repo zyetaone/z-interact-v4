@@ -178,17 +178,7 @@ export const QUESTIONS: Question[] = [
 				promptFragment:
 					'terracotta, clay, olive and bronze; rammed earth, rattan, aged brass, linen; woven and textured'
 			}
-		],
-		and: {
-			prompt: 'what scale?',
-			options: [
-				{ key: 'cathedral', label: 'Cathedral', promptFragment: 'wide lens, low, a tall volume overhead' },
-				{ key: 'generous', label: 'Generous', promptFragment: 'wide lens, high ceilings, open floor' },
-				{ key: 'human', label: 'Human', promptFragment: 'eye level, ceilings within reach' },
-				{ key: 'nested', label: 'Nested', promptFragment: 'medium lens from an alcove, the hall beyond' },
-				{ key: 'compressed', label: 'Compressed', promptFragment: 'tight framing at eye level, close walls' }
-			]
-		}
+		]
 	},
 	{
 		id: 'q8',
@@ -290,16 +280,7 @@ export const QUESTIONS: Question[] = [
 				open: true,
 				promptFragment: '{text}'
 			}
-		],
-		and: {
-			prompt: 'where does the AI sit?',
-			options: [
-				{ key: 'unseen', label: 'Unseen', promptFragment: 'the AI unseen, no device anywhere' },
-				{ key: 'in-the-light', label: 'In the light', promptFragment: 'the AI present only as light' },
-				{ key: 'on-the-surfaces', label: 'On the surfaces', promptFragment: 'the AI on the walls and tables' },
-				{ key: 'in-the-room', label: 'In the room', promptFragment: 'a hologram or figure at the table' }
-			]
-		}
+		]
 	},
 	{
 		id: 'q6r',
@@ -348,16 +329,7 @@ export const QUESTIONS: Question[] = [
 				promptFragment:
 					'an open grassland terrace under a wide sky, wind moving the grass, people walking and stretching away from any building'
 			}
-		],
-		and: {
-			prompt: 'how far does it go?',
-			options: [
-				{ key: 'a-view-of-it', label: 'A view of it', promptFragment: 'only a view through the far glass' },
-				{ key: 'a-room-that-evokes-it', label: 'A room that evokes it', promptFragment: 'an interior room borrowing its material' },
-				{ key: 'fully-immersive', label: 'Fully immersive', promptFragment: 'the biome filling the frame' },
-				{ key: 'the-real-thing', label: 'The real thing', promptFragment: 'outdoors inside it, the building at the edge' }
-			]
-		}
+		]
 	},
 ];
 
@@ -520,14 +492,36 @@ if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q8,q5c,q6r') {
 }
 
 /**
- * The "And:" sub-questions that survived. q6r's is the realism scale the
- * minutes' §8 asked for ("a view of it / a room that evokes it / fully
- * immersive / the real thing") — it was already built, so §8's open question
- * needs no new screen.
+ * NO QUESTION CARRIES AN "And:" ROW ANY MORE.
+ *
+ * 21 Sep 22:26, with two annotated screenshots framing exactly these rows —
+ * "And: how far does it go?" and "And: where does the AI sit?" — and the
+ * line "Remove these additional inputs." They were an extra row of options
+ * under a screen that already had six, and the event wants fewer things to
+ * tap, not more.
+ *
+ * THE TYPE AND THE MACHINERY STAY, BUT A STORED `:and` ROW NO LONGER
+ * COMPOSES. `layers.ts` builds `OPTIONS_BY_ID` by filtering `q.and`, so
+ * taking the data out takes the lookup with it — an older row under
+ * `q2:and` is read, found to match no option, and contributes nothing.
+ *
+ * That is deliberate and it is NOT the `RETIRED_ZONES` case. A zone key is
+ * structural: an image row cannot be labelled or displayed without one, so
+ * it must resolve for ever. An "And:" fragment is additive to a prompt, so
+ * losing it degrades a regenerated old render by one clause rather than
+ * breaking it. `AndQuestion`, `andId()` and the review screen's "· And:"
+ * suffix stay because they are what stops a stored row crashing anything.
+ *
+ * WHAT THE PROMPT LOSES, recorded rather than discovered later: q2's scale
+ * pick was the CAMERA clause ("wide lens, high ceilings, open floor"),
+ * q5c's was where the AI reads in the frame, q6r's was how much of the
+ * frame the biome takes. The hero still states its own camera — "one
+ * elevated three-quarter view" plus a per-table vantage — so the frame is
+ * not unheld, but it is now the same lens for every table.
  */
 const AND_IDS = QUESTIONS.filter((q) => q.and).map((q) => q.id);
-if (AND_IDS.join(',') !== 'q2,q5c,q6r') {
-	throw new Error(`expected "And:" sub-questions on q2,q5c,q6r, got ${AND_IDS.join(',')}`);
+if (AND_IDS.length !== 0) {
+	throw new Error(`"And:" rows were removed on 21 Sep; found one on ${AND_IDS.join(',')}`);
 }
 
 /**

@@ -84,9 +84,16 @@ drawn things in the render.
 ## Still open
 
 **The cities.** *"we had discussed reducing the options and also the
-names — check notes"*. Those notes are not in this repo and were not
-guessed at. Until they arrive, the six lenses and their names are
-unchanged. This is the one item blocking a final question book.
+names — check notes"*, and separately *"The cityscapes need to be
+simplified"* (21 Sep 22:27). Two instructions pointing the same way and
+neither saying which cities survive or what they are called, so nothing
+was guessed. The six lenses and their names are unchanged.
+
+This is the one item between here and a frozen, printable question book.
+Searched and not found: this repo, the vault, and the last 30 days of
+meeting notes. A Sep 1 discussion about not pre-assigning lenses turned up
+and is a DIFFERENT lens concept — stakeholder roles in another exercise,
+not the city archetypes — so it was not treated as the answer.
 
 ## Tests that now hold the reversible parts
 

@@ -39,9 +39,6 @@
 	} = $props();
 
 
-	/** Her PUSH line for Q1, verbatim — spoken at the table, never typed. */
-	const PUSH = 'what do you see through the window?';
-
 	const ERA_LABEL: Record<Era, string> = {
 		'retro-1930s': '1930s reborn',
 		'same-as-2026': 'Same as 2026',
@@ -64,9 +61,11 @@
 	const warnNow = $derived(chosen && current ? eraVerdict(chosen, current) === 'warn' : false);
 </script>
 
+<!-- THE QUESTION, THEN THE CITIES. 21 Sep 22:27, a screenshot of this screen
+     with the hint and the Talk line circled in red: "All this can be
+     removed". The six pictures say what a lens is better than a line
+     explaining that a lens sets the building and the light does. -->
 <h1 class="stem" id="lens-stem">{LENS_STEM}</h1>
-<p class="hint">It sets the building, the skyline and the light.</p>
-<p class="talk"><span class="push-label">Talk</span><span>{PUSH}</span></p>
 
 <ul class="futures" role="radiogroup" aria-labelledby="lens-stem">
 	{#each FUTURES as future (future.key)}

@@ -166,9 +166,9 @@ export const QUESTIONS: Question[] = [
 			},
 			{
 				key: 'soft-pastel',
-				label: 'Soft pastels and matte finishes',
+				label: 'Soft pastels and rounded edges',
 				promptFragment:
-					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
+					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile, rounded edges'
 			},
 			{
 				key: 'raw-elemental',

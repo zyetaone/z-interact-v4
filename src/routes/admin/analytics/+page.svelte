@@ -85,7 +85,7 @@
 		     facilitator can read out as they are. Absent until two tables have
 		     answered, because one table is unanimous with itself. -->
 		{#if a.consensus || a.divisive}
-			<section class="panel verdict">
+			<section class="panel">
 				<h2>What the room decided</h2>
 				{#if a.consensus}
 					<p class="verdict-line">

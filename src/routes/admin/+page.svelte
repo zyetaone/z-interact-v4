@@ -529,6 +529,41 @@
 		color: #fff;
 	}
 
+	/*
+	 * THE ONLY TEXT INPUT ON THIS DESK, and it went out unstyled.
+	 *
+	 * `class="clear-confirm"` was in the markup with no rule behind it, so
+	 * the field inherited the desk's near-white `--ink` over a UA-default
+	 * light background: white on white. The facilitator arms Clear all, is
+	 * asked to type the event id, and cannot see what they are typing — on
+	 * the one control in this app that cannot be undone.
+	 *
+	 * Same mistake as the `.danger` class that a more specific selector ate
+	 * earlier: a class name is not a style, and nothing in a build or a
+	 * check fails when the rule behind one is missing. `class-hooks.test.ts`
+	 * now asserts every class in every component resolves to a rule.
+	 */
+	.clear-confirm {
+		min-height: var(--desk-tap);
+		padding: 0 12px;
+		border-radius: 10px;
+		border: 1px solid var(--danger);
+		background: rgba(10, 16, 32, 0.85);
+		color: var(--ink);
+		font: inherit;
+		font-size: 15px;
+		min-width: 190px;
+	}
+
+	.clear-confirm::placeholder {
+		color: var(--ink-faint);
+	}
+
+	.clear-confirm:focus-visible {
+		outline: 2px solid var(--danger);
+		outline-offset: 1px;
+	}
+
 	input[type='number'] {
 		width: 64px;
 		min-height: var(--desk-tap);

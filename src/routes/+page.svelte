@@ -117,7 +117,6 @@
 				<button
 					type="button"
 					class="tile"
-					class:filled={!!shot}
 					aria-label={shot ? `Enlarge table ${t}'s workspace` : `Enlarge the QR code for table ${t}`}
 					onclick={() => (zoomed = t)}
 				>

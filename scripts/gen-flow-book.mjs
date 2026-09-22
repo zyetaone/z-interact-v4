@@ -100,7 +100,7 @@ const html = `<!doctype html>
 
 	<h2>1 · The screens, in order</h2>
 	<div class="strip">
-		${shot('01-landing', 'Landing', 'the city is named here, before anything is asked')}
+		${shot('01-landing', 'Landing', 'the title and a button, nothing else')}
 		${shot('02-lens', 'Screen 1 — the lens', 'six cities, two across, one screenful')}
 		${shot('03-lens-chosen', 'Lens chosen', 'the era chip appears only once the pick lands server-side')}
 		${shot('04-q1', 'Q1 — materials', 'four options in plain words, and a box to write in')}
@@ -142,7 +142,7 @@ const html = `<!doctype html>
 	<h2 style="margin-top:14pt">Does the picture contain the answers?</h2>
 	<table>
 		<tr><th>What the table chose</th><th>In the frame</th><th></th></tr>
-		<tr><td>Earth and timber, generous scale</td><td>Rammed earth walls and timber throughout; open floor, high roof</td><td class="yes">yes</td></tr>
+		<tr><td>Earth and timber</td><td>Rammed earth walls and timber throughout</td><td class="yes">yes</td></tr>
 		<tr><td>Courtyards — the floor opens to the sky</td><td>Green roofs and planted courtyards cut through the plate</td><td class="yes">yes</td></tr>
 		<tr><td>The dome in the rainforest</td><td>Glass dome among the trees, one person working inside it</td><td class="yes">yes</td></tr>
 		<tr><td>The water room, fully immersive</td><td>Steaming sunken pool, two people in it</td><td class="yes">yes</td></tr>

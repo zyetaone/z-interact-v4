@@ -104,3 +104,45 @@ not the city archetypes — so it was not treated as the answer.
 - `prompt-edit.test.ts` — the review screen's prompt edit is discarded
   under `ZONE_SET=hero` and honoured on the four-zone path.
 - `progress.test.ts` — one step scale for the phone and the room.
+
+## 22 Sep — the cities, and what is an inference
+
+The print freeze was blocked on one item: "the Cities — we had discussed
+reducing the options and also the names. Check notes please", followed by
+"The cityscapes need to be simplified".
+
+**Searched, not found.** The repo, the vault and the meeting archive hold no
+note recording a decision to cut or rename specific cities. The nearest
+thing is a 1 Sep discussion of *stakeholder* lenses (CFO / CHRO / CRE /
+employee), which is a different axis from the city archetypes and is
+deliberately not treated as the same decision.
+
+**What the meeting summary does say**, in its own words: the vertical city
+stays and resonates with dense South Asian metros; the abundant city is kept
+as an urban scape with everything; the garden city needs sharper text and
+visuals and should convey no separation between nature and building; the
+1950s retro-futurist option is renamed Neo Retro. Four cities, named. The
+dense and lit city and the dispersed city are never mentioned.
+
+**So the cut to four is an INFERENCE.** Nobody wrote "remove these two". It
+is the reading that makes "reduce the options" and a four-city discussion
+agree, and it is recorded here as a reading rather than as a decision so
+that the owner can overrule it in one line.
+
+**Reverting is one line.** `RETIRED_FUTURES` in `src/lib/game/futures.ts`
+holds both withdrawn entries whole. Move an entry back into `FUTURES` and
+bump the count guard from 4; nothing else in the app knows the difference.
+
+They are withdrawn rather than deleted because a lens is not an `And:`
+fragment. An `And:` row that stops existing drops one clause from a prompt.
+A lens supplies `styleDna`, `worldOutside`, `lightLine` and
+`negativeFragment` — a row stored under a deleted key would compose a prompt
+with no world layer at all, and nothing would report it. `futureByKey` and
+every name lookup therefore read `ALL_FUTURES`; the phone, the book, the
+visuals and the answer validator read `FUTURES`, so nobody can newly pick
+one. `retired-futures.test.ts` asserts both halves.
+
+**Not done:** the garden city's visual. The summary asks for sharper visuals
+as well as sharper text; the blurb already says "There is no boundary: the
+office IS the parkland", which is the note's own language, but
+`static/visuals/lens/garden-city.jpg` has not been regenerated against it.

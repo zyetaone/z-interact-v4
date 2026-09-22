@@ -202,12 +202,14 @@ export const QUESTIONS: Question[] = [
 		select: { kind: 'one' },
 		diamond: false,
 		visualCues: false,
-		// NOT "how does your greenery cool a mind" — a third of the tables
-		// answer "None", and that line asks them about greenery they have just
-		// said they do not want. A push has to be answerable from every option
-		// above it, or it reads as the form ignoring the reply.
-		push: 'Why that much?',
-		pushCapturesReply: true,
+		// NO PUSH. It was "Why that much?", and it is the one question of the
+		// four whose answer is already a number — the reason adds nothing the
+		// render can draw, and it asked a table to justify a slider position
+		// on the way past. Owner's call, 22 Sep.
+		//
+		// A row stored with a q8 push reply still resolves: `layers.ts` reads
+		// the reply by question id and simply finds none for a question that
+		// no longer asks. Same rule as a retired question.
 		options: [
 			{
 				key: 'sparse-inside-abundant-outside',
@@ -543,12 +545,13 @@ const PUSH_CAPTURE_IDS = QUESTIONS.filter((q) => q.pushCapturesReply).map((q) =>
 if (DIAMOND_IDS.join(',') !== 'q2,q5c,q6r') {
 	throw new Error(`expected diamond (◆) questions q2,q5c,q6r, got ${DIAMOND_IDS.join(',')}`);
 }
-// EVERY question takes typed words now, not just two of them — the 21 Sep
-// note "similar to KL, allow open text below", KL being generation 1, where
-// every field was free text. q5c's reply is the only one kept off the render
-// (`pushNotDrawn`): "what did your table refuse to automate" is a decision
-// about the table, which has nothing to paint.
-if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q8,q5c,q6r') {
+// THREE of the four take typed words — the 21 Sep note "similar to KL,
+// allow open text below", KL being generation 1, where every field was free
+// text. q8 is the exception (22 Sep): its answer is already a percentage and
+// the reason behind it paints nothing. q5c's reply is captured but kept off
+// the render (`pushNotDrawn`): "what did your table refuse to automate" is a
+// decision about the table, which has nothing to paint.
+if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q5c,q6r') {
 	throw new Error(`expected every question to capture typed words, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 

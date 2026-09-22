@@ -65,8 +65,17 @@ describe('V4 shape', () => {
 		}
 	});
 
-	it('gives every question a push line except the three-words pick', () => {
-		for (const q of QUESTIONS) expect(!!q.push, q.id).toBe(q.id !== 'q11');
+	/**
+	 * NAMED, not "every question except q11". q8's push ("Why that much?")
+	 * was removed 22 Sep because its answer is already a percentage, and a
+	 * rule phrased as an exception list would have gone on passing while a
+	 * second push vanished by accident. This fails either way: a push that
+	 * disappears AND a push that reappears.
+	 */
+	it('carries a push line on q2, q5c and q6r — and none on q8', () => {
+		const withPush = QUESTIONS.filter((q) => q.push).map((q) => q.id);
+		expect(withPush).toEqual(['q2', 'q5c', 'q6r']);
+		expect(QUESTIONS.find((q) => q.id === 'q8')?.pushCapturesReply).toBeUndefined();
 	});
 
 	/**

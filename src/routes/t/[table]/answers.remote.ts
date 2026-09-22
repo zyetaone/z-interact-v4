@@ -41,7 +41,7 @@ import {
 import { TABLE_COUNT, WILDCARD } from "$lib/game/questions";
 import { activeZones, zoneByKey } from "$lib/game/zones";
 import { ERA_SCALE, eraVerdict, type Era } from "$lib/game/era";
-import { FUTURES } from "$lib/game/futures";
+import { ALL_FUTURES, FUTURES } from "$lib/game/futures";
 import {
   decideSubmit,
   lockedAt,
@@ -442,7 +442,7 @@ export const saveFuture = command(
       const gate = await assertCanSave(env, event, table);
       if (!gate.ok) return gate;
       const future = futureKey
-        ? FUTURES.find((f) => f.key === futureKey)
+        ? ALL_FUTURES.find((f) => f.key === futureKey)
         : undefined;
       if (futureKey && !future)
         return { ok: false as const, reason: "unknown future" };
@@ -488,7 +488,7 @@ export const saveEra = command(
       const gate = await assertCanSave(env, event, table);
       if (!gate.ok) return gate;
       const answers = answersOf(await getCurrentAnswers(env.DB, event, table));
-      const future = FUTURES.find((f) => f.key === futureOf(answers));
+      const future = ALL_FUTURES.find((f) => f.key === futureOf(answers));
       // The greying rule is data (era.ts), so it is enforced here too —
       // a greyed chip on the phone is a hint, not a boundary.
       if (future && eraVerdict(future, era) === "blocked") {

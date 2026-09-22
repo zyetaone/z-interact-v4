@@ -361,7 +361,7 @@ describe('composeBase / composeZonePrompt', () => {
 	it('resolves the garden moment with the biome and how much of the frame it takes', () => {
 		const garden = ZONE_SETS.book.find((z) => z.key === 'garden')!;
 		expect(resolveZone(garden, ANSWERS).renderSuffix).toContain(
-			'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
+			'a small tatami room whose paper screens are slid open to a garden, a low kettle and a single flower, people kneeling on the mats'
 		);
 	});
 

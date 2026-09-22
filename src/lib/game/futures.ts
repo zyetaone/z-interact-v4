@@ -159,6 +159,39 @@ export const FUTURES: Future[] = [
 		shadowFace: 'Aesthetic greenwash over unchanged extraction'
 	}),
 	future({
+		key: 'retrofuturism',
+		name: 'Neo Retro',
+		provenance: 'Deco and Streamline Moderne, c. 1925-1939',
+		blurb: 'The more we walk into the future, the more we want the past. Deco geometry, brass, streamlined curves \u2014 a tomorrow built out of yesterday.',
+		eraDefault: 'retro-1930s',
+		eraLocked: true,
+		eraWarn: [],
+		moodLine:
+			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
+		styleDna: 'fluted walnut panelling, brass balustrades, inlaid terrazzo, milk-glass lamps, deco cornices, arched windows',
+		worldOutside: 'through the glass, a streamlined 1930s city, arched stone facades; fluted walnut, brass',
+		insideCue: 'inside, brass-and-bakelite machine-age instruments that are clearly computers',
+		negativeFragment: 'neon, skyscrapers',
+		lightLine: 'bright daylight through the tall arched windows, walnut and brass lit warm and clear',
+		shadowFace: 'Ornament as a screen over the same machine'
+	})
+];
+
+/**
+ * WITHDRAWN LENSES — offered to nobody, resolvable for ever.
+ *
+ * The 21 Sep review cut the list to the four the room actually discusses.
+ * These two are not deleted, because a lens is not an `And:` fragment: it
+ * supplies `styleDna`, `worldOutside`, `lightLine` AND `negativeFragment`,
+ * so a row stored under one of these keys would compose a prompt missing
+ * its entire world layer rather than merely a clause. `futureByKey` reads
+ * `ALL_FUTURES`; every screen, the book and the visuals read `FUTURES`.
+ *
+ * Reinstating one is moving its entry back up into `FUTURES` and bumping
+ * the count guard. Nothing else knows the difference.
+ */
+export const RETIRED_FUTURES: Future[] = [
+	future({
 		key: 'neo-seoul',
 		name: 'The dense and lit city',
 		provenance: 'Gibson, Neuromancer, 1984; Neo Seoul 2144 in Cloud Atlas, 2012',
@@ -191,34 +224,20 @@ export const FUTURES: Future[] = [
 		negativeFragment: 'skyline, towers, crowds',
 		lightLine: 'full sun across open grass and deep into the pavilion through full-height glass',
 		shadowFace: 'Ex Machina: isolation sold as autonomy'
-	}),
-	future({
-		key: 'retrofuturism',
-		name: 'Neo Retro',
-		provenance: 'Deco and Streamline Moderne, c. 1925-1939',
-		blurb: 'The more we walk into the future, the more we want the past. Deco geometry, brass, streamlined curves \u2014 a tomorrow built out of yesterday.',
-		eraDefault: 'retro-1930s',
-		eraLocked: true,
-		eraWarn: [],
-		moodLine:
-			'A 1930s civic interior reborn as a workfloor, evening. Fluted walnut panelling, brass and bakelite fittings, oxblood leather, terrazzo with brass inlay, stepped Deco cornices, milk-glass uplighters, a curved mezzanine balustrade. Light is warm incandescent, low, gathered in pools with the ceiling left dark. Palette: walnut, brass, oxblood, cream. Mid-rise; tall arched windows onto a gaslit street. Craft and weight everywhere, technology hidden inside cabinetry. Generous, tactile, nostalgic.',
-		styleDna: 'fluted walnut panelling, brass balustrades, inlaid terrazzo, milk-glass lamps, deco cornices, arched windows',
-		worldOutside: 'through the glass, a streamlined 1930s city, arched stone facades; fluted walnut, brass',
-		insideCue: 'inside, brass-and-bakelite machine-age instruments that are clearly computers',
-		negativeFragment: 'neon, skyscrapers',
-		lightLine: 'bright daylight through the tall arched windows, walnut and brass lit warm and clear',
-		shadowFace: 'Ornament as a screen over the same machine'
 	})
 ];
 
+/** Lookup only — never render this. See `RETIRED_FUTURES` above. */
+export const ALL_FUTURES: Future[] = [...FUTURES, ...RETIRED_FUTURES];
+
 // --- Shape guards ------------------------------------------------------------
-if (FUTURES.length !== 6) {
-	throw new Error(`expected exactly 6 futures per V4's Q1, got ${FUTURES.length}`);
+if (FUTURES.length !== 4) {
+	throw new Error(`expected exactly 4 offered futures, got ${FUTURES.length}`);
 }
-if (new Set(FUTURES.map((f) => f.key)).size !== FUTURES.length) {
-	throw new Error('future keys must be unique');
+if (new Set(ALL_FUTURES.map((f) => f.key)).size !== ALL_FUTURES.length) {
+	throw new Error('future keys must be unique, retired ones included');
 }
-for (const f of FUTURES) {
+for (const f of ALL_FUTURES) {
 	if (f.eraLocked && f.eraAllowed.length !== 1) {
 		throw new Error(`${f.key} is eraLocked but eraAllowed has more than one era`);
 	}

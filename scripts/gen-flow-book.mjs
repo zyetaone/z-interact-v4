@@ -101,7 +101,7 @@ const html = `<!doctype html>
 	<h2>1 · The screens, in order</h2>
 	<div class="strip">
 		${shot('01-landing', 'Landing', 'the title and a button, nothing else')}
-		${shot('02-lens', 'Screen 1 — the lens', 'six cities, two across, one screenful')}
+		${shot('02-lens', 'Screen 1 — the lens', 'four cities, two across, one screenful')}
 		${shot('03-lens-chosen', 'Lens chosen', 'Next appears only once the pick lands server-side')}
 		${shot('04-q1', 'Q1 — materials', 'four options in plain words, and a box to write in')}
 	</div>
@@ -109,7 +109,7 @@ const html = `<!doctype html>
 
 <div class="page">
 	<div class="strip">
-		${shot('05-q2', 'Q2 — outdoors', 'a percentage slider, not a list')}
+		${shot('05-q2', 'Q2 — outdoors', 'none, 20% or 40% — the slider is gone')}
 		${shot('06-q3', 'Q3 — deep work', 'four named spaces, and a fifth the table writes itself')}
 		${shot('07-q4', 'Q4 — recharge', '')}
 		${shot('08-wildcard', 'Wildcard', 'free text, 140 characters, drawn verbatim')}

@@ -6,7 +6,7 @@
 	 * names what is missing; a locked room disables the button and shows
 	 * the gate's own reason rather than a generic one.
 	 */
-	import { FUTURES } from '$lib/game/futures';
+	import { ALL_FUTURES } from '$lib/game/futures';
 	import { andId, WILDCARD } from '$lib/game/questions';
 	import { FLOW_QUESTIONS, FUTURE_ID, type StatusAnswer } from '$lib/state/table.svelte';
 
@@ -51,7 +51,7 @@
 		if (!answer || answer.keys.length === 0) return '';
 		if (id === FUTURE_ID) {
 			if (answer.keys[0] === 'skipped') return 'Skipped — the house register';
-			return FUTURES.find((f) => f.key === answer.keys[0])?.name ?? '';
+			return ALL_FUTURES.find((f) => f.key === answer.keys[0])?.name ?? '';
 		}
 		if (id === WILDCARD.id) return answer.text?.[WILDCARD.options[0].key] ?? '';
 		const question = FLOW_QUESTIONS.find((q) => q.id === id);

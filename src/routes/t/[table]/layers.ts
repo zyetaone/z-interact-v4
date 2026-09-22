@@ -70,7 +70,7 @@
  * guards and suffix are re-applied identically either way.
  */
 import { ACTIVE_QUESTIONS, andId, WILDCARD, type Question, type QuestionOption } from '$lib/game/questions';
-import { FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
+import { ALL_FUTURES, FUTURES, HOUSE_NEGATIVE, type Future } from '$lib/game/futures';
 import { ERA_SCALE, type Era } from '$lib/game/era';
 import { ENABLE_PROPOSED_QUESTIONS } from '$lib/game/config';
 import { ZONES, impossibleIdea, type Zone } from '$lib/game/zones';
@@ -176,7 +176,9 @@ export const FEEL_IDS = [] as const;
 export const WALL_ONLY_IDS = ['q10:and'] as const;
 
 export function futureByKey(key: string | null | undefined): Future | undefined {
-	return key ? FUTURES.find((f) => f.key === key) : undefined;
+	// ALL_FUTURES, not FUTURES: a row stored under a withdrawn lens still has
+	// to compose its world layer. See `RETIRED_FUTURES` in futures.ts.
+	return key ? ALL_FUTURES.find((f) => f.key === key) : undefined;
 }
 
 /** Splices an `open` option's typed reply into its `{text}` slot; drops the clause when nothing was typed. */

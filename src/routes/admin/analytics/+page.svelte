@@ -15,7 +15,7 @@
 	import '../../../app.css';
 	import { page } from '$app/state';
 	import { roomAnalytics } from '../analytics.remote';
-	import { FUTURES } from '$lib/game/futures';
+	import { ALL_FUTURES } from '$lib/game/futures';
 
 	const token = page.url.searchParams.get('token') ?? '';
 
@@ -32,7 +32,7 @@
 	}
 
 	const a = $derived(result.ok ? result.analytics : null);
-	const lensName = (key: string | null) => FUTURES.find((f) => f.key === key)?.name ?? '—';
+	const lensName = (key: string | null) => ALL_FUTURES.find((f) => f.key === key)?.name ?? '—';
 	const pct = (share: number) => `${Math.round(share * 100)}%`;
 	const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 </script>

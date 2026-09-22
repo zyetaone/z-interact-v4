@@ -15,7 +15,7 @@
 	import { adminRoom, setBeat, lockRoom, openRoom, reopenTable, regenerateTable, resetTable, seedRoom, exportRoom } from './admin.remote';
 	import { FIXTURE_ROOM } from '$lib/ui/admin/fixtures';
 	import { zoneLabel } from '$lib/game/zones';
-	import { FUTURES } from '$lib/game/futures';
+	import { ALL_FUTURES } from '$lib/game/futures';
 	import type { AdminRoom, AdminTableRow, Beat } from '$lib/ui/admin/types';
 
 	const BEATS: Beat[] = ['lobby', 'progress', 'reveal', 'finale', 'focus'];
@@ -60,7 +60,7 @@
 	function futureName(key: string | null): string {
 		if (!key) return '—';
 		// A lens retired from the set (V3's pragmatist-retrofit) reads as retired, not as its raw key.
-		return FUTURES.find((f) => f.key === key)?.name ?? 'Retired lens';
+		return ALL_FUTURES.find((f) => f.key === key)?.name ?? 'Unknown lens';
 	}
 
 	function ago(ts: number | null): string {

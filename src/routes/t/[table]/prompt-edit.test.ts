@@ -22,7 +22,7 @@ import { composePromptFor } from './hero';
 import { HERO_ZONE, ZONE_SETS, zoneSetFrom } from '$lib/game/zones';
 
 const ANSWERS = [
-	{ questionId: 'q8', keys: ['courtyards'] },
+	{ questionId: 'q8', keys: ['saturated'] },
 	{ questionId: 'q5c', keys: ['glass-dome'] },
 	{ questionId: 'q6r', keys: ['water-room'] },
 	{ questionId: 'q2', keys: ['warm-earthy'] }
@@ -49,7 +49,7 @@ describe('a table-edited prompt under the default zone set', () => {
 		const drawn = composePromptFor(HERO_ZONE, ctx(REWRITE));
 		expect(drawn).not.toContain('red telephone box');
 		// And it is not simply empty — the answers are all there.
-		expect(drawn).toContain('planted courtyards cut open to the sky');
+		expect(drawn).toContain('greenery threaded through the entire floor');
 		expect(drawn).toContain('glass geodesic room');
 	});
 

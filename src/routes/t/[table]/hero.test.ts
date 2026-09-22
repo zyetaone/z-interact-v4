@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { composeHeroPrompt, composePromptFor, DARK_FEEL_KEYS, EXPOSURE, HERO_WORD_TARGET, UNDEREXPOSED_NEGATIVE, NO_SIGNAGE_TEXT, wantsBrightExposure } from './hero';
 import { wordCount, wildcardFragment, ERA_YEAR, type AnswerLike } from './layers';
-import { FUTURES } from '$lib/game/futures';
+import { ALL_FUTURES, FUTURES } from '$lib/game/futures';
 import { QUESTIONS, TABLE_COUNT, WILDCARD } from '$lib/game/questions';
 import { HERO_ZONE, IMPOSSIBLE_IDEAS, impossibleIdea, vantageFor, VANTAGES } from '$lib/game/zones';
 import { NO_TEXT } from '$lib/server/prompt';
@@ -30,7 +30,7 @@ const T10: AnswerLike[] = [
 	{ questionId: 'q2', keys: ['soft-pastel'] },
 	{ questionId: 'q5c', keys: ['glass-dome'] },
 	{ questionId: 'q6r', keys: ['mud-hut'] },
-	{ questionId: 'q8', keys: ['landscape-indoors'] },
+	{ questionId: 'q8', keys: ['saturated'] },
 	// A V4-era row. It still composes — see `layers.test.ts`'s note.
 	{ questionId: 'q7', keys: ['light-and-sound'] }
 ];
@@ -89,15 +89,15 @@ describe('every answer reaches the hero prompt', () => {
 		const p = t10();
 		// q7 arrives as its ROOM_PARTICIPATES clause, not as its option fragment.
 		expect(p).toContain('a wall brightens toward whoever walks to it and dims behind them');
-		expect(p).toContain('trees, water, rock and soil indoors'); // q8
+		expect(p).toContain('greenery threaded through the entire floor'); // q8
 		expect(p).toContain('blush, sage and butter'); // q2
 		// The feel is the LENS's `lightLine` now that q11 is cut.
-		expect(p).toContain(FUTURES.find((f) => f.key === 'neo-seoul')!.lightLine);
+		expect(p).toContain(ALL_FUTURES.find((f) => f.key === 'neo-seoul')!.lightLine);
 	});
 
 	it('carries the lens world, the indoor cue, the impossible idea and the era year', () => {
 		const p = t10();
-		const neoSeoul = FUTURES.find((f) => f.key === 'neo-seoul')!;
+		const neoSeoul = ALL_FUTURES.find((f) => f.key === 'neo-seoul')!;
 		expect(p).toContain(neoSeoul.worldOutside);
 		expect(p).toContain(neoSeoul.styleDna);
 		expect(p).toContain(neoSeoul.insideCue);

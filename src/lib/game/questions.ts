@@ -156,13 +156,13 @@ export const QUESTIONS: Question[] = [
 		options: [
 			{
 				key: 'stark-clinical',
-				label: 'White and spotless',
+				label: 'White and sleek',
 				promptFragment:
-					'pure white and shadowless; seamless resin, glass, polished steel; shiny and flawless'
+					'white and brightly lit, sleek and shadowless; seamless resin, glass, polished steel; flawless surfaces'
 			},
 			{
 				key: 'soft-pastel',
-				label: 'Soft and pale',
+				label: 'Soft pastels',
 				promptFragment:
 					'blush, sage and butter; felt, bouclé, painted timber, matte ceramic; soft and tactile'
 			},
@@ -182,13 +182,20 @@ export const QUESTIONS: Question[] = [
 	},
 	{
 		id: 'q8',
-		// The lead became the stem: the cognitive city is named on screen one
-		// now (`futures.ts`'s LENS_STEM), so this screen does not have to
-		// re-establish it before asking its own question.
+		// NO SLIDER. The 21 Sep minutes §4 asked for one (10-100%) and it was
+		// built; the owner's call on 22 Sep is three answers — "20%, 40%, or
+		// none ( stark difference between outdoors and indoors )". A slider
+		// invites a table to split the difference, and the interesting answer
+		// here is the stark one, which a continuous control quietly discourages
+		// by putting it at an end stop.
+		//
+		// The three keys are KEPT FROM THE SIX, not invented: a row answered
+		// under the slider still resolves, and the three dropped options
+		// (courtyards, landscape indoors, nature as structure) still have art
+		// on disk and in `visuals-manifest.ts`.
 		prompt: 'How much of the outdoors is inside?',
 		layer: 'materialsAndLight',
 		select: { kind: 'one' },
-		slider: [10, 25, 40, 60, 80, 100],
 		diamond: false,
 		visualCues: false,
 		push: 'How does your greenery cool a mind, not just a body?',
@@ -196,33 +203,21 @@ export const QUESTIONS: Question[] = [
 		options: [
 			{
 				key: 'sparse-inside-abundant-outside',
-				label: 'Sparse inside, green outside',
-				promptFragment: 'sparse planting inside, abundant greenery beyond the glass'
+				label: 'None',
+				// Her parenthesis is the whole point of this option, so the
+				// fragment states the LINE rather than a small amount of planting.
+				promptFragment:
+					'no planting inside at all, a hard line between the sealed interior and the greenery beyond the glass'
 			},
 			{
 				key: 'deliberate-pockets',
-				label: 'Pockets of planting',
+				label: '20%',
 				promptFragment: 'deliberate pockets of greenery'
 			},
 			{
 				key: 'saturated',
-				label: 'Saturated',
+				label: '40%',
 				promptFragment: 'greenery threaded through the entire floor'
-			},
-			{
-				key: 'courtyards',
-				label: 'Courtyards',
-				promptFragment: 'planted courtyards cut open to the sky, the floor plate broken by them'
-			},
-			{
-				key: 'landscape-indoors',
-				label: 'Landscape indoors',
-				promptFragment: 'trees, water, rock and soil indoors'
-			},
-			{
-				key: 'nature-as-structure',
-				label: 'Nature as structure',
-				promptFragment: 'planted terraces and open-air floors, the building a garden'
 			}
 		]
 	},
@@ -284,8 +279,17 @@ export const QUESTIONS: Question[] = [
 	},
 	{
 		id: 'q6r',
+		// ORDERED CLOSED TO OPEN, and that ordering is the answer, not decoration.
+		// 22 Sep: "igloo .. mix between close and open spaces. igloo is close,
+		// outdoors can be grasslands". A table reading top to bottom is walking
+		// a spectrum from a room you crawl into to no room at all, so the list
+		// itself asks how much enclosure the table wants — a question none of
+		// the six options could ask on its own.
+		//
+		// The order below is enclosure, not brightness: the water room is
+		// warm, steamy and sealed, so it sits BEFORE the tea room, whose paper
+		// screens are the first thing on the list you can see daylight through.
 		prompt: 'Where do people recharge?',
-		lead: 'Off a screen, into a different posture.',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
@@ -297,37 +301,37 @@ export const QUESTIONS: Question[] = [
 				key: 'igloo',
 				label: 'The igloo',
 				promptFragment:
-					'a smooth white domed room entered on hands and knees, curved seamless walls, one person lying back in soft indirect light'
+					'a smooth white domed room entered on hands and knees, curved seamless walls, no windows at all, one person lying back in soft indirect light'
 			},
 			{
 				key: 'mud-hut',
 				label: 'The earth room',
 				promptFragment:
-					'a round room of thick hand-built earth walls, a low doorway, woven mats on a beaten floor, people sitting on the ground'
-			},
-			{
-				key: 'tea-room',
-				label: 'The tea room',
-				promptFragment:
-					'a small tatami room with paper screens, a low kettle and a single flower, people kneeling on the mats'
+					'a round room of thick hand-built earth walls, one low doorway the only opening, woven mats on a beaten floor, people sitting on the ground'
 			},
 			{
 				key: 'water-room',
 				label: 'The water room',
 				promptFragment:
-					'a warm shallow bathing room in daylight, steam drifting, two people floating in water up to the chest, no devices anywhere'
+					'a warm enclosed bathing room, steam drifting under a high skylight, two people floating in water up to the chest, no devices anywhere'
+			},
+			{
+				key: 'tea-room',
+				label: 'The tea room',
+				promptFragment:
+					'a small tatami room whose paper screens are slid open to a garden, a low kettle and a single flower, people kneeling on the mats'
 			},
 			{
 				key: 'sand-room',
 				label: 'The sand room',
 				promptFragment:
-					'a bright room with a deep raked sand floor and no furniture at all, people sitting and lying directly on it, tall windows above'
+					'a bright room with a deep raked sand floor and no furniture at all, people sitting and lying directly on it, tall windows open along one whole wall'
 			},
 			{
 				key: 'outdoors',
-				label: 'Outdoors',
+				label: 'Outdoors, on the grass',
 				promptFragment:
-					'an open grassland terrace under a wide sky, wind moving the grass, people walking and stretching away from any building'
+					'open grassland under a wide sky, no building in the frame at all, wind moving the grass, people sitting and walking on it'
 			}
 		]
 	},

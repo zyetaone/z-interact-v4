@@ -154,11 +154,11 @@ export const FUTURES: Future[] = [
 		moodLine:
 			'A single-storey timber work pavilion alone on open land at dusk, mist in the middle distance. Charred larch cladding, stone plinth, deep glazed veranda, a lit hearth inside. Light is low, warm, interior lamplight spilling onto grass against a cooling blue landscape. Palette: char, ember, wet green, fog grey. No skyline at all; the nearest neighbour is a distant roof. One figure at one desk. Autonomous, remote, faintly lonely.',
 		styleDna:
-			'a lone flat-roofed pavilion cantilevered over open ground, thin roof plane, frameless glass, pale concrete and timber',
+			'low dark-timber bars linked by glazed walks, thin roof planes, shallow planted roofs, frameless glass',
 		worldOutside:
-			'beyond the glass, other pavilions scattered far apart across open grassland; pale concrete, anodised metal',
+			'beyond the glass, other pavilions across open grassland, small distant skylines; charred timber, anodised metal',
 		insideCue: 'inside, one screen-wall; a drone landing at the edge',
-		negativeFragment: 'skyline, towers, crowds, cabin, rustic, village',
+		negativeFragment: 'one dominant metropolis, crowds, cabin, rustic, village',
 		lightLine: 'full sun across open grass and deep into the pavilion through full-height glass',
 		shadowFace: 'Ex Machina: isolation sold as autonomy'
 	}),

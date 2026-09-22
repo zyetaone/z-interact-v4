@@ -59,8 +59,19 @@ export interface SubmitZoneImageInput {
 	resolution?: FalResolution;
 	/** Absolute webhook URL, already carrying the shared-secret token query param. */
 	webhookUrl?: string;
-	/** fal's own result retention. Explicit — see module note. */
-	retentionSeconds?: number;
+	/**
+	 * fal's own result retention, in seconds. REQUIRED, not optional.
+	 *
+	 * The module note above calls a default retention a footgun, and the one
+	 * real caller has always passed it — but `retentionSeconds?:` meant the
+	 * rule was enforced by that caller remembering, and the failure mode of
+	 * forgetting is silent: the request succeeds, the render is fine, and
+	 * fal keeps the output for however long fal likes. Nothing in this app
+	 * would ever read as wrong. A required field moves the rule from a
+	 * comment into the type, so the next submit path cannot be written
+	 * without deciding.
+	 */
+	retentionSeconds: number;
 	/** The house half of the prompt (`prompt.ts`'s `HOUSE_SYSTEM`). Omitted entirely when undefined — `SYSTEM_PROMPT=off`. */
 	systemPrompt?: string;
 	/** Idempotency: this app's own key (`${table}:${zone}`), sent through as metadata, not fal's request_id. */

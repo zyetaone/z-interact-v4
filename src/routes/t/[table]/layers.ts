@@ -304,7 +304,22 @@ export function wildcardFragment(by: ReadonlyMap<string, AnswerLike>): string | 
 	return text ? fragmentOf(WILDCARD.options[0], text) : undefined;
 }
 
-/** The cap valibot already applies when the answer is saved (`answers.remote.ts`), restated where the text is composed. */
+/**
+ * THE ONE CEILING on every free-text field a phone can send, and the one
+ * this file truncates to when composing.
+ *
+ * It lived here AND in the validator, both at 140, with a comment calling
+ * the second one a restatement. A restated constant is two constants: raise
+ * the validator to 200 and valibot accepts 200 characters that this file
+ * then silently cuts at 140 — the table types a sentence, the review screen
+ * shows it, and the prompt carries two thirds of it with nothing to read as
+ * a failure. `guards.ts` re-exports this rather than declaring its own, so
+ * the cap the phone is held to and the cap the prompt is built to cannot
+ * drift apart.
+ *
+ * 140 matches the wildcard, which is the same kind of field and the length
+ * a table actually types.
+ */
 export const FREE_TEXT_MAX = 140;
 
 /**

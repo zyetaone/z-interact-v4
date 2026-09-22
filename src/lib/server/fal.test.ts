@@ -77,8 +77,28 @@ describe('submitZoneImage request body', () => {
 	const base = {
 		falKey: 'k',
 		model: 'fal-ai/nano-banana-2',
+		retentionSeconds: 3600,
 		requestKey: '1:library:img-1'
 	};
+
+	/*
+	 * RETENTION IS ON THE WIRE, not just in the call.
+	 *
+	 * The module note calls a default retention a footgun and the field is
+	 * now required by the type — but a required field only proves the caller
+	 * passed something. This asserts it reaches fal, which is the only place
+	 * it has any effect, and it is asserted here rather than trusted because
+	 * `fal.ts` warns about exactly this failure mode one field over: an
+	 * unrecognised key accepted with a 200 and silently dropped.
+	 */
+	it('sends the retention it was given, never fal own default', async () => {
+		const { calls, impl } = captureFetch();
+		vi.stubGlobal('fetch', impl);
+		await submitZoneImage({ ...base, prompt: 'a room', retentionSeconds: 3600 });
+		const body = calls[0].body;
+		expect(body.retention).toBe(3600);
+		expect(body.sync_mode).toBe(false);
+	});
 
 	it('sends the prompt INCLUDING its Avoid clause, plus aspect, resolution and format', async () => {
 		const { calls, impl } = captureFetch();

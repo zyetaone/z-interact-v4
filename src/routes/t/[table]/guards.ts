@@ -32,17 +32,8 @@ export const tableNo = v.pipe(
   v.minValue(1),
   v.maxValue(TABLE_COUNT),
 );
-/**
- * The ceiling on every free-text field a phone can send.
- *
- * The wildcard already had 140 and the screen-15 rewrite has 1200. These
- * two did not have one at all: `pushReply` on saveEra/saveAnswer, and the
- * `text` map behind an open option. Both reach the image prompt verbatim
- * through `layers.ts`, so an unbounded string was an unbounded prompt on a
- * wall in front of the room. 140 matches the wildcard, which is the same
- * kind of field and the length a table actually types.
- */
-export const FREE_TEXT_MAX = 140;
+/** Re-exported, never redeclared — see `layers.ts`, which both caps and composes against it. */
+export { FREE_TEXT_MAX } from './layers';
 
 export const eraSchema = v.picklist(ERA_SCALE);
 

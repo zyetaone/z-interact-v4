@@ -27,11 +27,11 @@ const TABLE = 4;
 
 /** One table's answers — one per question, chosen to be visibly different from each other in the render. */
 // The 21 Sep 19:42 order: materials, outdoors, deep work, recharge.
-const PICKS: { label: string; sliderIndex?: number }[] = [
+// The slider was removed on 22 Sep — q8 is three radios like every other
+// question now, so there is no special case left in this loop.
+const PICKS: { label: string }[] = [
 	{ label: 'Earth and timber' },
-	// q8 renders ONLY a range input — no radios exist on that screen at all.
-	// Index 3 of its six options is "Courtyards".
-	{ label: 'Courtyards', sliderIndex: 3 },
+	{ label: '20%' },
 	{ label: 'The dome in the rainforest' },
 	{ label: 'The water room' }
 ];
@@ -58,7 +58,12 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	await expect(page.locator('h1.stem')).toBeVisible();
 	await shoot(page, '01-landing');
 
-	await page.getByRole('button', { name: /Start here|Pick up where/ }).click();
+	// THIS TABLE MUST BE CLEAN. Local D1 persists between runs, so a second
+	// run lands on the done screen and this waits three minutes for a button
+	// that is not there. `npm run flow:reset` drops table 4's rows.
+	const start = page.getByRole('button', { name: /Start here|Pick up where/ });
+	await expect(start, 'table is not at the landing screen — reset it first').toBeVisible({ timeout: 10_000 });
+	await start.click();
 
 	// Screen two — the lens. Shot before and after the pick, because the era
 	// chip row only exists once the pick has landed server-side.
@@ -76,14 +81,7 @@ test('captures every screen of the five-question flow', async ({ page }) => {
 	for (let i = 0; i < PICKS.length; i++) {
 		const stem = (await page.locator('h1.stem').textContent())?.trim() ?? '';
 		prompts.push(stem);
-		const pick = PICKS[i];
-		if (pick.sliderIndex !== undefined) {
-			const range = page.locator('input[type=range]');
-			await expect(range).toBeVisible();
-			await range.fill(String(pick.sliderIndex));
-		} else {
-			await page.getByRole('radio', { name: pick.label, exact: true }).click();
-		}
+		await page.getByRole('radio', { name: PICKS[i].label, exact: true }).click();
 		// The typed reply — every question captures one now, which is the
 		// 21 Sep "allow open text below" note. Filled here so the book shows
 		// the field with real words in it rather than an empty box.

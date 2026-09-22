@@ -142,15 +142,14 @@ const html = `<!doctype html>
 	<h2 style="margin-top:14pt">Does the picture contain the answers?</h2>
 	<table>
 		<tr><th>What the table chose</th><th>In the frame</th><th></th></tr>
-		<tr><td>Earth and timber</td><td>Rammed earth walls and timber throughout</td><td class="yes">yes</td></tr>
-		<tr><td>Courtyards — the floor opens to the sky</td><td>Green roofs and planted courtyards cut through the plate</td><td class="yes">yes</td></tr>
-		<tr><td>The dome in the rainforest</td><td>Glass dome among the trees, one person working inside it</td><td class="yes">yes</td></tr>
-		<tr><td>The water room, fully immersive</td><td>Steaming sunken pool, two people in it</td><td class="yes">yes</td></tr>
-		<tr><td><b>Wildcard</b> — "a staircase that is also a place to sit and watch the room"</td><td>A broad stair holds the centre. Read as seating in one render and as plain circulation in another, off the same prompt</td><td class="part">part</td></tr>
-		<tr><td>And: the AI sits "in the light"</td><td>Not legible as this pick. An &ldquo;And:&rdquo; chip is one short clause deep in a 1,890-character prompt</td><td class="no">no</td></tr>
-		<tr><td><b>House rule</b> — no laptops, no 2020s furniture</td><td>Held. The previous render of these same answers had laptops and task chairs; the work surfaces now light up under their hands</td><td class="yes">yes</td></tr>
+		<tr><td>Earth and timber</td><td>Rammed earth walls, timber decks, aged brass throughout</td><td class="yes">yes</td></tr>
+		<tr><td>20% of the outdoors inside</td><td>Deliberate pockets — ferns and planting banked against the paths, not a wall of green</td><td class="yes">yes</td></tr>
+		<tr><td>The dome in the rainforest</td><td>A glass geodesic dome among mature trees, one person working inside it</td><td class="yes">yes</td></tr>
+		<tr><td>The water room</td><td>A steaming pool under a round skylight, two people floating in it</td><td class="yes">yes</td></tr>
+		<tr><td><b>Wildcard</b> — &ldquo;a staircase that is also a place to sit and watch the room&rdquo;</td><td>A broad timber stair falls from the water room to the path, one person sitting on it looking out</td><td class="yes">yes</td></tr>
+		<tr><td><b>House rule</b> — no laptops, no 2020s furniture</td><td><b>Not held in this render.</b> A laptop is open on the dome table. The furniture half held; the laptop half did not</td><td class="no">no</td></tr>
 	</table>
-	<p class="note">A read of two renders of the same answers, not a measurement across the room. The laptop line IS a before/after with one variable changed; the staircase line is the reason the rest are not — two renders of one prompt differ, and a single frame is evidence of what the pipeline CAN do, not of what it will do twenty times. The wildcard appearing at all is the 21 Sep fix: under the default zone set the wildcard reached the database, the review screen, the desk and the export, and never the picture.</p>
+	<p class="note">A read of ONE render, and the honest one rather than the flattering one. Four answers and the wildcard all landed — the wildcard visibly, which is the 21 Sep fix: under the default zone set it used to reach the database, the review screen, the desk and the export and never the picture. The house rule did not land. A render of these same answers yesterday had no laptop; this one does, off the same prompt and the same <code>system_prompt</code>. That is the lesson in one row — a negative biases, it does not forbid — and it is why the other five rows are a single frame’s evidence of what the pipeline CAN do, not a measurement of what it will do twenty times. The rule is worth keeping: it removed the 2020s task chairs and it removes the laptop from most frames. Nobody should promise the room that no laptop will appear.</p>
 </div>
 `;
 

@@ -72,11 +72,27 @@ describe('V4 shape', () => {
 	 * second push vanished by accident. This fails either way: a push that
 	 * disappears AND a push that reappears.
 	 */
-	it('carries a push line on q2 and q6r only — q8 and q5c have none', () => {
+	it('carries a push line on q2 only — the other three take words through an option or not at all', () => {
 		const withPush = QUESTIONS.filter((q) => q.push).map((q) => q.id);
-		expect(withPush).toEqual(['q2', 'q6r']);
-		for (const id of ['q8', 'q5c']) {
+		expect(withPush).toEqual(['q2']);
+		for (const id of ['q8', 'q5c', 'q6r']) {
 			expect(QUESTIONS.find((q) => q.id === id)?.pushCapturesReply, id).toBeUndefined();
+		}
+	});
+
+	/**
+	 * The two programme questions each end in an open option, and its text IS
+	 * the layer. q6r's arrived on 22 Sep replacing a push whose reply the hero
+	 * composer never read; this asserts the shape both must keep, because an
+	 * open option without `{text}` composes nothing and says nothing.
+	 */
+	it('ends q5c and q6r with an open option whose fragment is the table\'s own words', () => {
+		for (const id of ['q5c', 'q6r']) {
+			const options = QUESTIONS.find((q) => q.id === id)!.options;
+			const last = options[options.length - 1];
+			expect(last.open, id).toBe(true);
+			expect(last.promptFragment, id).toBe('{text}');
+			expect(options.filter((o) => o.open), `${id} open count`).toHaveLength(1);
 		}
 	});
 

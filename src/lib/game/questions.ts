@@ -339,8 +339,20 @@ export const QUESTIONS: Question[] = [
 		select: { kind: 'one' },
 		diamond: true,
 		visualCues: false,
-		push: 'What recharge is your table short of?',
-		pushCapturesReply: true,
+		// NO PUSH — a FIFTH, OPEN OPTION instead (22 Sep, the third box removed
+		// today and the first one replaced rather than deleted).
+		//
+		// "What recharge is your table short of?" was captured, stored and
+		// exported, and on the default hero path it was never composed: only
+		// q2's reply reaches `composeHeroPrompt`. So a table typed the most
+		// interesting answer on the screen and the picture could not move —
+		// the same dead box as q5c's, one question later.
+		//
+		// An open option is the version that draws. `fragmentOf` splices the
+		// typed words into `{text}`, `hero.ts` says "They recharge in <their
+		// words>", and `QuestionScreen`'s `openUnfilled` will not let Next
+		// through until something is written. Mirrors q5c exactly, which is
+		// the point: two programme questions that behave the same way.
 		options: [
 			{
 				key: 'igloo',
@@ -365,6 +377,16 @@ export const QUESTIONS: Question[] = [
 				label: 'Outdoors, on the grass',
 				promptFragment:
 					'open grassland under a wide sky, no building in the frame at all, wind moving the grass, people sitting and walking on it'
+			},
+			{
+				// No picture, and none is needed: `hasOptionImage` maps only the
+				// non-open options, so this renders as a plain row under the four
+				// tiles exactly as q5c's does. A new FIXED option would need a
+				// generated tile to sit beside them.
+				key: 'other-recharge',
+				label: 'Somewhere from our imagination',
+				open: true,
+				promptFragment: '{text}'
 			}
 		]
 	},
@@ -556,7 +578,7 @@ if (DIAMOND_IDS.join(',') !== 'q2,q5c,q6r') {
 // percentage, and q5c's reply was never composed into the prompt, so both
 // boxes asked for words that changed nothing the table would see. q5c still
 // takes words through its OPEN option, which is drawn.
-if (PUSH_CAPTURE_IDS.join(',') !== 'q2,q6r') {
+if (PUSH_CAPTURE_IDS.join(',') !== 'q2') {
 	throw new Error(`expected every question to capture typed words, got ${PUSH_CAPTURE_IDS.join(',')}`);
 }
 

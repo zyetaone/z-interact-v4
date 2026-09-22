@@ -19,17 +19,9 @@
  * in this repo — see CLAUDE.md).
  */
 import { env } from '$env/dynamic/public';
+import { PROJECTOR_TITLE, titleFrom } from '$lib/event-title';
 import type { PageServerLoad } from './$types';
 
-/*
- * NOT exported. A `+page.server.ts` may only export `load`/`prerender`/
- * `csr`/`ssr`/`trailingSlash`/`config`/`actions`/`entries`, or a name with a
- * `_` prefix — anything else fails the build's page analysis. It shipped
- * anyway because an incremental build reuses that analysis and never
- * re-ran it; only a clean build catches it, and nothing here did one.
- */
-const EVENT_TITLE_FALLBACK = 'The Cognitive City Vision';
-
 export const load: PageServerLoad = () => {
-	return { eventTitle: env.PUBLIC_EVENT_TITLE?.trim() || EVENT_TITLE_FALLBACK };
+	return { eventTitle: titleFrom(env.PUBLIC_EVENT_TITLE, PROJECTOR_TITLE) };
 };

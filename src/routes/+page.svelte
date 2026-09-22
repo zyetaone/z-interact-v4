@@ -80,6 +80,24 @@
 		return done?.url ?? null;
 	}
 
+	/**
+	 * True while a render is actually in flight for this table.
+	 *
+	 * Without this a table whose picture is being drawn looks EXACTLY like a
+	 * table that has not scanned yet — both show a QR code — so the one
+	 * screen at the front of the room cannot tell "twelve tables are working"
+	 * from "twelve tables never started". The step count only covers the
+	 * questionnaire; it goes quiet at the moment the room gets interesting.
+	 *
+	 * `queued`/`requested` are the two live states of the generation machine
+	 * (`generate.ts`); `stored`/`done`/`failed` are terminal, and a failed
+	 * table must not shimmer — movement reads as progress.
+	 */
+	function drawingOf(view: TableView | undefined): boolean {
+		if (!view) return false;
+		return view.images.some((i) => i.state === 'queued' || i.state === 'requested');
+	}
+
 	const drawn = $derived(tables.filter((t) => shotOf(byTable.get(t))).length);
 
 	let codes = $state.raw<Record<number, string>>({});
@@ -113,10 +131,12 @@
 		{#each tables as t (t)}
 			{@const view = byTable.get(t)}
 			{@const shot = shotOf(view)}
+			{@const drawing = !shot && drawingOf(view)}
 			<li>
 				<button
 					type="button"
 					class="tile"
+					class:drawing
 					aria-label={shot ? `Enlarge table ${t}'s workspace` : `Enlarge the QR code for table ${t}`}
 					onclick={() => (zoomed = t)}
 				>
@@ -130,7 +150,12 @@
 					<span class="num">{t}</span>
 					<!-- A table mid-flow gets a step count over its code, so the
 					     grid shows the room moving before any picture exists. -->
-					{#if !shot && view && view.step !== null && view.step > 0}
+					{#if drawing}
+						<!-- Sits over the code, because the code is no longer the point
+						     for this table — nobody else should be scanning it. -->
+						<span class="sheen skeleton" aria-hidden="true"></span>
+						<span class="step">drawing</span>
+					{:else if !shot && view && view.step !== null && view.step > 0}
 						<span class="step">{view.step} of {view.totalSteps}</span>
 					{/if}
 				</button>
@@ -403,5 +428,20 @@
 		margin: 8px 0 0;
 		font-size: 0.8rem;
 		color: var(--muted);
+	}
+
+	/* The code stays visible underneath — this is a table at work, not a
+	   tile that failed — but it is clearly no longer the thing to scan. */
+	.tile.drawing .qr {
+		opacity: 0.25;
+	}
+
+	.sheen {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		opacity: 0.6;
+		mix-blend-mode: screen;
+		pointer-events: none;
 	}
 </style>

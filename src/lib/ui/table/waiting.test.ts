@@ -77,3 +77,22 @@ describe('reduced motion is honoured', () => {
 		expect(joined).toContain('.brand-tick');
 	});
 });
+
+describe('the front page shows a table at work', () => {
+	const front = readFileSync('src/routes/+page.svelte', 'utf-8');
+
+	it('distinguishes in-flight from never-started — both used to show a QR code', () => {
+		expect(front).toContain('function drawingOf');
+		expect(front).toMatch(/i\.state === 'queued' \|\| i\.state === 'requested'/);
+		expect(front).toContain('class:drawing');
+	});
+
+	it('a failed or finished table does NOT shimmer', () => {
+		// drawingOf tests only the two live states, so `stored`/`done`/`failed`
+		// fall through. Movement reads as progress; there is none.
+		const fn = front.slice(front.indexOf('function drawingOf'));
+		const body = fn.slice(0, fn.indexOf('\n\t}'));
+		expect(body).not.toContain('failed');
+		expect(body).not.toContain('stored');
+	});
+});

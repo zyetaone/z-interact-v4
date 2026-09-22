@@ -119,6 +119,11 @@
 		justify-content: center;
 		width: 100%;
 		aspect-ratio: 3 / 2;
+	}
+
+	/* See ImagesScreen's `.pending:not(.skeleton)` — a bare `background`
+	   shorthand here outranks the global `.skeleton` and wipes its gradient. */
+	.frame:not(.skeleton) {
 		background: var(--card-solid);
 	}
 

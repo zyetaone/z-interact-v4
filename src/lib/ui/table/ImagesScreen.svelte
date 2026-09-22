@@ -274,11 +274,27 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		background: var(--card);
 		color: var(--ink-faint);
 		font-size: 13px;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
+	}
+
+	/*
+	 * `:not(.skeleton)` IS THE POINT, not tidiness.
+	 *
+	 * A bare `background:` here is a SHORTHAND, and Svelte's scoping class
+	 * lifts it above the global `.skeleton` rule — so it reset
+	 * `background-image` and `background-size` to their initial values and
+	 * the shimmer animated a gradient that was no longer there. Measured on
+	 * production: `animationName: "shimmer"`, `playState: "running"`,
+	 * `backgroundImage: "none"`.
+	 *
+	 * class-hooks.test.ts says in its own header that it does not catch a
+	 * rule losing a specificity fight. This is that failure, a third time.
+	 */
+	.pending:not(.skeleton) {
+		background: var(--card);
 	}
 
 	.pending.failed {

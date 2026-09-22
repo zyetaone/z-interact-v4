@@ -117,10 +117,11 @@ export const FUTURES: Future[] = [
 		eraWarn: ['same-as-2026'],
 		moodLine:
 			'Low horizontal pavilions bedded into a planted park at dusk; rammed earth, weathered oak, oxidised bronze, deep eaves. Light is the last warm hour raking sideways through canopy, pooling amber on timber decks while the shade goes blue-green. Palette: moss, bark, ochre, slate. Two storeys maximum, buildings kept below the tree line. The far skyline sits low and soft behind foliage, half dissolved in humid haze. Distant anonymous figures walking gravel paths. Quiet, unhurried, settled.',
-		styleDna: 'low rammed-earth pavilions with green roofs under mature trees, gravel paths, deep eaves',
-		worldOutside: 'through the glass, low pavilions under trees, gravel paths; weathered oak, bronze',
-		insideCue: 'inside, a glazed pod, an autonomous cart on the path',
-		negativeFragment: 'neon, high-rise, crowds',
+		styleDna:
+			'low rammed-earth pavilions half-buried in dense planting, green roofs of deep grasses, mature trees overhead, narrow paths',
+		worldOutside: 'beyond the glass, planting to the sill, a shallow pool; weathered oak, bronze',
+		insideCue: 'inside, a glazed pod open to the garden, planting at the threshold',
+		negativeFragment: 'neon, high-rise, crowds, bare gravel, paving, mown lawn',
 		lightLine: 'high midday sun falling through the canopy, dappled and open, nothing held in deep shade',
 		shadowFace: 'Greenbelt as exclusion; who lives inside the ring'
 	}),

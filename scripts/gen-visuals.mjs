@@ -145,6 +145,19 @@ const NOT_PERIOD =
 	'medieval, gothic arches, castle, crypt, carved stone, stone vaulting, Victorian panelling, period drama, ruins';
 /** The other direction: today's office is not the future either. */
 const NOT_TODAY = 'present-day office, 2020s office furniture, cubicles, drop ceiling, fluorescent panels';
+/**
+ * THE NO-TEXT GUARD, which the selection art never had.
+ *
+ * Every render prompt in the app carries one (`prompt.ts`'s house rules);
+ * this script did not, and it showed: the garden city card came back with a
+ * delivery cart carrying the legible word "ECO-LOG" down its side. Invented
+ * branding on a picture twenty tables choose from, in an app whose first
+ * rule is that no name appears anywhere in it.
+ *
+ * A negative BIASES, it does not forbid — the same lesson `SINGLE_FRAME`
+ * records — so the cart came out of the garden city's `insideCue` as well.
+ */
+const NO_TEXT = 'text, lettering, signage, logos, branding, watermarks, readable writing';
 
 function lensJobs() {
 	return FUTURES.map((f) => ({
@@ -153,7 +166,7 @@ function lensJobs() {
 		// `styleDna` + `worldOutside` + `insideCue`, NOT `moodLine`. Those three
 		// are what recipe v2 split out precisely so a lens keeps its identity
 		// at any hour; `moodLine` still carries the night and the weather.
-		prompt: `A workplace of 2040 seen from inside, ${f.styleDna}. ${f.worldOutside}. ${f.insideCue}. Photoreal film still, ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`,
+		prompt: `A workplace of 2040 seen from inside, ${f.styleDna}. ${f.worldOutside}. ${f.insideCue}. Photoreal film still, ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${f.negativeFragment}, ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}, ${NO_TEXT}.`,
 		aspect_ratio: '4:3',
 		resolution: '1K'
 	}));
@@ -170,11 +183,11 @@ function optionJobs() {
 				prompt:
 					q.layer === 'feel'
 						? // Feel words are light, not objects: frame them as a whole room.
-							`A film still inside one workplace of 2040, anamorphic, photoreal, its whole mood: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`
+							`A film still inside one workplace of 2040, anamorphic, photoreal, its whole mood: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}, ${NO_TEXT}.`
 						: // Everything else: the thing the option names, INSIDE a workplace of
 							// 2040 and lit. "A single architectural detail, close, moody" is what
 							// produced the castle corridors and the dim brown thumbnails.
-							`A film still inside one workplace of 2040, photoreal: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}.`,
+							`A film still inside one workplace of 2040, photoreal: ${o.promptFragment}. ${EXPOSURE}. ${NO_PEOPLE_POSITIVE}. Avoid: ${HOUSE_NEGATIVE}, ${NO_PEOPLE_NEGATIVE}, ${NOT_DIM}, ${NOT_PERIOD}, ${NOT_TODAY}, ${NO_TEXT}.`,
 				aspect_ratio: '1:1',
 				resolution: '0.5K'
 			});

@@ -142,9 +142,15 @@
 	</section>
 {:else}
 
-<p class="count-lead" aria-live="polite">
-	{#if countLine.n}<strong>{countLine.n}</strong><span class="sep">·</span>{/if}{countLine.rule}
-</p>
+<!-- The rule is printed only when there IS one. "choose one" under a list
+     of radio buttons is a label for a behaviour the control already has;
+     "1 of 3 · pick exactly 3" is information a table cannot get any other
+     way, so that one stays. -->
+{#if !single}
+	<p class="count-lead" aria-live="polite">
+		{#if countLine.n}<strong>{countLine.n}</strong><span class="sep">·</span>{/if}{countLine.rule}
+	</p>
+{/if}
 
 <ul class="options" class:tiles role={single ? 'radiogroup' : 'group'} aria-label={question.prompt}>
 	{#each question.options as option (option.key)}

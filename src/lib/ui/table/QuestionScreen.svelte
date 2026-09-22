@@ -1,17 +1,17 @@
 <script lang="ts">
 	/**
-	 * One question per screen. The stem is verbatim; V4's Q4, Q5 and Q6
-	 * carry a `lead` shown just under the stem before their options. The
-	 * Push line is printed ONCE (design-review.md fix 8): where the question
-	 * captures a reply (q2, q5c) it is the field's label and nothing else;
-	 * where it is only spoken at the table it is a `.talk` prompt, styled
-	 * apart from any field label so it never looks like a question with
-	 * nowhere to answer.
+	 * One question per screen: the stem, the options, and the typed reply.
 	 *
-	 * V4's "And:" sub-question is a compact single-select chip row under
-	 * the options, in the era chip's style (`FutureScreen`). It is optional
-	 * and never blocks Next; its pick is stored as its own row under
-	 * `${id}:and` (`andId`), so the parent answer's row is untouched.
+	 * NOTHING EXPLAINS THE SCREEN TO THE TABLE ANY MORE. The lead line under
+	 * the stem, the "And:" chip row and its anchor cue, and the sentence
+	 * under the text box saying where the words go are all gone — the
+	 * 21 Sep 22:26 review, which marked this class of copy on screen after
+	 * screen. A question, six words to choose from and a box to write in do
+	 * not need a paragraph telling a room of adults what they are.
+	 *
+	 * The push line is the FIELD'S LABEL and appears once (design-review.md
+	 * fix 8). Every question captures a reply now, so the spoken-only "Talk"
+	 * variant has no question left to render and went with the rest.
 	 *
 	 * The screen never advances on an unsaved answer: a failed save leaves
 	 * the selection on screen with a retry banner (game-flow.md §1).
@@ -24,25 +24,20 @@
 		keys,
 		texts,
 		pushReply,
-		andKey,
 		saving,
 		failed,
 		onchange,
 		onpush,
-		onand,
 		onnext
 	}: {
 		question: Question;
 		keys: string[];
 		texts: Record<string, string>;
 		pushReply: string;
-		/** The "And:" pick, or null when the table has not (or no longer) chosen one. */
-		andKey: string | null;
 		saving: boolean;
 		failed: string;
 		onchange: (keys: string[], texts: Record<string, string>) => void;
 		onpush: (text: string) => void;
-		onand: (key: string | null) => void;
 		onnext: () => void;
 	} = $props();
 
@@ -53,46 +48,12 @@
 </script>
 
 <h1 class="stem">{question.prompt}</h1>
-{#if question.lead}
-	<p class="lead">{question.lead}</p>
-{/if}
-{#if question.push && !question.pushCapturesReply}
-	<p class="talk"><span class="push-label">Talk</span><span>{question.push}</span></p>
-{/if}
 
 {#if failed}
 	<p class="banner">{failed}</p>
 {/if}
 
-{#if question.and}
-	<!-- The cue, not the row. On a phone the "And:" chips sit under a full
-	     screen of options and a table that never scrolls past Next simply
-	     never sees them. A plain in-page anchor (no JS, no scroll handler)
-	     jumps to the row that is already there; the row itself, its
-	     placement and its optionality are unchanged. -->
-	<p class="and-cue"><a href="#and-{question.id}"><span aria-hidden="true">&#8595;</span> And: {question.and.prompt}</a></p>
-{/if}
-
 <OptionList {question} {keys} {texts} {onchange} />
-
-{#if question.and}
-	<section class="chip-row" aria-label={question.and.prompt}>
-		<span class="field-label" id="and-{question.id}">And: {question.and.prompt}</span>
-		<div class="chips" role="radiogroup" aria-labelledby="and-{question.id}">
-			{#each question.and.options as option (option.key)}
-				{@const picked = option.key === andKey}
-				<button
-					type="button"
-					role="radio"
-					class="chip"
-					aria-checked={picked}
-					onclick={() => onand(picked ? null : option.key)}>{option.label}</button
-				>
-			{/each}
-		</div>
-		<p class="count note">Optional.</p>
-	</section>
-{/if}
 
 {#if question.pushCapturesReply && question.push}
 	<section class="push-field">
@@ -105,9 +66,6 @@
 			value={pushReply}
 			onchange={(e) => onpush(e.currentTarget.value)}
 		></textarea>
-		<p class="count note">
-			{question.pushNotDrawn ? 'Optional — kept with your answers for the wall, not drawn.' : 'Optional — added to the prompt word for word.'}
-		</p>
 	</section>
 {/if}
 
@@ -120,69 +78,7 @@
 </div>
 
 <style>
-	.lead {
-		margin: -8px 0 12px;
-		opacity: 0.85;
-	}
-
-	.and-cue {
-		margin: 0 0 12px;
-	}
-
-	/* Tapped on a passed phone in a dim room: a full-width 44px target,
-	   not a 13px inline run of text. */
-	.and-cue a {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		min-height: 44px;
-		padding: 0 2px;
-		font-size: 14px;
-		letter-spacing: 0.04em;
-		color: var(--gold);
-	}
-
-	/* The era chip's row (FutureScreen), as a radiogroup that wraps. */
-	.chip-row {
-		border-top: 1px solid var(--line);
-		padding-top: 18px;
-		margin: 18px 0;
-	}
-
-	/* scroll-margin applies to the element the fragment NAMES, which is the
-	   label (id="and-<q>") inside this section, not the section. */
-	.chip-row .field-label {
-		scroll-margin-top: 24px;
-	}
-
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 10px;
-	}
-
-	.chip {
-		min-height: 44px;
-		border-radius: 999px;
-		border: 1px solid var(--line-strong);
-		background: transparent;
-		color: var(--ink);
-		padding: 0 16px;
-		font-size: 15px;
-		cursor: pointer;
-		transition:
-			border-color 0.12s ease,
-			color 0.12s ease;
-	}
-
-	.chip[aria-checked='true'] {
-		border-color: var(--gold);
-		color: var(--gold);
-	}
 	.push-field {
 		margin-bottom: 18px;
-	}
-	.note {
-		text-align: left;
 	}
 </style>

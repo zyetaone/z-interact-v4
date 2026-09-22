@@ -9,6 +9,7 @@
 	 * from a true one unless the screen says so.
 	 */
 	import { poll } from '$lib/poll.svelte';
+	import { generationLine } from './generation-line';
 
 	let {
 		prompt,
@@ -22,15 +23,6 @@
 
 	const beat = poll(2000, () => refresh());
 
-	const LINE: Record<string, string> = {
-		none: 'waiting',
-		queued: 'in the queue',
-		submitted: 'sent to the model',
-		rendering: 'drawing',
-		stored: 'done',
-		done: 'done',
-		failed: 'failed — draw again'
-	};
 </script>
 
 <h1 class="stem">Being drawn.</h1>
@@ -47,15 +39,11 @@
 	{#each images as image (image.zoneKey)}
 		<li class:failed={image.state === 'failed'}>
 			<span class="zone">{image.zoneKey}</span>
-			<span class="state">{LINE[image.state] ?? image.state}</span>
+			<span class="state">{generationLine(image.state)}</span>
 		</li>
 	{/each}
 </ul>
 
-<section class="ours">
-	<span class="field-label">What we asked for</span>
-	<p class="prompt">{prompt}</p>
-</section>
 
 <div class="grow"></div>
 
@@ -93,10 +81,4 @@
 		color: var(--warn);
 	}
 
-	.prompt {
-		font-size: 13px;
-		line-height: 1.55;
-		color: var(--ink-dim);
-		margin: 0;
-	}
 </style>

@@ -101,17 +101,17 @@ const html = `<!doctype html>
 	<h2>1 · The screens, in order</h2>
 	<div class="strip">
 		${shot('01-landing', 'Landing', 'the city is named here, before anything is asked')}
-		${shot('02-lens', 'Screen 1 — the lens', 'six future cities as pictures')}
+		${shot('02-lens', 'Screen 1 — the lens', 'six cities, two across, one screenful')}
 		${shot('03-lens-chosen', 'Lens chosen', 'the era chip appears only once the pick lands server-side')}
-		${shot('04-q1', 'Q1 — nature', 'a percentage slider, not tiles')}
+		${shot('04-q1', 'Q1 — materials', 'four options in plain words, and a box to write in')}
 	</div>
 </div>
 
 <div class="page">
 	<div class="strip">
-		${shot('05-q2', 'Q2 — deep work', 'six tiles, an And: chip row, an open-text box')}
-		${shot('06-q3', 'Q3 — recharge', '')}
-		${shot('07-q4', 'Q4 — materials', '')}
+		${shot('05-q2', 'Q2 — outdoors', 'a percentage slider, not a list')}
+		${shot('06-q3', 'Q3 — deep work', 'four named spaces, and a fifth the table writes itself')}
+		${shot('07-q4', 'Q4 — recharge', '')}
 		${shot('08-wildcard', 'Wildcard', 'free text, 140 characters, drawn verbatim')}
 	</div>
 </div>

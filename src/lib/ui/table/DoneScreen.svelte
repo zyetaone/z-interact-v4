@@ -31,7 +31,6 @@
 </script>
 
 <h1 class="stem">You're in. Watch the screen.</h1>
-<p class="hint">{images.length === 1 ? 'Your workspace is with the rest of them now.' : 'Your four rooms are with the rest of them now.'}</p>
 
 {#if narrative}
 	<p class="narrative">{narrative}</p>

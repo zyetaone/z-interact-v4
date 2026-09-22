@@ -184,7 +184,6 @@
 			keys={keysOf(question.id)}
 			texts={textsOf(question.id)}
 			pushReply={pushOf(question.id)}
-			andKey={andOf(question.id)}
 			{saving}
 			{failed}
 			onchange={(keys, texts) => {
@@ -192,7 +191,6 @@
 				draftTexts = { ...draftTexts, [question.id]: texts };
 			}}
 			onpush={(text) => (draftPush = { ...draftPush, [question.id]: text })}
-			onand={(key) => (draftAnd = { ...draftAnd, [question.id]: key })}
 			onnext={() => run(() => saveQuestion(question.id))}
 		/>
 	{:else if current.kind === 'wildcard'}

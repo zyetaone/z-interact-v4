@@ -81,9 +81,14 @@
 				<img class="lens-img" src={LENS_IMAGE[future.key]} alt={future.name} loading="lazy" />
 				<span class="lens-shade"></span>
 				<span class="lens-check" aria-hidden="true">&#10003;</span>
+				<!-- NAME OVER PICTURE. "The cityscapes need to be simplified"
+				     (21 Sep 22:27). Each card carried two or three lines of
+				     blurb over the image, so six cards ran past 2,000px on a
+				     390-wide phone and the way forward sat below all of it.
+				     The blurb is still in `futures.ts` and still prints in the
+				     question book — it is the SCREEN that stops explaining. -->
 				<span class="lens-body">
 					<span class="name">{future.name}</span>
-					<span class="blurb">{future.blurb}</span>
 				</span>
 			</button>
 		</li>
@@ -160,9 +165,15 @@
 		z-index: 2;
 	}
 
+	/* TWO ACROSS, SO THE WHOLE CHOICE IS ONE SCREEN. Six full-bleed 3:2
+	   bands stacked in a column ran past 1,500px on a 390-wide phone, and
+	   the way forward sat under all of it — the same shape that needed a
+	   sticky button to be reachable at all. Six 4:3 tiles two across fit in
+	   a viewport, and a table compares cities by looking rather than by
+	   scrolling. Holds its shape if the set drops from six to four. */
 	.futures {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 		gap: 10px;
 		margin: 0 0 22px;
 		padding: 0;
@@ -176,7 +187,7 @@
 		position: relative;
 		display: block;
 		width: 100%;
-		aspect-ratio: 3 / 2;
+		aspect-ratio: 4 / 3;
 		padding: 0;
 		overflow: hidden;
 		border: 2px solid var(--line);
@@ -215,22 +226,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
-		padding: 12px 14px 12px;
+		padding: 9px 10px 9px;
 	}
 
 	.name {
 		font-family: var(--display);
-		font-size: 20px;
+		font-size: 16px;
 		line-height: 1.15;
 		text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
 	}
 
-	.blurb {
-		font-size: 13px;
-		line-height: 1.35;
-		color: var(--ink-dim);
-		text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-	}
 
 	.lens-check {
 		position: absolute;

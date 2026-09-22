@@ -110,7 +110,6 @@
 		></textarea>
 	{:else}
 		<p id="composed" class="prompt-read">{prompt}</p>
-		<p class="note">Built from the answers above — change an answer and this changes with it.</p>
 	{/if}
 </details>
 

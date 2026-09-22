@@ -98,10 +98,6 @@
 	<p class="narrative">{narrative}</p>
 {/if}
 
-<section class="ours">
-	<span class="field-label">What we asked for</span>
-	<p class="prompt">{prompt}</p>
-</section>
 
 <div class="grow"></div>
 
@@ -214,10 +210,4 @@
 		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 	}
 
-	.prompt {
-		font-size: 13px;
-		line-height: 1.55;
-		color: var(--ink-dim);
-		margin: 0;
-	}
 </style>

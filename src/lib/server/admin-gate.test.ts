@@ -54,3 +54,36 @@ describe('the admin gate, in production', () => {
 		expect(adminTokenOk('the-secret', 'wrong', { devOpen: true })).toBe(false);
 	});
 });
+
+/*
+ * THE TOKEN THE URL ATE (22 Sep).
+ *
+ * Reported from the live desk as "bad token" against a token that had been
+ * pasted correctly. `+` is SPACE in a query string, so a base64 secret —
+ * which is what `openssl rand -base64 32` produces and what anyone reaches
+ * for — cannot survive `?token=` without being encoded first.
+ */
+describe('a base64 token that travelled through a query string', () => {
+	const SECRET = 'aB3+xY7/zQ1+kL9=';
+	/** What `new URL(...).searchParams.get('token')` hands the server. */
+	const asDecoded = (t: string) => new URL(`https://x/?token=${t}`).searchParams.get('token');
+
+	it('is mangled by the URL — this is the bug, not the fix', () => {
+		expect(asDecoded(SECRET)).toBe('aB3 xY7/zQ1 kL9=');
+		expect(asDecoded(SECRET)).not.toBe(SECRET);
+	});
+
+	it('is accepted anyway', () => {
+		expect(adminTokenOk(SECRET, asDecoded(SECRET))).toBe(true);
+	});
+
+	it('still accepts a properly encoded one, which is the normal path', () => {
+		expect(adminTokenOk(SECRET, asDecoded(encodeURIComponent(SECRET)))).toBe(true);
+	});
+
+	it('does not turn into a wildcard — a wrong token with spaces is still wrong', () => {
+		expect(adminTokenOk(SECRET, 'aB3 xY7/zQ1 kL9X')).toBe(false);
+		expect(adminTokenOk(SECRET, '   ')).toBe(false);
+		expect(adminTokenOk(SECRET, ' ')).toBe(false);
+	});
+});

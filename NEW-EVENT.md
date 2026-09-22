@@ -46,7 +46,13 @@ reads exactly like a dead one.
 
 - [ ] `FAL_KEY` set and confirmed live/billable
 - [ ] `FAL_WEBHOOK_SECRET` set — used as the webhook URL's shared-secret query param
-- [ ] `ADMIN_TOKEN` set — `/admin?token=...` is the only way in
+- [ ] `ADMIN_TOKEN` set — `/admin?token=...` is the only way in.
+      **Generate it URL-safe**, because it lives in a query string:
+      `openssl rand -hex 24`. Do NOT use `openssl rand -base64`: `+` means
+      SPACE in a query string, so a base64 token arrives at the server
+      mangled and the desk says "bad token" about a token you pasted
+      correctly. The gate now puts the `+` back (`admin-gate.ts`), so an
+      existing base64 token works — but a hex one never had the question.
 - [ ] `EVENT_ID` set to `<app>-<YYYY-MM>`
 - [ ] `MAX_RENDERS_PER_TABLE` reviewed against the budget (see below)
 - [ ] `SIMULATE_ENABLED` unset (or anything but `true`) **before the doors open**

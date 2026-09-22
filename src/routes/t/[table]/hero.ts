@@ -42,6 +42,7 @@ import {
 	fragmentsFor,
 	fragmentsWithAnd,
 	futureByKey,
+	HOUSE_LIGHT,
 	HOUSE_REGISTER,
 	ROOM_PARTICIPATES,
 	wildcardFragment,
@@ -238,7 +239,7 @@ export function composeHeroPrompt(input: LayerBuildInput): string {
 	// The feel is the LENS's now, not q11's — see `futures.ts`'s `lightLine`.
 	// Same source as the zone prompts use, so a table's hero and its zones
 	// cannot describe two different times of day.
-	const feel = future?.lightLine ?? '';
+	const feel = future?.lightLine ?? HOUSE_LIGHT;
 	const dressing = sentences([
 		[materials, scale].filter(Boolean).join('; '),
 		feel,

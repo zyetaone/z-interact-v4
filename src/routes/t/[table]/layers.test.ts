@@ -25,7 +25,7 @@ import {
 	resolveZone,
 	wordCount,
 	type AnswerLike
-} from './layers';
+, HOUSE_REGISTER} from './layers';
 
 const ABUNDANT = FUTURES.find((f) => f.key === 'solarpunk')!;
 const GARDEN = FUTURES.find((f) => f.key === 'garden-city')!;
@@ -163,7 +163,7 @@ describe('buildLayerInputs', () => {
 	it('falls back to the house window when the table skipped the lens', () => {
 		const skipped = buildLayerInputs({ futureKey: null, answers: [] });
 		expect(skipped.mood).toContain('through the glass, an ordinary mid-rise city');
-		expect(skipped.mood).toContain('moody rather than stark');
+		expect(skipped.mood).toContain(HOUSE_REGISTER);
 	});
 
 	// The scale clause ("eye level, ceilings within reach") was q2's "And:"

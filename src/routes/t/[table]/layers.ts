@@ -141,9 +141,30 @@ export interface BuiltLayers extends LayerInputs {
 	negative: string;
 }
 
-/** The window when a table skips the lens (game-flow §1 screen 3's failure state) — an ordinary city, moody rather than stark. */
+/**
+ * The window when a table skips the lens — game-flow §1 screen 3's failure
+ * state, and a REACHABLE one: "No future fits us — skip" is a button on the
+ * first screen, not an edge case.
+ *
+ * It used to end "moody rather than stark, pooled light, shadow held
+ * deliberately", which was the house style when it was written and is now
+ * the opposite of it. The prompt that resulted argued with itself in three
+ * places at once: this clause asked for pooled light and held shadow, the
+ * house base two sentences later asked for "bright overall exposure,
+ * daylight filling the volume, open shadows", and the Avoid list closed by
+ * forbidding gloom. Same miss as the four-zone EXPOSURE one — the light
+ * moved to the lens on 21 Sep and the no-lens path was left behind.
+ */
 export const HOUSE_REGISTER =
-	'through the glass, an ordinary mid-rise city; moody rather than stark, pooled light, shadow held deliberately';
+	'through the glass, an ordinary mid-rise city in clear daylight, the skyline plain and unremarkable';
+
+/**
+ * And the light itself, for the same path. `lightLine` belongs to the lens,
+ * so a table that skips the lens had NO light clause at all — the one thing
+ * every other render states outright. Deliberately the blandest bright line
+ * in the app: it has no lens signature to leak.
+ */
+export const HOUSE_LIGHT = 'even daylight throughout, nothing held in deep shade';
 
 
 

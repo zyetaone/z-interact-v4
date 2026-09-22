@@ -17,6 +17,7 @@
  * read-only wherever it cannot take effect, which is what makes the stored
  * `editedByTable` flag reachable only from a room that actually uses it.
  */
+import { QUESTIONS } from '$lib/game/questions';
 import { describe, expect, it } from 'vitest';
 import { composePromptFor } from './hero';
 import { HERO_ZONE, ZONE_SETS, zoneSetFrom } from '$lib/game/zones';
@@ -49,7 +50,7 @@ describe('a table-edited prompt under the default zone set', () => {
 		const drawn = composePromptFor(HERO_ZONE, ctx(REWRITE));
 		expect(drawn).not.toContain('red telephone box');
 		// And it is not simply empty — the answers are all there.
-		expect(drawn).toContain('greenery threaded through the entire floor');
+		expect(drawn).toContain(QUESTIONS.find((q) => q.id === 'q8')!.options.find((o) => o.key === 'saturated')!.promptFragment);
 		expect(drawn).toContain('glass geodesic room');
 	});
 

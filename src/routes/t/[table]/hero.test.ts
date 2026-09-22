@@ -23,6 +23,19 @@ import { NO_TEXT } from '$lib/server/prompt';
 import { ERA_SCALE } from '$lib/game/era';
 import { DEFAULT_ASPECT_RATIO } from '$lib/server/fal';
 
+/**
+ * The fragment as the CONTENT file defines it. Assertions here used to pin
+ * option fragments by retyping them, and they broke every time an option's
+ * wording was corrected — each time reporting a bug in the composer, which
+ * there wasn't. What the assertion MEANS is "the chosen option's fragment
+ * reaches the prompt", so it asks questions.ts what that fragment is.
+ */
+function fragmentFor(questionId: string, optionKey: string): string {
+	const o = QUESTIONS.find((q) => q.id === questionId)?.options.find((x) => x.key === optionKey);
+	if (!o) throw new Error(`no such option: ${questionId}/${optionKey}`);
+	return o.promptFragment;
+}
+
 /** Table 10's rehearsal answers — the set the scratch sample is composed from. */
 const T10: AnswerLike[] = [
 	{ questionId: 'future', keys: ['neo-seoul'] },
@@ -82,14 +95,14 @@ describe('every answer reaches the hero prompt', () => {
 		// folded q4w (the workstation) into q5c, so deep work and recharge are
 		// the whole programme.
 		expect(p).toMatch(/Deep work happens as a glass geodesic room standing alone/);
-		expect(p).toMatch(/They recharge in a round room of thick hand-built earth walls/);
+		expect(p).toContain(`They recharge in ${fragmentFor('q6r', 'mud-hut')}`);
 	});
 
 	it('carries the room participating, nature, the materials, the scale and the lens light', () => {
 		const p = t10();
 		// q7 arrives as its ROOM_PARTICIPATES clause, not as its option fragment.
 		expect(p).toContain('a wall brightens toward whoever walks to it and dims behind them');
-		expect(p).toContain('greenery threaded through the entire floor'); // q8
+		expect(p).toContain(fragmentFor('q8', 'saturated')); // q8
 		expect(p).toContain('blush, sage and butter'); // q2
 		// The feel is the LENS's `lightLine` now that q11 is cut.
 		expect(p).toContain(ALL_FUTURES.find((f) => f.key === 'neo-seoul')!.lightLine);

@@ -198,7 +198,11 @@ export const QUESTIONS: Question[] = [
 		select: { kind: 'one' },
 		diamond: false,
 		visualCues: false,
-		push: 'How does your greenery cool a mind, not just a body?',
+		// NOT "how does your greenery cool a mind" — a third of the tables
+		// answer "None", and that line asks them about greenery they have just
+		// said they do not want. A push has to be answerable from every option
+		// above it, or it reads as the form ignoring the reply.
+		push: 'Beyond how it looks, what is that choice for?',
 		pushCapturesReply: true,
 		options: [
 			{
@@ -217,7 +221,15 @@ export const QUESTIONS: Question[] = [
 			{
 				key: 'saturated',
 				label: '40%',
-				promptFragment: 'greenery threaded through the entire floor'
+				// The KEY is `saturated` because it is the top of the old
+				// six-option scale, and the fragment used to match the key —
+				// "greenery threaded through the ENTIRE floor". The label now
+				// says 40%, which is not "entire" by any reading, and the label
+				// is what the table chose. Same class of mismatch as the sealed
+				// cell whose picture contradicted its name: when a label and a
+				// fragment disagree, the fragment is what gets drawn and the
+				// table is the one who is surprised.
+				promptFragment: 'planting through much of the floor, green in most sightlines but never the whole room'
 			}
 		]
 	},
@@ -226,7 +238,6 @@ export const QUESTIONS: Question[] = [
 		// The centaur framing is restored to the stem at the owner's request
 		// (21 Sep 19:42) after being trimmed out earlier the same evening.
 		prompt: 'Where does deep work happen in a centaur organisation?',
-		lead: 'The building already thinks. What does your table keep for itself?',
 		layer: 'programme',
 		select: { kind: 'one' },
 		diamond: true,
@@ -306,8 +317,16 @@ export const QUESTIONS: Question[] = [
 			{
 				key: 'mud-hut',
 				label: 'The earth room',
+				// DELIBERATELY NOT "thick hand-built earth walls, one low
+				// doorway" any more. q5c's "sealed mud hut" says exactly that,
+				// and a table drawn to earth picks both — its deep-work room
+				// and its recharge room then compose as the same room twice,
+				// described in the same words, in one prompt. The two labels
+				// are the owner's and stay; the pictures they compose are now
+				// different rooms. This one is sunk, domed and lit from above;
+				// the working one is walled, sealed and lit from a doorway.
 				promptFragment:
-					'a round room of thick hand-built earth walls, one low doorway the only opening, woven mats on a beaten floor, people sitting on the ground'
+					'a round room sunk into warm ochre earth under a domed plaster ceiling, daylight falling through one round opening overhead, woven mats on a beaten floor, people sitting on the ground'
 			},
 			{
 				key: 'water-room',

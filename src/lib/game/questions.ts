@@ -160,7 +160,7 @@ export const QUESTIONS: Question[] = [
 		options: [
 			{
 				key: 'stark-clinical',
-				label: 'White and sleek',
+				label: 'White and steel',
 				promptFragment:
 					'white and brightly lit, sleek and shadowless; seamless resin, glass, polished steel; flawless surfaces'
 			},

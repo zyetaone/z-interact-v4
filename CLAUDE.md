@@ -130,7 +130,16 @@ src/lib/server/
   env.ts       # ONLY file importing $app/server. requestEnv()/envOf()/eventId()/requestOrigin()/requestWaitUntil()
   d1.ts        # ensureTable/isTransientD1Error — takes D1Database as an argument, no $app/server
   gate.ts      # decideSubmit (pure) + D1-backed room lock / table-reopen wrappers
-  room.ts      # event_table/answer/prompt/image DDL + CRUD (append-only where noted, see below)
+  room.ts      # event_table/answer/prompt DDL + CRUD, table state, the reset watermark,
+               #   the batched admin read. Re-exports image.ts + beat.ts, so `$lib/server/room`
+               #   is still the one import a caller needs. Does NOT re-export archive.ts
+  image.ts     # the `image` row and its compare-and-swap. Split out of room.ts 22 Sep because
+               #   it moves when the generation state machine moves and at no other time
+  archive.ts   # what happens to a room BETWEEN events: exportRoomRows, resetRoom (watermarks),
+               #   clearRoom (the only DELETE), findRestorable/restoreImages (the phone's Undo).
+               #   Imported directly, never through room.ts — that would be an import cycle, and
+               #   keeping it separate keeps the DELETE off every read path
+  beat.ts      # room_beat — the projector's stage direction. The show, not the room
   generate.ts  # tick() — the resumable generation state machine, pure, deps-injected
   ticker.ts    # tickAndPersist()/realGenerateDeps()/buildWebhookUrl() — the one ticker impl, shared by all three callers
   r2.ts        # image key scheme (keyed by image row id) + put/get (see its ponytail note re: tiles)
@@ -166,7 +175,11 @@ src/lib/
 scripts/        # gen-visuals.mjs / gen-contact-sheet.mjs — the lens+option pictures, run by hand
 migrations/     # 0001_narrative.sql, OPTIONAL — ensureTable() still creates it; the code is the source of truth
 src/routes/
-  t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts, built +page.svelte (268 lines: questions, images, retry, draw again)
+  t/[table]/           # table-range guard (+page.server.ts), answers.remote.ts (the phone's RPC
+                       #   surface ONLY — its rules live in guards.ts: the table range, the
+                       #   free-text ceiling, who may still save, the tick context, and the
+                       #   one-per-isolate throttle; its spend path lives in queue.ts),
+                       #   built +page.svelte (268 lines: questions, images, retry, draw again)
                        #   plus hero.ts, layers.ts, prompt-store.ts, narrative.ts (the done screen's
                        #   Workers AI paragraph: `AI` binding, append-only `narrative` table, AI_FAKE=1)
                        #   and img/[id]/+server.ts, which serves the render from R2

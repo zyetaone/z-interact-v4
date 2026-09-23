@@ -20,13 +20,17 @@ export const PROJECTOR_TITLE = 'The Cognitive City Vision';
 
 /**
  * The front page and the browser tab — the room, addressed to the people in
- * it. The year is deliberately IN the headline: the questions ask what a
- * workplace is like once the present has moved on, and a date says that
- * faster than a sentence can. It is a fallback like every string here, so a
- * differently-dated event replaces it with `PUBLIC_EVENT_TITLE` rather than
- * editing source.
+ * it.
+ *
+ * It carried the year ("Your cognitive city 2040") until 23 Sep, on the
+ * argument that a date says "the present has moved on" faster than a
+ * sentence can. Owner's call to drop it: the four lenses already disagree
+ * about WHEN — Neo Retro's era default is a reimagined 1930s and the
+ * vertical city's is 2040 — so a headline naming one year contradicts the
+ * first question the room is asked. This names the thing instead of dating
+ * it. Still a fallback: a dated event sets `PUBLIC_EVENT_TITLE`.
  */
-export const SITE_TITLE = 'Your cognitive city 2040';
+export const SITE_TITLE = 'The new future';
 
 /** `PUBLIC_EVENT_TITLE` wins on both surfaces when it is set. */
 export function titleFrom(override: string | undefined, fallback: string): string {

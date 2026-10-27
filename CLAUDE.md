@@ -634,3 +634,16 @@ What is actually still open:
   `/projector/img/[...key]` handed back the bucket's stored label untouched,
   so a pre-fix object labelled `image/webp` rendered on a phone and not on
   the wall. `r2.ts`'s `imageResponse` is the one implementation now.
+
+## Architecture conventions
+
+Describes what the repo does today; apply to new code, don't refactor old code to match. Older generation of the event-app family (ADR-036: a new event is a fork of the template, never a merge). The "Folder map" and "Rules carried from..." sections above are the detailed source; this is the short checklist.
+
+- **Imports**: `$lib/...` for cross-folder code (no `#lib`); relative `./` / `../` inside a folder. `$lib/server/env.ts` is the only file importing `$app/server`.
+- **One validator: Valibot** (pinned in Stack). Every remote command validates its input with a `v.object(...)` schema (e.g. `tableNo`). Do not add Zod/TypeBox.
+- **Server boundaries**: remote functions are `*.remote.ts` next to their route (`t/[table]`, `projector`, `admin`, `admin/photos`, `admin/analytics`); `+server.ts` only for real HTTP (`api/fal-webhook`, `health`, `simulate`, R2 image reads). Flags are in `svelte.config.js` (see Stack). A new boundary validates input AND authorizes inside itself: admin surfaces go through `adminDenial` in `server/admin-gate.ts`; webhooks use the constant-time token check.
+- **Auth, stated plainly**: there are no user accounts. `/t/[table]` and the projector reads are public by design (the URL is the credential, see "Rules carried" above); the table commands only range-check `table`. Don't assume a session exists.
+- **Runes**: computed values use `$derived` / `$derived.by`, not `$effect` writes; `$effect` is for side effects and cleanup (the QR-code effects in `routes/+page.svelte` and `admin/cards` use a `cancelled` guard).
+- **State**: no module-level `$state` singletons. Per-page state comes from factories (`createTableState` in `lib/state/table.svelte.ts`, `poll.svelte.ts`) called by the page, which keeps SSR on Workers from sharing it across requests. The repo does not use `setContext`/`getContext`; use context, not a module export, if tree-wide state is needed.
+- **Styling**: no Tailwind in this repo (plain CSS, `clsx` only). Tokens are CSS variables on `:root` in `src/app.css` (plus `lib/ui/projector/tokens.ts`); add new ones there. If Tailwind is ever added, put `@theme` tokens in `app.css`.
+- **Colocate by feature**: screens live in `lib/ui/{table,projector,admin}`, server rules in `lib/server/*`, game content in `lib/game/*`, and each route holds its `.remote.ts`. Put new code beside the thing it serves; split a file out only when a third place imports it.
